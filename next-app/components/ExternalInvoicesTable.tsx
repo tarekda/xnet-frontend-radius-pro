@@ -100,6 +100,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         status: (searchParams.get('status') === 'overdue' ? 'unpaid' : searchParams.get('status')) || undefined,
         ageBucket,
         graceDays,
+        missing: (searchParams.get('missing') === 'all' ? undefined : searchParams.get('missing')) || undefined,
         sortBy: (searchParams.get('sort') || '').split(':')[0] || undefined,
         sortDir: ((searchParams.get('sort') || '').split(':')[1] as 'asc' | 'desc') || undefined,
     });

@@ -23,7 +23,7 @@ services:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-${VITE_API_URL:-https://api.xnetcloud.tech/api}}
       - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-${VITE_WS_URL:-}}
-      - API_PROXY_TARGET=${API_PROXY_TARGET:-http://host.docker.internal:3000}
+      - API_PROXY_TARGET=${API_PROXY_TARGET:-http://host.docker.internal:23000}
       - VITE_DEFAULT_NAS_IP=${VITE_DEFAULT_NAS_IP:-172.8.16.200}
       - VITE_DEFAULT_NAS_SECRET=${VITE_DEFAULT_NAS_SECRET:-}
       - VITE_DEFAULT_NAS_COA_PORT=${VITE_DEFAULT_NAS_COA_PORT:-1700}
@@ -49,7 +49,7 @@ services:
         NODE_ENV: production
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-${VITE_API_URL:-https://api.xnetcloud.tech/api}}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-${VITE_WS_URL:-}}
-        API_PROXY_TARGET: ${API_PROXY_TARGET:-http://host.docker.internal:3000}
+        API_PROXY_TARGET: ${API_PROXY_TARGET:-http://host.docker.internal:23000}
       cache_from:
         - type=registry,ref=node:20-alpine
     restart: unless-stopped
@@ -57,6 +57,7 @@ services:
       - "${PORT:-5173}:5173"
     environment:
       - NODE_ENV=production
+      - API_PROXY_TARGET=${API_PROXY_TARGET:-http://host.docker.internal:23000}
       - API_URL=${API_URL:-${VITE_API_URL:-https://api.xnetcloud.tech/api}}
       - FEATURE_FLAGS=${FEATURE_FLAGS:-}
       - SENTRY_DSN=${SENTRY_DSN:-https://d300b4a14f76b044f347b4c519f4c131@o4510782900535296.ingest.us.sentry.io/4510782901583872}

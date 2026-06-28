@@ -25,7 +25,10 @@ import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { notify } from "@/lib/notify";
-import { fetchExternalInvoiceHistory, setExternalInvoiceWorkflow } from "@/api/invoices";
+import { fetchExternalInvoiceHistory, fetchExternalInvoicePaymentLines, setExternalInvoiceWorkflow } from "@/api/invoices";
+import ExternalInvoiceAddDebitDialog from "@/components/ExternalInvoiceAddDebitDialog";
+import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
 import { parsePromiseDateFromLastAction } from "@/lib/externalInvoiceInsights";
 
 type Props = {
@@ -45,6 +48,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const canSendReminder = isFeatureEnabled("whatsapp-remind");
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddDebitOpen, setIsAddDebitOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "pos" | "transfer" | "other" | "gateway">("cash");
   const [promiseDateInput, setPromiseDateInput] = useState<string>(parsePromiseDateFromLastAction((invoice as any).lastAction) || "");
   const [editedInvoice, setEditedInvoice] = useState<ExternalInvoice>({
@@ -57,6 +61,15 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const historyQuery = useQuery({
     queryKey: ["externalInvoiceHistory", invoice.id],
     queryFn: () => fetchExternalInvoiceHistory(invoice.id, 100),
+  });
+  const paymentLinesQuery = useQuery({
+    queryKey: ["externalInvoicePaymentLines", invoice.username, invoice.billingMonth, invoice.provider],
+    queryFn: () =>
+      fetchExternalInvoicePaymentLines(
+        invoice.username,
+        String(invoice.billingMonth).slice(0, 10),
+        invoice.provider
+      ),
   });
   const workflowMutation = useMutation({
     mutationFn: async (payload: { stage: "new" | "reminded" | "promise_to_pay" | "escalated" | "resolved"; promiseDate?: string | null }) =>
@@ -96,7 +109,11 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const renderField = (key: string, value: any) => (
     <div key={key} className="mb-4">
       <Label htmlFor={key} className="block mb-2 capitalize">
-        {key === "payDueDate" ? "Pay due date" : key}
+        {key === "payDueDate"
+          ? "Pay due date"
+          : key === "debitLabel"
+            ? "Payment line"
+            : key}
       </Label>
       {key === "status" && isEditing ? (
         <Select
@@ -306,11 +323,13 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   {Object.entries(editedInvoice)
+                    .filter(([key]) => !["modifiedBy", "modifiedAt", "deletedBy", "lastRemindedAt", "cashReconciled", "reconciledBy", "reconciledAt", "collectedBy", "collectedAt"].includes(key))
                     .slice(0, Math.ceil(Object.keys(editedInvoice).length / 2))
                     .map(([key, value]) => renderField(key, value))}
                 </div>
                 <div>
                   {Object.entries(editedInvoice)
+                    .filter(([key]) => !["modifiedBy", "modifiedAt", "deletedBy", "lastRemindedAt", "cashReconciled", "reconciledBy", "reconciledAt", "collectedBy", "collectedAt"].includes(key))
                     .slice(Math.ceil(Object.keys(editedInvoice).length / 2))
                     .map(([key, value]) => renderField(key, value))}
                 </div>
@@ -318,6 +337,50 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
             </TabsContent>
 
             <TabsContent value="payments" className="space-y-4">
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium">Payment lines this month</div>
+                    <div className="text-xs text-muted-foreground">
+                      Multiple pending charges for the same customer and billing month
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setIsAddDebitOpen(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add line
+                  </Button>
+                </div>
+                {paymentLinesQuery.isLoading ? (
+                  <div className="text-sm text-muted-foreground">Loading lines…</div>
+                ) : (
+                  <div className="space-y-2">
+                    {(paymentLinesQuery.data ?? []).map((line) => (
+                      <div
+                        key={line.id}
+                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                          line.id === invoice.id ? "border-primary/40 bg-primary/5" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium">#{line.id}</span>
+                          {line.debitLabel ? (
+                            <Badge variant="secondary">{line.debitLabel}</Badge>
+                          ) : (
+                            <Badge variant="outline">primary</Badge>
+                          )}
+                          <span className="text-muted-foreground capitalize">{line.status}</span>
+                        </div>
+                        <div className="flex items-center gap-3 tabular-nums">
+                          <span className="font-semibold">${Number(line.amount).toFixed(2)}</span>
+                          <span className="text-muted-foreground">
+                            {line.payDueDate ? String(line.payDueDate).slice(0, 10) : "No due date"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {renderField("status", (editedInvoice as any).status)}
                 {renderField("paidAt", (editedInvoice as any).paidAt)}
@@ -390,6 +453,15 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
           </Tabs>
         </div>
       </DialogContent>
+      <ExternalInvoiceAddDebitDialog
+        invoice={invoice}
+        open={isAddDebitOpen}
+        onOpenChange={setIsAddDebitOpen}
+        onCreated={() => {
+          paymentLinesQuery.refetch();
+          refetch();
+        }}
+      />
     </Dialog>
   );
 };

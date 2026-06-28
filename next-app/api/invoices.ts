@@ -236,3 +236,29 @@ export async function fetchExternalInvoicesPaymentDue(): Promise<ExternalInvoice
   return data.data as ExternalInvoice[];
 }
 
+export async function fetchExternalInvoicePaymentLines(
+  username: string,
+  billingMonth: string,
+  provider?: string
+): Promise<ExternalInvoice[]> {
+  const { data } = await apiClient.get('/invoices/external/payment-lines', {
+    params: { username, billingMonth, provider },
+  });
+  return data.data as ExternalInvoice[];
+}
+
+export type CreateExternalInvoiceDebitInput = {
+  sourceInvoiceId?: number;
+  debitLabel: string;
+  amount: number;
+  payDueDate?: string | null;
+  status?: string;
+};
+
+export async function createExternalInvoiceDebit(
+  input: CreateExternalInvoiceDebitInput
+): Promise<ExternalInvoice> {
+  const { data } = await apiClient.post('/invoices/external/debit', input);
+  return data.data as ExternalInvoice;
+}
+

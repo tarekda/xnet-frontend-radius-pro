@@ -54,7 +54,8 @@ const fetchExternalInvoices = async (
     ageBucket?: string,
     graceDays?: number,
     sortBy?: string,
-    sortDir?: 'asc' | 'desc'
+    sortDir?: 'asc' | 'desc',
+    missing?: string
 ): Promise<ApiResponse<PaginatedResponse<ExternalInvoice>>> => {
     const params = new URLSearchParams();
     params.set('page', String(page));
@@ -67,6 +68,7 @@ const fetchExternalInvoices = async (
     if (typeof graceDays === 'number' && Number.isFinite(graceDays)) params.set('graceDays', String(Math.max(0, Math.round(graceDays))));
     if (sortBy) params.set('sortBy', sortBy);
     if (sortDir) params.set('sortDir', sortDir);
+    if (missing && missing !== 'all') params.set('missing', missing);
     const response = await apiClient.get(`/invoices/external?${params.toString()}`);
     return response.data;
 };
@@ -148,6 +150,23 @@ type UpdateInvoiceVariables = {
     invoiceData: Partial<ExternalInvoice>;
 };
 
+type BulkUpdateResult = {
+    updatedIds: number[];
+    failed: Array<{ id: number; reason: string }>;
+};
+
+const bulkUpdateInvoices = async (
+    invoiceIds: number[],
+    updateData: { payDueDate?: string | null; address?: string | null }
+): Promise<BulkUpdateResult> => {
+    const response = await apiClient.post(`/invoices/external/bulk-update`, { invoiceIds, ...updateData });
+    const payload = response?.data?.data ?? response?.data;
+    return {
+        updatedIds: Array.isArray(payload?.updatedIds) ? payload.updatedIds : [],
+        failed: Array.isArray(payload?.failed) ? payload.failed : [],
+    };
+};
+
 type Props = {
     search: string;
     initialPage: number;
@@ -159,15 +178,16 @@ type Props = {
     graceDays?: number;
     sortBy?: string;
     sortDir?: 'asc' | 'desc';
+    missing?: string;
 };
 
-export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir }: Props) => {
+export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing }: Props) => {
     const [currentPage, setCurrentPage] = useState(initialPage);
     const queryClient = useQueryClient();
 
     const { data, error, isLoading, refetch } = useQuery<ApiResponse<PaginatedResponse<ExternalInvoice>>, Error>({
-        queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir],
-        queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir),
+        queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing],
+        queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing),
     });
 
     const updateInvoiceMutation = useMutation<ApiResponse<ExternalInvoice>, Error, UpdateInvoiceVariables>({
@@ -239,6 +259,27 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         },
     });
 
+    const bulkUpdateInvoicesMutation = useMutation<
+        BulkUpdateResult,
+        Error,
+        { invoiceIds: number[]; payDueDate?: string | null; address?: string | null }
+    >({
+        mutationFn: ({ invoiceIds, payDueDate, address }) => bulkUpdateInvoices(invoiceIds, { payDueDate, address }),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+            queryClient.invalidateQueries({ queryKey: ['externalInvoicesPaymentDue'] });
+            if (result.updatedIds.length > 0) {
+                notify.success("Updated", `Updated ${result.updatedIds.length} invoice(s).`);
+            }
+            if (result.failed.length > 0) {
+                notify.error("Partial update", `Failed to update ${result.failed.length} invoice(s).`);
+            }
+        },
+        onError: (error: Error) => {
+            notify.error("Update failed", error.message);
+        },
+    });
+
     return {
         data,
         error,
@@ -251,6 +292,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         updateInvoiceMutation,
         deleteInvoiceMutation,
         bulkDeleteInvoicesMutation,
-        sendReminderMutation
+        sendReminderMutation,
+        bulkUpdateInvoicesMutation,
     };
 };

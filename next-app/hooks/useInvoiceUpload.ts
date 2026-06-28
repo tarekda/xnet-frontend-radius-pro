@@ -2,24 +2,39 @@ import { useState } from 'react';
 import { apiClient } from '@/api/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+export type InvoiceUploadResult = {
+  inserted: number;
+  updated: number;
+  removedFromScope: number;
+  enrichedFromUserDetails: number;
+  inheritedPayDueDates?: number;
+};
+
 interface UploadResponse {
   success: boolean;
   message: string;
-  // Add any other fields that your API returns
+  data?: InvoiceUploadResult;
 }
 
 export const useInvoiceUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const uploadInvoiceMutation = useMutation<UploadResponse, Error, { file: File; billingMonth?: string }>({
-    mutationFn: async ({ file, billingMonth }) => {
+  const uploadInvoiceMutation = useMutation<
+    UploadResponse,
+    Error,
+    { file: File; billingMonth?: string; payDueDayOffset?: number; inheritPayDue?: boolean }
+  >({
+    mutationFn: async ({ file, billingMonth, payDueDayOffset, inheritPayDue = true }) => {
       const formData = new FormData();
       formData.append('file', file);
       if (billingMonth) {
-        // Expect YYYY-MM format from UI; backend accepts YYYY-MM or full date
         formData.append('billingMonth', billingMonth);
       }
+      if (typeof payDueDayOffset === 'number' && Number.isFinite(payDueDayOffset) && payDueDayOffset >= 0) {
+        formData.append('payDueDayOffset', String(Math.round(payDueDayOffset)));
+      }
+      formData.append('inheritPayDue', inheritPayDue ? 'true' : 'false');
 
       const response = await apiClient.post<UploadResponse>('/invoices/upload', formData, {
         headers: {
@@ -29,8 +44,8 @@ export const useInvoiceUpload = () => {
       return response.data;
     },
     onSuccess: () => {
-      // Invalidate and refetch any relevant queries
       queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+      queryClient.invalidateQueries({ queryKey: ['externalInvoicesPaymentDue'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
     onError: (err) => {
@@ -39,14 +54,15 @@ export const useInvoiceUpload = () => {
     },
   });
 
-  const uploadInvoice = (file: File, billingMonth?: string) => {
+  const uploadInvoice = (file: File, billingMonth?: string, payDueDayOffset?: number, inheritPayDue = true) => {
     setError(null);
-    return uploadInvoiceMutation.mutateAsync({ file, billingMonth });
+    return uploadInvoiceMutation.mutateAsync({ file, billingMonth, payDueDayOffset, inheritPayDue });
   };
 
-  return { 
-    uploadInvoice, 
-    isLoading: uploadInvoiceMutation.isPending, 
-    error 
+  return {
+    uploadInvoice,
+    isLoading: uploadInvoiceMutation.isPending,
+    error,
+    lastResult: uploadInvoiceMutation.data?.data ?? null,
   };
 };

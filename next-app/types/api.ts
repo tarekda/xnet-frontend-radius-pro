@@ -104,6 +104,9 @@ export type ExternalInvoice = {
     /** Upstream provider, if relevant */
     provider?: string;
 
+    /** Label when customer has multiple payment lines in one billing month (e.g. carryover). Empty = primary. */
+    debitLabel?: string;
+
     /** Last invoice action marker */
     lastAction?: string | null;
 

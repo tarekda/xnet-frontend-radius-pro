@@ -189,7 +189,16 @@ const DesktopTable: React.FC<Props> = ({
         header: ({ column }) => (
           <HeaderButton column={column}>Username</HeaderButton>
         ),
-        cell: ({ row }) => <span className="font-medium">{row.original.username}</span>,
+        cell: ({ row }) => (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">{row.original.username}</span>
+            {row.original.debitLabel ? (
+              <Badge variant="secondary" className="w-fit text-[10px] px-1.5 py-0">
+                {row.original.debitLabel}
+              </Badge>
+            ) : null}
+          </div>
+        ),
       },
       {
         accessorKey: "fullName",

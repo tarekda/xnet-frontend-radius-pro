@@ -150,12 +150,14 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   } = useExternalInvoicesPageState(defaultPageSize);
   const [searchParams, setSearchParams] = useSearchParams();
   const savedViewsKeys = useMemo(
-    () => (mode === "reconciliation" ? ["q", "from", "to", "status", "age", "ps", "sort"] : ["q", "from", "to", "status", "ps", "sort"]),
+    () => (mode === "reconciliation" ? ["q", "from", "to", "status", "age", "missing", "ps", "sort"] : ["q", "from", "to", "status", "missing", "ps", "sort"]),
     [mode]
   );
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [reminderTargets, setReminderTargets] = useState<ExternalInvoice[]>([]);
   const [isPromiseDialogOpen, setIsPromiseDialogOpen] = useState(false);
+  const [isBulkPayDueOpen, setIsBulkPayDueOpen] = useState(false);
+  const [bulkPayDueDate, setBulkPayDueDate] = useState("");
   const [promiseDate, setPromiseDate] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(() => new Date());
@@ -196,9 +198,10 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   // Map 'overdue' to 'unpaid' for API (backend stores paid/unpaid/pending only)
   const apiStatus = searchParams.get('status') === 'overdue' ? 'unpaid' : (searchParams.get('status') || undefined);
   const ageBucket = searchParams.get('age') || undefined;
+  const missingFilter = searchParams.get('missing') || undefined;
 
   // Get quick stats for header
-  const { data: statsData, isLoading: isStatsLoading, refetch, setInvoiceAsPaidMutation, bulkDeleteInvoicesMutation } = useExternalInvoices({ 
+  const { data: statsData, isLoading: isStatsLoading, refetch, setInvoiceAsPaidMutation, bulkDeleteInvoicesMutation, bulkUpdateInvoicesMutation } = useExternalInvoices({ 
     initialPage: 1, 
     pageSize: 1,
     search: searchTerm,
@@ -207,6 +210,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     status: apiStatus,
     ageBucket,
     graceDays,
+    missing: missingFilter,
   });
 
   // Get the full data for table with pagination
@@ -219,6 +223,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     status: apiStatus,
     ageBucket,
     graceDays,
+    missing: missingFilter,
   });
 
   const reconciliationDataQuery = useQuery({
@@ -430,6 +435,14 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     setCurrentPage(1);
   }, [setCurrentPage, updateSearchParams]);
 
+  const handleMissingFilter = useCallback((value: string) => {
+    updateSearchParams((next) => {
+      if (!value || value === "all") next.delete("missing");
+      else next.set("missing", value);
+    });
+    setCurrentPage(1);
+  }, [setCurrentPage, updateSearchParams]);
+
   const selectedIds = useMemo(() => {
     return Object.keys(rowSelection)
       .map((k) => parseInt(k, 10))
@@ -441,6 +454,21 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     const idSet = new Set(selectedIds);
     return rows.filter((inv) => idSet.has(inv.id));
   }, [allData?.data?.data, selectedIds]);
+
+  const handleBulkSetPayDue = useCallback(() => {
+    if (!bulkPayDueDate || selectedIds.length === 0) return;
+    bulkUpdateInvoicesMutation.mutate(
+      { invoiceIds: selectedIds, payDueDate: bulkPayDueDate },
+      {
+        onSuccess: () => {
+          setIsBulkPayDueOpen(false);
+          setBulkPayDueDate("");
+          setRowSelection({});
+          refetch();
+        },
+      }
+    );
+  }, [bulkPayDueDate, bulkUpdateInvoicesMutation, refetch, selectedIds, setRowSelection]);
 
   const openReminderPreview = useCallback((targets: ExternalInvoice[]) => {
     if (!targets.length) {
@@ -626,6 +654,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   );
   const statusFilterValue = searchParams.get("status") || "all";
   const ageFilterValue = searchParams.get("age") || "all";
+  const missingFilterValue = searchParams.get("missing") || "all";
   const statusFilterOptions = useMemo(() => ([
     { value: "all", label: `All (${metrics?.totalInvoices ?? 0})` },
     { value: "pending", label: `Pending (${metrics?.totalPending ?? 0})` },
@@ -737,6 +766,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
       searchParams.get("to") ||
       searchParams.get("status") ||
       searchParams.get("age") ||
+      searchParams.get("missing") ||
       searchTerm
   );
 
@@ -747,6 +777,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
       n.delete("to");
       n.delete("status");
       n.delete("age");
+      n.delete("missing");
       n.delete("q");
       return n;
     }, { replace: true } as any);
@@ -1204,6 +1235,23 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
               />
             </div>
 
+            {!isReconciliationMode ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-muted-foreground">Data quality</span>
+                <FilterPills
+                  value={missingFilterValue}
+                  onChange={handleMissingFilter}
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "no_address", label: "Missing address" },
+                    { value: "no_pay_due", label: "Missing pay due" },
+                  ]}
+                  name="external-invoices-missing"
+                  className="min-w-0"
+                />
+              </div>
+            ) : null}
+
             {isReconciliationMode ? (
               <>
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -1468,6 +1516,12 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
                 icon={<AlertTriangle className="h-4 w-4" />}
               />
               <IconActionButton
+                label="Set pay due"
+                onClick={() => setIsBulkPayDueOpen(true)}
+                disabled={bulkUpdateInvoicesMutation.isPending}
+                icon={<Calendar className="h-4 w-4" />}
+              />
+              <IconActionButton
                 label="Promise to pay"
                 onClick={openPromiseDialog}
                 disabled={workflowMutation.isPending}
@@ -1612,6 +1666,35 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
               disabled={!promiseDate || workflowMutation.isPending}
             >
               {workflowMutation.isPending ? "Saving…" : "Save date"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkPayDueOpen} onOpenChange={setIsBulkPayDueOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set pay due date</DialogTitle>
+            <DialogDescription>
+              Apply a collection due date to {selectedCount} selected invoice{selectedCount > 1 ? "s" : ""}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="bulk-pay-due-date">Pay due date</Label>
+            <Input
+              id="bulk-pay-due-date"
+              type="date"
+              value={bulkPayDueDate}
+              onChange={(e) => setBulkPayDueDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsBulkPayDueOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleBulkSetPayDue}
+              disabled={!bulkPayDueDate || bulkUpdateInvoicesMutation.isPending}
+            >
+              {bulkUpdateInvoicesMutation.isPending ? "Saving…" : "Save pay due date"}
             </Button>
           </DialogFooter>
         </DialogContent>
