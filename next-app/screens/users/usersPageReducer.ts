@@ -1,7 +1,5 @@
-import { User } from "../types/api";
+import { User } from "@/types/api";
 
-export type ImportPreviewRow = { raw: Record<string, string>; errors: string[] };
-export type ExportStatus = "all" | "active" | "suspended";
 export type AdvancedFiltersState = {
   /** Empty string = all account statuses */
   accountStatus: string;
@@ -10,6 +8,7 @@ export type AdvancedFiltersState = {
   hasMacAddress: boolean;
   hasContactInfo: boolean;
 };
+
 export type ConfirmActionState =
   | null
   | { kind: "delete-user"; username: string }
@@ -24,6 +23,8 @@ export type ConfirmActionState =
       profileName?: string;
     };
 
+export type ViewMode = "table" | "cards" | "analytics";
+
 export type UsersPageState = {
   isAddUserModalOpen: boolean;
   editingUser: User | null;
@@ -31,16 +32,10 @@ export type UsersPageState = {
   isRefreshing: boolean;
   statusFilter: string;
   selectedUsers: Set<number>;
-  viewMode: "table" | "cards" | "analytics";
+  viewMode: ViewMode;
   advancedFilters: AdvancedFiltersState;
   isImportOpen: boolean;
-  importFileName: string;
-  importRows: ImportPreviewRow[];
-  isImporting: boolean;
   isExportOpen: boolean;
-  exportAllUsers: boolean;
-  exportStatus: ExportStatus;
-  isExporting: boolean;
   confirmAction: ConfirmActionState;
   isBulkActionInProgress: boolean;
 };
@@ -52,18 +47,11 @@ export type UsersPageAction =
   | { type: "SET_IS_REFRESHING"; payload: boolean }
   | { type: "SET_STATUS_FILTER"; payload: string }
   | { type: "SET_SELECTED_USERS"; payload: Set<number> }
-  | { type: "SET_VIEW_MODE"; payload: "table" | "cards" | "analytics" }
+  | { type: "SET_VIEW_MODE"; payload: ViewMode }
   | { type: "SET_ADVANCED_FILTERS"; payload: AdvancedFiltersState }
   | { type: "SET_IMPORT_OPEN"; payload: boolean }
-  | { type: "SET_IMPORT_FILE_NAME"; payload: string }
-  | { type: "SET_IMPORT_ROWS"; payload: ImportPreviewRow[] }
-  | { type: "SET_IS_IMPORTING"; payload: boolean }
   | { type: "SET_EXPORT_OPEN"; payload: boolean }
-  | { type: "SET_EXPORT_ALL_USERS"; payload: boolean }
-  | { type: "SET_EXPORT_STATUS"; payload: ExportStatus }
-  | { type: "SET_IS_EXPORTING"; payload: boolean }
   | { type: "SET_CONFIRM_ACTION"; payload: ConfirmActionState }
-  | { type: "RESET_IMPORT_STATE" }
   | { type: "SET_BULK_ACTION_IN_PROGRESS"; payload: boolean };
 
 export const usersPageInitialState: UsersPageState = {
@@ -82,13 +70,7 @@ export const usersPageInitialState: UsersPageState = {
     hasContactInfo: false,
   },
   isImportOpen: false,
-  importFileName: "",
-  importRows: [],
-  isImporting: false,
   isExportOpen: false,
-  exportAllUsers: false,
-  exportStatus: "all",
-  isExporting: false,
   confirmAction: null,
   isBulkActionInProgress: false,
 };
@@ -113,24 +95,10 @@ export function usersPageReducer(state: UsersPageState, action: UsersPageAction)
       return { ...state, advancedFilters: action.payload };
     case "SET_IMPORT_OPEN":
       return { ...state, isImportOpen: action.payload };
-    case "SET_IMPORT_FILE_NAME":
-      return { ...state, importFileName: action.payload };
-    case "SET_IMPORT_ROWS":
-      return { ...state, importRows: action.payload };
-    case "SET_IS_IMPORTING":
-      return { ...state, isImporting: action.payload };
     case "SET_EXPORT_OPEN":
       return { ...state, isExportOpen: action.payload };
-    case "SET_EXPORT_ALL_USERS":
-      return { ...state, exportAllUsers: action.payload };
-    case "SET_EXPORT_STATUS":
-      return { ...state, exportStatus: action.payload };
-    case "SET_IS_EXPORTING":
-      return { ...state, isExporting: action.payload };
     case "SET_CONFIRM_ACTION":
       return { ...state, confirmAction: action.payload };
-    case "RESET_IMPORT_STATE":
-      return { ...state, importRows: [], importFileName: "" };
     case "SET_BULK_ACTION_IN_PROGRESS":
       return { ...state, isBulkActionInProgress: action.payload };
     default:

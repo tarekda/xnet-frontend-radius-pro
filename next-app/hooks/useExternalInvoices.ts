@@ -55,7 +55,8 @@ const fetchExternalInvoices = async (
     graceDays?: number,
     sortBy?: string,
     sortDir?: 'asc' | 'desc',
-    missing?: string
+    missing?: string,
+    payDue?: string
 ): Promise<ApiResponse<PaginatedResponse<ExternalInvoice>>> => {
     const params = new URLSearchParams();
     params.set('page', String(page));
@@ -69,6 +70,7 @@ const fetchExternalInvoices = async (
     if (sortBy) params.set('sortBy', sortBy);
     if (sortDir) params.set('sortDir', sortDir);
     if (missing && missing !== 'all') params.set('missing', missing);
+    if (payDue && payDue !== 'all') params.set('payDue', payDue);
     const response = await apiClient.get(`/invoices/external?${params.toString()}`);
     return response.data;
 };
@@ -179,15 +181,16 @@ type Props = {
     sortBy?: string;
     sortDir?: 'asc' | 'desc';
     missing?: string;
+    payDue?: string;
 };
 
-export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing }: Props) => {
+export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue }: Props) => {
     const [currentPage, setCurrentPage] = useState(initialPage);
     const queryClient = useQueryClient();
 
     const { data, error, isLoading, refetch } = useQuery<ApiResponse<PaginatedResponse<ExternalInvoice>>, Error>({
-        queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing],
-        queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing),
+        queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue],
+        queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue),
     });
 
     const updateInvoiceMutation = useMutation<ApiResponse<ExternalInvoice>, Error, UpdateInvoiceVariables>({

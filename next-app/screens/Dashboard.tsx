@@ -48,6 +48,7 @@ import { getDashboardPersona, sortDashboardWidgets } from "@/lib/dashboardPerson
 import { Line as RechartsLine, LineChart as RechartsLineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import FilterPills from "@/components/FilterPills";
+import DailyOpsBriefPanel from "@/components/DailyOpsBriefPanel";
 import { CountUpNumber } from "@/components/viz";
 import { useTranslation } from "react-i18next";
 
@@ -1023,6 +1024,10 @@ const Dashboard: React.FC = () => {
               />
             ))}
           </div>
+
+          {canAny(user, ["users.view", "users.online.view", "reseller.users.view"]) ? (
+            <DailyOpsBriefPanel />
+          ) : null}
 
           {/* NOC Snapshot */}
           {((!isReseller && canSeeOnline) || isReseller) ? (

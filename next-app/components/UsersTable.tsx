@@ -39,9 +39,8 @@ interface UsersTableProps {
     manageUsersReason?: string;
     canResetDailyQuota?: boolean;
     canResetMonthlyQuota?: boolean;
+    recentRejectCounts?: Record<string, number>;
 }
-
-/** Sortable column header — readable on light + dark backgrounds */
 const sortHeaderButtonClass =
     "h-9 -ml-1 font-semibold text-foreground/90 hover:bg-muted/70 dark:text-foreground/95 dark:hover:bg-muted/45";
 
@@ -73,7 +72,8 @@ const UserRow: React.FC<{
     manageUsersReason?: string;
     canResetDailyQuota?: boolean;
     canResetMonthlyQuota?: boolean;
-}> = ({ user, onAction, index, isSelected, onToggleSelected, canManageUsers = true, manageUsersReason = "You don't have permission to manage users.", canResetDailyQuota = true, canResetMonthlyQuota = true }) => {
+    recentRejectCounts?: Record<string, number>;
+}> = ({ user, onAction, index, isSelected, onToggleSelected, canManageUsers = true, manageUsersReason = "You don't have permission to manage users.", canResetDailyQuota = true, canResetMonthlyQuota = true, recentRejectCounts }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const router = useRouter();
     const health = getUserHealth(user);
@@ -151,10 +151,19 @@ const UserRow: React.FC<{
                                 {user.userDetails.fullName}
                             </span>
                         )}
-                        <span className="mt-1">
+                        <span className="mt-1 flex flex-wrap gap-1">
                             <Badge variant="outline" className={healthBadgeClass} title={health.reason}>
                                 {health.label}
                             </Badge>
+                            {recentRejectCounts?.[user.username] ? (
+                              <Badge
+                                variant="outline"
+                                className="border-red-500 text-red-600 dark:text-red-400"
+                                title="Auth failures in the last 24 hours"
+                              >
+                                Recent rejects ({recentRejectCounts[user.username]})
+                              </Badge>
+                            ) : null}
                         </span>
                     </div>
                 </TableCell>
@@ -382,6 +391,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
     manageUsersReason = "You don't have permission to manage users.",
     canResetDailyQuota = true,
     canResetMonthlyQuota = true,
+    recentRejectCounts,
 }) => {
     const [sorting, setSorting] = useState<SortingState>([]);
     const pageSizes = [10, 20, 50, 100,200,500];
@@ -563,6 +573,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                         manageUsersReason={manageUsersReason}
                                         canResetDailyQuota={canResetDailyQuota}
                                         canResetMonthlyQuota={canResetMonthlyQuota}
+                                        recentRejectCounts={recentRejectCounts}
                                     />
                                 ))}
                             </TableBody>

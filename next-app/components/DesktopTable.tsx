@@ -33,6 +33,8 @@ import {
   BellRing,
   Check,
   CheckCircle,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Copy,
   DollarSign,
@@ -44,6 +46,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ExternalInvoice } from "@/types/api";
+import type { ExternalInvoiceGroup, PaymentLineKind } from "@/lib/externalInvoiceGrouping";
 import { HeaderButton } from "./ui/HeaderButton";
 import { notify } from "@/lib/notify";
 import TableToolbar from "@/components/TableToolbar";
@@ -118,10 +121,23 @@ type Props = {
   reconciliationMode?: boolean;
   reconciliationFlags?: Map<number, ReconciliationFlag[]>;
   workflowGraceDays?: number;
+  /**
+   * When provided (keyed by primary invoice id), rows represent merged customer
+   * records: payment lines expand beneath, amount shows the outstanding total,
+   * pay due date is inherited and the Pay button settles the current-month line.
+   */
+  groupsById?: Map<number, ExternalInvoiceGroup>;
   /* other */
   search: string;
   key?: number;
   hideBulkActions?: boolean;
+};
+
+const LINE_KIND_META: Record<PaymentLineKind, { label: string; className: string }> = {
+  current: { label: "Current", className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900" },
+  due: { label: "Due", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900" },
+  debit: { label: "Debit", className: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-900" },
+  paid: { label: "Paid", className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900" },
 };
 
 const DesktopTable: React.FC<Props> = ({
@@ -149,7 +165,13 @@ const DesktopTable: React.FC<Props> = ({
   reconciliationMode,
   reconciliationFlags,
   workflowGraceDays = 7,
+  groupsById,
 }) => {
+  const [expandedGroups, setExpandedGroups] = React.useState<Record<number, boolean>>({});
+  const toggleGroup = React.useCallback((id: number) => {
+    setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
   /* ── column definitions ─────────────────────── */
   const columns = React.useMemo<ColumnDef<ExternalInvoice>[]>(
     () => {
@@ -189,16 +211,57 @@ const DesktopTable: React.FC<Props> = ({
         header: ({ column }) => (
           <HeaderButton column={column}>Username</HeaderButton>
         ),
-        cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium">{row.original.username}</span>
-            {row.original.debitLabel ? (
-              <Badge variant="secondary" className="w-fit text-[10px] px-1.5 py-0">
-                {row.original.debitLabel}
-              </Badge>
-            ) : null}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const group = groupsById?.get(row.original.id);
+          const hasLines = (group?.lines.length ?? 0) > 1;
+          return (
+            <div className="flex items-start gap-1">
+              {hasLines ? (
+                <button
+                  type="button"
+                  className="mt-0.5 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleGroup(row.original.id);
+                  }}
+                  aria-label={expandedGroups[row.original.id] ? "Collapse payment lines" : "Expand payment lines"}
+                >
+                  {expandedGroups[row.original.id] ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+              ) : null}
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">{row.original.username}</span>
+                {row.original.debitLabel ? (
+                  <Badge variant="secondary" className="w-fit text-[10px] px-1.5 py-0">
+                    {row.original.debitLabel}
+                  </Badge>
+                ) : null}
+                {hasLines ? (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "w-fit cursor-pointer text-[10px] px-1.5 py-0",
+                      group && group.openLineCount > 0
+                        ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+                        : ""
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGroup(row.original.id);
+                    }}
+                  >
+                    {group?.lines.length} lines
+                    {group && group.openLineCount > 0 ? ` · ${group.openLineCount} open` : ""}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "fullName",
@@ -292,12 +355,19 @@ const DesktopTable: React.FC<Props> = ({
           <HeaderButton column={column}>Pay&nbsp;due</HeaderButton>
         ),
         cell: ({ row }) => {
-          const raw = row.original.payDueDate;
+          const group = groupsById?.get(row.original.id);
+          const raw = group ? (group.inheritedPayDueDate ?? row.original.payDueDate) : row.original.payDueDate;
           if (raw === undefined || raw === null || String(raw).trim() === "") {
             return <span className="text-muted-foreground">—</span>;
           }
           const ymd = String(raw).slice(0, 10);
-          return <span className="text-sm font-medium">{ymd}</span>;
+          const inherited =
+            group && group.inheritedPayDueDate && group.inheritedPayDueDate !== String(row.original.payDueDate ?? "").slice(0, 10);
+          return (
+            <span className="text-sm font-medium" title={inherited ? "Inherited from most recent due payment date" : undefined}>
+              {ymd}
+            </span>
+          );
         },
       },
       {
@@ -305,12 +375,30 @@ const DesktopTable: React.FC<Props> = ({
         header: ({ column }) => (
           <HeaderButton column={column}>Amount</HeaderButton>
         ),
-        cell: ({ row }) => (
-          <div className="flex items-center font-semibold">
-            <DollarSign className="h-4 w-4 text-green-500 mr-1" />
-            {row.original.amount.toFixed(2)}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const group = groupsById?.get(row.original.id);
+          const hasLines = (group?.lines.length ?? 0) > 1;
+          if (hasLines && group) {
+            const showOutstanding = group.outstandingTotal > 0;
+            return (
+              <div className="flex flex-col">
+                <div className="flex items-center font-semibold">
+                  <DollarSign className="h-4 w-4 text-green-500 mr-1" />
+                  {(showOutstanding ? group.outstandingTotal : row.original.amount).toFixed(2)}
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {showOutstanding ? `total due · ${group.lines.length} lines` : `${group.lines.length} lines`}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center font-semibold">
+              <DollarSign className="h-4 w-4 text-green-500 mr-1" />
+              {row.original.amount.toFixed(2)}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "status",
@@ -319,7 +407,10 @@ const DesktopTable: React.FC<Props> = ({
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const canPayHere = Boolean(onSetPaid) && status !== "paid";
+          const group = groupsById?.get(row.original.id);
+          // In merged view, the Pay button settles the current-month invoice line only.
+          const payTargetId = group ? group.currentMonthPayable?.id ?? null : row.original.id;
+          const canPayHere = Boolean(onSetPaid) && (group ? payTargetId !== null : status !== "paid");
 
           return (
             <div className="flex items-center gap-2">
@@ -340,12 +431,13 @@ const DesktopTable: React.FC<Props> = ({
                 </Badge>
               )}
 
-              {canPayHere ? (
+              {canPayHere && payTargetId !== null ? (
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-7 px-2"
-                  onClick={() => onSetPaid?.(row.original.id)}
+                  title={group ? "Pay the current-month invoice" : undefined}
+                  onClick={() => onSetPaid?.(payTargetId)}
                 >
                   <Check className="h-4 w-4 mr-1" />
                   Pay
@@ -522,7 +614,7 @@ const DesktopTable: React.FC<Props> = ({
 
       return cols;
     },
-    [onSetPaid, onSendReminder, onSetWorkflowStage, onUnpay, onViewInvoice, onDeleteInvoice, workflowGraceDays]
+    [onSetPaid, onSendReminder, onSetWorkflowStage, onUnpay, onViewInvoice, onDeleteInvoice, workflowGraceDays, groupsById, expandedGroups, toggleGroup]
   );
 
   /* ── table instance ───────────────────────── */
@@ -633,9 +725,11 @@ const DesktopTable: React.FC<Props> = ({
                   reconciliationMode && (reconciliationFlags?.get(row.original.id)?.length ?? 0) > 0;
                 const isSelected = row.getIsSelected();
                 const severity = getOverdueSeverity(row.original, workflowGraceDays);
+                const group = groupsById?.get(row.original.id);
+                const isExpanded = Boolean(group && (group.lines.length > 1) && expandedGroups[row.original.id]);
                 return (
+                  <React.Fragment key={row.id}>
                   <TableRow
-                    key={row.id}
                     data-state={isSelected && "selected"}
                     title="Double-click to open details"
                     className={cn(
@@ -659,6 +753,65 @@ const DesktopTable: React.FC<Props> = ({
                       </TableCell>
                     ))}
                   </TableRow>
+                  {isExpanded && group ? (
+                    <TableRow className="bg-muted/20 hover:bg-muted/20">
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                        <div className="space-y-1.5 border-l-[3px] border-l-primary/40 px-6 py-3">
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Payment lines
+                          </div>
+                          {group.lines.map(({ invoice: line, kind }) => {
+                            const meta = LINE_KIND_META[kind];
+                            const canPayLine = Boolean(onSetPaid) && line.status !== "paid";
+                            return (
+                              <div
+                                key={line.id}
+                                className={cn(
+                                  "flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border/60 bg-card px-3 py-1.5 text-sm",
+                                  line.id === row.original.id && "border-primary/40"
+                                )}
+                              >
+                                <span className="font-mono text-xs text-muted-foreground">#{line.id}</span>
+                                <span className="w-[72px] tabular-nums text-xs">
+                                  {new Date(line.billingMonth).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                                </span>
+                                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", meta.className)}>
+                                  {meta.label}
+                                </Badge>
+                                {line.debitLabel ? (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {line.debitLabel}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">primary</span>
+                                )}
+                                <span className="ml-auto tabular-nums font-semibold">
+                                  ${Number(line.amount ?? 0).toFixed(2)}
+                                </span>
+                                <span className="w-[88px] text-xs text-muted-foreground">
+                                  {line.payDueDate ? `due ${String(line.payDueDate).slice(0, 10)}` : "no due date"}
+                                </span>
+                                {canPayLine ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => onSetPaid?.(line.id)}
+                                  >
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Pay
+                                  </Button>
+                                ) : line.status === "paid" ? (
+                                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  </React.Fragment>
                 );
               })
             ) : (

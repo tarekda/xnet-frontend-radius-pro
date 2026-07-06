@@ -17,6 +17,7 @@ function readRuntimeEnv(): RuntimeEnv {
 let sentryEnabled = false;
 
 export function initTelemetry() {
+  if (sentryEnabled) return;
   const rt = readRuntimeEnv();
   const dsn = String(rt.SENTRY_DSN || "").trim();
   if (!dsn) return;

@@ -45,10 +45,8 @@ const useLogin = () => {
       setIsLoading(false);
 
       if (response.data.success) {
-        // You might want to store the tokens in localStorage or a secure storage
-        localStorage.setItem('accessToken', response.data.data.accessToken);
-        localStorage.setItem('refreshToken', response.data.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+        // Token persistence is handled by AuthContext.login(), which respects
+        // the user's "remember me" choice (localStorage vs sessionStorage).
         return response.data;
       } else {
         throw new Error(response.data.message);

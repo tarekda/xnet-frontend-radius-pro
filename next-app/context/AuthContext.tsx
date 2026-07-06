@@ -8,7 +8,7 @@ import { clearTelemetryUser, setTelemetryUser } from '@/lib/telemetry';
 interface AuthContextType {
   isAuthenticated: boolean;
   accessToken: string | null;
-  login: (user: AuthUser, accessToken: string, rememberMe?: boolean) => void;
+  login: (user: AuthUser, accessToken: string, rememberMe?: boolean, refreshToken?: string) => void;
   logout: () => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   user: AuthUser | null;
@@ -176,14 +176,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!response.data?.success || !payload?.accessToken) return false;
 
       const rememberMe = authState.storage !== "session";
-      const store = storageFor(rememberMe);
-      store.setItem("refreshToken", payload.refreshToken ?? rt);
-      const other = store === localStorage ? sessionStorage : localStorage;
-      other.removeItem("refreshToken");
-
       const user = authState.user;
       if (!user) return false;
-      login(user, payload.accessToken, rememberMe);
+      login(user, payload.accessToken, rememberMe, payload.refreshToken ?? rt);
       return true;
     } catch (error) {
       console.error("Failed to refresh token:", error);
@@ -191,15 +186,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = (user: AuthUser, accessToken: string, rememberMe: boolean = true) => {
+  const login = (user: AuthUser, accessToken: string, rememberMe: boolean = true, refreshToken?: string) => {
     const store = storageFor(Boolean(rememberMe));
     const other = store === localStorage ? sessionStorage : localStorage;
 
     // Ensure we don't keep stale auth in the other storage
     other.removeItem("accessToken");
+    other.removeItem("refreshToken");
     other.removeItem("user");
 
     store.setItem("accessToken", accessToken);
+    if (refreshToken) store.setItem("refreshToken", refreshToken);
     store.setItem("user", JSON.stringify(user));
     setAuthPresenceCookie(Boolean(rememberMe));
     setAuthState({ isAuthenticated: true, accessToken, user: user, storage: rememberMe ? "local" : "session" });
@@ -216,8 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("refreshToken");
     sessionStorage.removeItem("user");
     clearAuthPresenceCookie();
     setAuthState({ isAuthenticated: false, accessToken: null, user: null, storage: null });

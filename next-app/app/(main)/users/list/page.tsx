@@ -1,7 +1,7 @@
 "use client";
 
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import UsersComponent from "@/screens/Users";
+import UsersComponent from "@/screens/users";
 
 export default function UsersListRoutePage() {
   return (

@@ -14,6 +14,7 @@ import ExternalInvoiceCard from "@/components/ExternalInvoiceCard";
 import ExternalInvoiceDetailView from "@/components/ExternalInvoiceDetailView";
 import DesktopTable from "@/components/DesktopTable"; // <— the TanStack table you wrote earlier
 import type { ExternalInvoice } from "@/types/api";
+import { groupExternalInvoices, type ExternalInvoiceGroup } from "@/lib/externalInvoiceGrouping";
 import type { ReconciliationFlag, WorkflowStage } from "@/lib/externalInvoiceInsights";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -78,6 +79,12 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     /* ── URL state ─────────────────────────────────────────── */
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const fromParam = searchParams.get('from') || undefined;
+    const toParam = searchParams.get('to') || undefined;
+    const statusParam = (searchParams.get('status') === 'overdue' ? 'unpaid' : searchParams.get('status')) || undefined;
+    const missingParam = (searchParams.get('missing') === 'all' ? undefined : searchParams.get('missing')) || undefined;
+    const payDueParam = (searchParams.get('payDue') === 'all' ? undefined : searchParams.get('payDue')) || undefined;
+
     /* ── fetch everything through the hook ─────────────────── */
     const {
         data,
@@ -95,15 +102,37 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         initialPage,
         pageSize,
         search,
-        from: searchParams.get('from') || undefined,
-        to: searchParams.get('to') || undefined,
-        status: (searchParams.get('status') === 'overdue' ? 'unpaid' : searchParams.get('status')) || undefined,
+        from: fromParam,
+        to: toParam,
+        status: statusParam,
         ageBucket,
         graceDays,
-        missing: (searchParams.get('missing') === 'all' ? undefined : searchParams.get('missing')) || undefined,
+        missing: missingParam,
+        payDue: payDueParam,
         sortBy: (searchParams.get('sort') || '').split(':')[0] || undefined,
         sortDir: ((searchParams.get('sort') || '').split(':')[1] as 'asc' | 'desc') || undefined,
     });
+
+    // Jump back to page 1 whenever the search or any filter changes. Staying on a
+    // later page would request a page that may not exist in the narrower result
+    // set (e.g. searching from page 2 for an invoice that lives on page 1).
+    const filterKey = [search, fromParam, toParam, statusParam, ageBucket, missingParam, payDueParam].join('|');
+    const prevFilterKeyRef = React.useRef<string | null>(null);
+    React.useEffect(() => {
+        if (prevFilterKeyRef.current !== null && prevFilterKeyRef.current !== filterKey) {
+            setCurrentPage(1);
+        }
+        prevFilterKeyRef.current = filterKey;
+    }, [filterKey, setCurrentPage]);
+
+    // Safety net: if the loaded result set has fewer pages than the current page
+    // (e.g. rows were deleted), snap to the last available page.
+    const loadedTotalPages = data?.data?.totalPages;
+    React.useEffect(() => {
+        if (typeof loadedTotalPages === 'number' && currentPage > Math.max(1, loadedTotalPages)) {
+            setCurrentPage(Math.max(1, loadedTotalPages));
+        }
+    }, [loadedTotalPages, currentPage, setCurrentPage]);
 
     /* ── UI state local to this component ──────────────────── */
     const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -222,6 +251,23 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const pages = data?.data.totalPages ?? 1;
     const computedTotalItems = totalItems ?? data?.data.total ?? 0;
 
+    // Merge same-customer invoices (same username + full name) into one record with
+    // nested payment lines. Reconciliation mode needs one row per invoice, so skip it there.
+    const groupingEnabled = !reconciliationMode;
+    const { groupedRows, groupsById } = React.useMemo(() => {
+        if (!groupingEnabled) {
+            return { groupedRows: visibleRows, groupsById: undefined as Map<number, ExternalInvoiceGroup> | undefined };
+        }
+        const groups = groupExternalInvoices(visibleRows);
+        const map = new Map<number, ExternalInvoiceGroup>();
+        const rows: ExternalInvoice[] = [];
+        for (const g of groups) {
+            map.set(g.primary.id, g);
+            rows.push(g.primary);
+        }
+        return { groupedRows: rows, groupsById: map };
+    }, [groupingEnabled, visibleRows]);
+
     return (
         <QueryState
             isLoading={isLoading}
@@ -275,7 +321,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             {/* desktop table */}
             <div className="hidden md:block rounded-md border">
                 <DesktopTable
-                    invoices={visibleRows}
+                    invoices={groupedRows}
+                    groupsById={groupsById}
                     currentPage={currentPage}
                     totalPages={pages}
                     pageSize={pageSize}
@@ -306,14 +353,18 @@ const ExternalInvoicesTable: React.FC<Props> = ({
 
             {/* mobile list */}
             <div className="md:hidden">
-                {visibleRows.map((inv) => (
-                    <ExternalInvoiceCard
-                        key={inv.id}
-                        invoice={inv}
-                        onSetPaid={canPay ? () => markPaid(inv.id) : undefined}
-                        onViewDetails={() => setSelected(inv)}
-                    />
-                ))}
+                {groupedRows.map((inv) => {
+                    const group = groupsById?.get(inv.id);
+                    const payTargetId = group ? group.currentMonthPayable?.id ?? null : inv.id;
+                    return (
+                        <ExternalInvoiceCard
+                            key={inv.id}
+                            invoice={inv}
+                            onSetPaid={canPay && payTargetId !== null ? () => markPaid(payTargetId) : undefined}
+                            onViewDetails={() => setSelected(inv)}
+                        />
+                    );
+                })}
             </div>
 
             <TablePager

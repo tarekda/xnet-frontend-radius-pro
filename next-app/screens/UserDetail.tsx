@@ -19,6 +19,7 @@ import { apiClient } from "@/api/client";
 import { notify } from "@/lib/notify";
 import ActionConfirmDialog from "@/components/ActionConfirmDialog";
 import UserSessionsPanel from "@/components/UserSessionsPanel";
+import ConnectivityDiagnosisPanel from "@/components/ConnectivityDiagnosisPanel";
 import { useProfiles } from "@/hooks/useProfiles";
 import { downloadTextFile, toCsv } from "@/lib/csv";
 
@@ -80,6 +81,8 @@ export default function UserDetailPage() {
   const [expiryFramedIpLocal, setExpiryFramedIpLocal] = useState("");
   const [quotaResetDayLocal, setQuotaResetDayLocal] = useState("1");
   const [quotaCycleStartDateLocal, setQuotaCycleStartDateLocal] = useState("");
+
+  const [activeTab, setActiveTab] = useState("overview");
 
   const [confirm, setConfirm] = useState<
     null | { kind: "reset-quota" | "reset-mac" | "disconnect" | "delete-user" }
@@ -338,7 +341,7 @@ export default function UserDetailPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
@@ -347,6 +350,14 @@ export default function UserDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {username ? (
+            <ConnectivityDiagnosisPanel
+              username={username}
+              user={user}
+              onNavigateTab={setActiveTab}
+            />
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle>Account</CardTitle>

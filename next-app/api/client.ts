@@ -1,5 +1,5 @@
 import axios from "axios";
-import { isDevBuild, resolveBrowserApiUrl, resolvePublicApiUrl } from "@/lib/publicEnv";
+import { resolveBrowserApiUrl, resolvePublicApiUrl } from "@/lib/publicEnv";
 
 declare global {
   interface Window {
@@ -30,7 +30,6 @@ apiClient.interceptors.request.use(
       }
     }
     const token = localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
-    if (isDevBuild()) console.log('Token:', token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -52,8 +51,10 @@ apiClient.interceptors.response.use(
         }
       } catch {}
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
       sessionStorage.removeItem('user');
       window.location.href = '/login';
     }

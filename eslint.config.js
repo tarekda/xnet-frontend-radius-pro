@@ -6,7 +6,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin'
 const reactHooks = reactHooksMod.default ?? reactHooksMod
 
 export default [
-  { ignores: ['dist', 'next-app/.next', '**/node_modules'] },
+  { ignores: ['dist', 'next-app/.next', 'next-app/next-env.d.ts', '**/node_modules'] },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

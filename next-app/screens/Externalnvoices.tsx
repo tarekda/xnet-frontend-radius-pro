@@ -150,7 +150,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   } = useExternalInvoicesPageState(defaultPageSize);
   const [searchParams, setSearchParams] = useSearchParams();
   const savedViewsKeys = useMemo(
-    () => (mode === "reconciliation" ? ["q", "from", "to", "status", "age", "missing", "ps", "sort"] : ["q", "from", "to", "status", "missing", "ps", "sort"]),
+    () => (mode === "reconciliation" ? ["q", "from", "to", "status", "age", "missing", "payDue", "ps", "sort"] : ["q", "from", "to", "status", "missing", "payDue", "ps", "sort"]),
     [mode]
   );
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
@@ -199,6 +199,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   const apiStatus = searchParams.get('status') === 'overdue' ? 'unpaid' : (searchParams.get('status') || undefined);
   const ageBucket = searchParams.get('age') || undefined;
   const missingFilter = searchParams.get('missing') || undefined;
+  const payDueFilter = searchParams.get('payDue') || undefined;
 
   // Get quick stats for header
   const { data: statsData, isLoading: isStatsLoading, refetch, setInvoiceAsPaidMutation, bulkDeleteInvoicesMutation, bulkUpdateInvoicesMutation } = useExternalInvoices({ 
@@ -211,6 +212,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     ageBucket,
     graceDays,
     missing: missingFilter,
+    payDue: payDueFilter,
   });
 
   // Get the full data for table with pagination
@@ -224,6 +226,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     ageBucket,
     graceDays,
     missing: missingFilter,
+    payDue: payDueFilter,
   });
 
   const reconciliationDataQuery = useQuery({
@@ -443,6 +446,14 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     setCurrentPage(1);
   }, [setCurrentPage, updateSearchParams]);
 
+  const handlePayDueFilter = useCallback((value: string) => {
+    updateSearchParams((next) => {
+      if (!value || value === "all") next.delete("payDue");
+      else next.set("payDue", value);
+    });
+    setCurrentPage(1);
+  }, [setCurrentPage, updateSearchParams]);
+
   const selectedIds = useMemo(() => {
     return Object.keys(rowSelection)
       .map((k) => parseInt(k, 10))
@@ -655,6 +666,23 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   const statusFilterValue = searchParams.get("status") || "all";
   const ageFilterValue = searchParams.get("age") || "all";
   const missingFilterValue = searchParams.get("missing") || "all";
+  const payDueFilterValue = searchParams.get("payDue") || "all";
+  const payDueFilterLabel = useMemo(() => {
+    switch (payDueFilterValue) {
+      case "today":
+        return "Due today";
+      case "overdue":
+        return "Pay due overdue";
+      case "this_week":
+        return "Due in 7 days";
+      case "this_month":
+        return "Due this month";
+      case "upcoming":
+        return "Due later";
+      default:
+        return payDueFilterValue;
+    }
+  }, [payDueFilterValue]);
   const statusFilterOptions = useMemo(() => ([
     { value: "all", label: `All (${metrics?.totalInvoices ?? 0})` },
     { value: "pending", label: `Pending (${metrics?.totalPending ?? 0})` },
@@ -767,6 +795,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
       searchParams.get("status") ||
       searchParams.get("age") ||
       searchParams.get("missing") ||
+      searchParams.get("payDue") ||
       searchTerm
   );
 
@@ -778,6 +807,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
       n.delete("status");
       n.delete("age");
       n.delete("missing");
+      n.delete("payDue");
       n.delete("q");
       return n;
     }, { replace: true } as any);
@@ -1212,6 +1242,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
                     to: searchParams.get("to") || "",
                     status: searchParams.get("status") || "",
                     age: isReconciliationMode ? (searchParams.get("age") || "") : "",
+                    payDue: searchParams.get("payDue") || "",
                     ps: searchParams.get("ps") || "",
                     sort: searchParams.get("sort") || "",
                   })}
@@ -1236,20 +1267,38 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
             </div>
 
             {!isReconciliationMode ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-muted-foreground">Data quality</span>
-                <FilterPills
-                  value={missingFilterValue}
-                  onChange={handleMissingFilter}
-                  options={[
-                    { value: "all", label: "All" },
-                    { value: "no_address", label: "Missing address" },
-                    { value: "no_pay_due", label: "Missing pay due" },
-                  ]}
-                  name="external-invoices-missing"
-                  className="min-w-0"
-                />
-              </div>
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-muted-foreground">Pay due</span>
+                  <FilterPills
+                    value={payDueFilterValue}
+                    onChange={handlePayDueFilter}
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "today", label: "Due today" },
+                      { value: "overdue", label: "Overdue" },
+                      { value: "this_week", label: "Next 7 days" },
+                      { value: "this_month", label: "This month" },
+                    ]}
+                    name="external-invoices-pay-due"
+                    className="min-w-0"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-muted-foreground">Data quality</span>
+                  <FilterPills
+                    value={missingFilterValue}
+                    onChange={handleMissingFilter}
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "no_address", label: "Missing address" },
+                      { value: "no_pay_due", label: "Missing pay due" },
+                    ]}
+                    name="external-invoices-missing"
+                    className="min-w-0"
+                  />
+                </div>
+              </>
             ) : null}
 
             {isReconciliationMode ? (
@@ -1341,6 +1390,26 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
                       setSearchParams((prev) => {
                         const n = new URLSearchParams(prev);
                         n.delete("age");
+                        return n;
+                      }, { replace: true } as any);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    ×
+                  </Button>
+                </Badge>
+              )}
+              {searchParams.get("payDue") && (
+                <Badge variant="secondary" className="flex items-center gap-2">
+                  Pay due: {payDueFilterLabel}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0"
+                    onClick={() => {
+                      setSearchParams((prev) => {
+                        const n = new URLSearchParams(prev);
+                        n.delete("payDue");
                         return n;
                       }, { replace: true } as any);
                       setCurrentPage(1);

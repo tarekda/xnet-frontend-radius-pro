@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/Sidebar/Sidebar.context";
 import { AppPreferencesProvider } from "@/context/AppPreferencesContext";
 import { AuthProvider } from "@/context/AuthContext";
 import i18n from "@/i18n/config";
+import { initTelemetry } from "@/lib/telemetry";
 import { websocketService } from "@/services/websocket";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -26,6 +27,10 @@ function makeQueryClient() {
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(makeQueryClient);
+
+  useEffect(() => {
+    initTelemetry();
+  }, []);
 
   useEffect(() => {
     websocketService.connect();

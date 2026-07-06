@@ -26,3 +26,8 @@ dist-ssr
 # Local environment files (do not commit secrets)
 .env
 .env.*
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/

@@ -60,7 +60,7 @@ services:
       - API_PROXY_TARGET=${API_PROXY_TARGET:-http://host.docker.internal:23000}
       - API_URL=${API_URL:-${VITE_API_URL:-https://api.xnetcloud.tech/api}}
       - FEATURE_FLAGS=${FEATURE_FLAGS:-}
-      - SENTRY_DSN=${SENTRY_DSN:-https://d300b4a14f76b044f347b4c519f4c131@o4510782900535296.ingest.us.sentry.io/4510782901583872}
+      - SENTRY_DSN=${SENTRY_DSN:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
       - APP_VERSION=${APP_VERSION:-}
       - APP_BUILD_TIME=${APP_BUILD_TIME:-}

@@ -40,7 +40,7 @@ const Login: React.FC = () => {
     const resp = await login(username, password);
     if (resp?.data.accessToken) {
       localStorage.setItem("login.rememberMe", String(Boolean(rememberMe)));
-      authLogin(resp?.data.user, resp?.data.accessToken, rememberMe);
+      authLogin(resp.data.user, resp.data.accessToken, rememberMe, resp.data.refreshToken);
       let redirectPath = '/';
       const fromQs = searchParams.get("from");
       const fromDecoded = fromQs ? decodeURIComponent(fromQs) : null;
