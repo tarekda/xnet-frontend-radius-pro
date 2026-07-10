@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { AuthUser } from '../types/api';
 import { ArrowUpDown, Edit, Plus, RefreshCw, Trash2, Users, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ariaSortFor } from '@/lib/tableA11y';
+import { useTranslation } from 'react-i18next';
 import AddAuthUserModal from '@/components/AddAuthUserModal';
 import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { AlertDialog } from '@radix-ui/react-alert-dialog';
@@ -199,6 +201,7 @@ const columns: ColumnDef<AuthUser>[] = [
 ];
 
 const AuthUsersComponent: React.FC = () => {
+    const { t } = useTranslation("screens");
     const { data, error, isLoading, refetch, deleteAuthUserMutation, resetAuthUserPasswordMutation } = useAuthUsers();
     const { user: authUser } = useAuth();
     const canManageAuthUsers = useMemo(() => canAny(authUser, ["admin.authUsers.manage"]), [authUser]);
@@ -267,8 +270,8 @@ const AuthUsersComponent: React.FC = () => {
     return (
         <div className="w-full py-6 space-y-6">
             <PageHeader
-                title="Auth Users"
-                subtitle="Manage and configure user access"
+                title={t("authUsers.title")}
+                subtitle={t("authUsers.subtitle")}
                 icon={Users}
                 actions={(
                     <div className="flex gap-2">
@@ -337,7 +340,7 @@ const AuthUsersComponent: React.FC = () => {
                                     {table.getHeaderGroups().map((headerGroup) => (
                                         <TableRow key={headerGroup.id} className="bg-muted/50">
                                             {headerGroup.headers.map((header) => (
-                                                <TableHead key={header.id}>
+                                                <TableHead key={header.id} aria-sort={ariaSortFor(header)}>
                                                     {header.isPlaceholder
                                                         ? null
                                                         : flexRender(

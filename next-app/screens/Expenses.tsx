@@ -21,6 +21,7 @@ import { useExpenseMonthlyTotals, useExpenses } from "@/hooks/useExpenses";
 import { DollarSign, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { MESSAGES } from "@/constants/messages";
+import { useTranslation } from "react-i18next";
 import TablePager from "@/components/TablePager";
 import TableToolbar from "@/components/TableToolbar";
 import TableRowActions from "@/components/TableRowActions";
@@ -57,6 +58,7 @@ const emptyDraft = (): Draft => ({
 });
 
 export default function ExpensesPage() {
+  const { t } = useTranslation("screens");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
@@ -161,8 +163,8 @@ export default function ExpensesPage() {
   return (
     <div className="w-full space-y-6 p-6">
       <PageHeader
-        title="Expenses"
-        subtitle="Track and manage operational expenses."
+        title={t("expenses.title")}
+        subtitle={t("expenses.subtitle")}
         icon={Receipt}
         actions={
           <IconActionButton

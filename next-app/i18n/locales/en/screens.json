@@ -28,5 +28,99 @@
     "title_reconciliation": "Invoice Reconciliation",
     "subtitle": "Search, collect, and send WhatsApp reminders for external billing.",
     "subtitle_reconciliation": "Find duplicates, amount mismatches, and missing payments across imported invoices."
+  },
+  "addUser": {
+    "title": "Add New User",
+    "subtitle": "Create a new user and assign a plan"
+  },
+  "access": {
+    "title": "Roles & Access",
+    "subtitle": "Manage role permissions and per-user overrides",
+    "subtitle_forbidden": "You don't have access to manage permissions."
+  },
+  "about": {
+    "title": "About RADIUS Pro",
+    "subtitle": "Your comprehensive RADIUS server management solution"
+  },
+  "changePassword": {
+    "title": "Change password",
+    "subtitle": "Update your password.",
+    "subtitle_first_login": "First login requires a password change."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "subtitle": "The page you’re looking for doesn’t exist."
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "subtitle": "You don’t have permission to view this page.",
+    "subtitle_path": "You don’t have permission to view: {{path}}"
+  },
+  "authFailures": {
+    "title": "Auth Failures",
+    "subtitle": "Failed authentication attempts with time-range drilldown and export"
+  },
+  "userSessions": {
+    "title": "User Sessions",
+    "subtitle": "Session history",
+    "subtitle_for": "Session history for {{username}}"
+  },
+  "analytics": {
+    "title": "Analytics Dashboard",
+    "subtitle": "Real-time insights into your RADIUS system performance and user activity."
+  },
+  "nas": {
+    "title": "Network Access Servers (NAS)",
+    "subtitle": "Manage NAS entries and settings"
+  },
+  "paymentDue": {
+    "title": "Payment due",
+    "subtitle": "Unpaid and pending external invoices with a pay due date. Overdue and near-term items also appear in the notification bell (deduped)."
+  },
+  "authUsers": {
+    "title": "Auth Users",
+    "subtitle": "Manage and configure user access"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Enter your credentials to access your account"
+  },
+  "dunning": {
+    "title": "Dunning Center",
+    "subtitle": "Run reminder, throttle, and suspend campaigns for overdue invoices"
+  },
+  "backups": {
+    "title": "Backups",
+    "subtitle": "Run and download database / MikroTik backups",
+    "subtitle_forbidden": "You don't have access to run backups."
+  },
+  "collections": {
+    "title": "Collections",
+    "subtitle": "Monitor collected invoices and cash by collectors."
+  },
+  "expenses": {
+    "title": "Expenses",
+    "subtitle": "Track and manage operational expenses."
+  },
+  "invoiceUpload": {
+    "title": "Upload Invoice",
+    "subtitle": "Import external invoices — preview columns, map fields, then upsert by username + billing month + provider"
+  },
+  "resellers": {
+    "title": "Resellers",
+    "subtitle": "Create and fund reseller accounts",
+    "subtitle_forbidden": "Forbidden"
+  },
+  "generatedInvoices": {
+    "title": "Invoices",
+    "subtitle": "View and manage generated invoices"
+  },
+  "alerts": {
+    "title": "Alert Management",
+    "subtitle": "Monitor system metrics and configure threshold-based notifications."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your RADIUS server configurations and preferences"
   }
 }

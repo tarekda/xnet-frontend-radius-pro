@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { can, canAny } from "@/lib/permissions";
 import TablePager from "@/components/TablePager";
 import { notify } from "@/lib/notify";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ALERT_METRICS } from "@/types/alerts";
@@ -56,6 +57,7 @@ function toDateTimeLocalValue(d: Date): string {
 }
 
 export default function AuthFailuresPage() {
+  const { t } = useTranslation("screens");
   const { user } = useAuth();
   const router = useRouter();
   const canOpenUsers = canAny(user, ["users.view", "reseller.users.view"]);
@@ -382,8 +384,8 @@ export default function AuthFailuresPage() {
   return (
     <div className="w-full space-y-6 py-6">
       <PageHeader
-        title="Auth Failures"
-        subtitle="Failed authentication attempts with time-range drilldown and export"
+        title={t("authFailures.title")}
+        subtitle={t("authFailures.subtitle")}
         icon={AlertTriangle}
         actions={(
           <div className="flex flex-wrap items-center gap-2">

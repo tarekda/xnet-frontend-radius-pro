@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/lib/notify";
+import { useTranslation } from "react-i18next";
 import {
   fetchExternalDunningPreview,
   runExternalDunningCampaign,
@@ -20,6 +21,7 @@ import {
 type DunningAction = "remind" | "throttle" | "suspend";
 
 export default function ExternalInvoicesDunningPage() {
+  const { t } = useTranslation("screens");
   const queryClient = useQueryClient();
 
   const [dunningGraceDays, setDunningGraceDays] = useState(7);
@@ -99,8 +101,8 @@ export default function ExternalInvoicesDunningPage() {
   return (
     <div className="w-full space-y-6 py-2 sm:py-2 px-2 sm:px-0 animate-in fade-in-50">
       <PageHeader
-        title="Dunning Center"
-        subtitle="Run reminder, throttle, and suspend campaigns for overdue invoices"
+        title={t("dunning.title")}
+        subtitle={t("dunning.subtitle")}
         icon={AlertCircle}
         actions={(
           <div className="w-full sm:w-auto">

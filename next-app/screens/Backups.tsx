@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import QueryState from "@/components/QueryState";
 import { apiClient } from "@/api/client";
 import { notify } from "@/lib/notify";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 
@@ -57,6 +58,7 @@ async function downloadBlob(filename: string, blob: Blob) {
 }
 
 const Backups: React.FC = () => {
+  const { t } = useTranslation("screens");
   const { user } = useAuth();
   const canManage = useMemo(() => can(user, "admin.access.manage"), [user]);
 
@@ -124,7 +126,7 @@ const Backups: React.FC = () => {
   if (!canManage) {
     return (
       <div className="w-full py-6 space-y-6">
-        <PageHeader title="Backups" subtitle="You don't have access to run backups." icon={Database} />
+        <PageHeader title={t("backups.title")} subtitle={t("backups.subtitle_forbidden")} icon={Database} />
       </div>
     );
   }
@@ -132,8 +134,8 @@ const Backups: React.FC = () => {
   return (
     <div className="w-full py-6 space-y-6">
       <PageHeader
-        title="Backups"
-        subtitle="Run and download database / MikroTik backups"
+        title={t("backups.title")}
+        subtitle={t("backups.subtitle")}
         icon={Database}
         actions={(
           <IconActionButton

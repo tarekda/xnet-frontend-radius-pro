@@ -1,7 +1,7 @@
 "use client";
 
 import { FeatureGate } from "@/components/auth/FeatureGate";
-import AlertsComponent from "@/screens/Alerts";
+import AlertsComponent from "@/screens/alerts";
 
 export default function AlertsRoutePage() {
   return (

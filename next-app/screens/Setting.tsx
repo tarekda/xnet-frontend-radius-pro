@@ -24,6 +24,7 @@ interface UserPreferences {
 
 const Setting: React.FC = () => {
   const { t } = useTranslation('common');
+  const { t: tScreens } = useTranslation('screens');
   const { density, setDensity, showHealthStrip, setShowHealthStrip } = useAppPreferences();
 
   const [serverSettings, setServerSettings] = useState<ServerSettings>({
@@ -65,8 +66,8 @@ const Setting: React.FC = () => {
     <div className="w-full py-5">
       <div className="mb-6 px-6">
         <PageHeader
-          title="Settings"
-          subtitle="Manage your RADIUS server configurations and preferences"
+          title={tScreens("settings.title")}
+          subtitle={tScreens("settings.subtitle")}
           icon={SettingsIcon}
         />
       </div>

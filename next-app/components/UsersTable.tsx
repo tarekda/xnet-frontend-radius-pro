@@ -6,6 +6,7 @@ import { User } from '../types/api';
 import { UseMutationResult } from '@tanstack/react-query';
 import UserCard from './UserCard';
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table';
+import { ariaSortFor } from '@/lib/tableA11y';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -545,6 +546,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                             <TableHead
                                                 key={header.id}
                                                 className="px-3 py-3 text-left align-middle font-semibold text-foreground/90 dark:text-foreground/95"
+                                                aria-sort={ariaSortFor(header)}
                                             >
                                                 {header.isPlaceholder
                                                     ? null

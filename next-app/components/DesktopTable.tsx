@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { ariaSortFor } from "@/lib/tableA11y";
 import {
   AlertCircle,
   CalendarIcon,
@@ -711,7 +712,7 @@ const DesktopTable: React.FC<Props> = ({
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="py-2 px-2">
+                  <TableHead key={header.id} className="py-2 px-2" aria-sort={ariaSortFor(header)}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}

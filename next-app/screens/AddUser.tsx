@@ -10,6 +10,7 @@ import { useProfiles, type Profile } from "@/hooks/useProfiles";
 import useUsers, { AccountStatus } from "@/hooks/useUsers";
 import { ArrowLeft, UserPlus, Eye, EyeOff, HardDrive, Calendar, DollarSign } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useTranslation } from "react-i18next";
 
 const formatQuota = (quota: string) => {
   const bytes = parseInt(quota, 10);
@@ -61,6 +62,7 @@ const PlanCard: React.FC<{
 };
 
 export default function AddUserPage() {
+  const { t } = useTranslation("screens");
   const router = useRouter();
   const { data: profilesData, isLoading: profilesLoading } = useProfiles();
   const { createUserMutation } = useUsers();
@@ -115,8 +117,8 @@ export default function AddUserPage() {
   return (
     <div className="w-full space-y-6 py-6 sm:py-8 px-2 sm:px-0 animate-in fade-in-50">
       <PageHeader
-        title="Add New User"
-        subtitle="Create a new user and assign a plan"
+        title={t("addUser.title")}
+        subtitle={t("addUser.subtitle")}
         icon={UserPlus}
       />
 

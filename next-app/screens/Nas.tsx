@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Nas } from '../types/api'; // Make sure to define this type
 import { ArrowUpDown, Edit, MoreHorizontal, Plus, RefreshCw, Server } from 'lucide-react';
 import PageHeader from "@/components/PageHeader";
+import { ariaSortFor } from "@/lib/tableA11y";
+import { useTranslation } from "react-i18next";
 import IconActionButton from "@/components/IconActionButton";
 import {
     DropdownMenu,
@@ -166,6 +168,7 @@ const NasCard: React.FC<{ nas: Nas }> = ({ nas }) => {
 };
 
 const NasComponent: React.FC = () => {
+    const { t } = useTranslation("screens");
     const { data, error, isLoading, refetch } = useNas();
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
@@ -197,8 +200,8 @@ const NasComponent: React.FC = () => {
     return (
         <div className="w-full py-5 space-y-4 min-h-[50vh] bg-gradient-to-br from-gray-50/50 via-blue-50/20 to-transparent dark:from-background dark:via-muted/15 dark:to-background">
             <PageHeader
-                title="Network Access Servers (NAS)"
-                subtitle="Manage NAS entries and settings"
+                title={t("nas.title")}
+                subtitle={t("nas.subtitle")}
                 icon={Server}
                 rightContent={(
                     <div className="hidden md:block">
@@ -254,7 +257,7 @@ const NasComponent: React.FC = () => {
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id} className="bg-muted/50 dark:bg-muted/40">
                                     {headerGroup.headers.map((header) => (
-                                        <TableHead key={header.id} className="font-bold text-muted-foreground">
+                                        <TableHead key={header.id} className="font-bold text-muted-foreground" aria-sort={ariaSortFor(header)}>
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(

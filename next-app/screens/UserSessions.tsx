@@ -3,8 +3,10 @@ import { useRouter, useParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
 import { ArrowLeft, History } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function UserSessionsPage() {
+  const { t } = useTranslation("screens");
   const router = useRouter();
   const { username: usernameParam } = useParams();
   const username = String(usernameParam ?? "").trim();
@@ -12,8 +14,8 @@ export default function UserSessionsPage() {
   return (
     <div className="w-full py-6 space-y-6">
       <PageHeader
-        title="User Sessions"
-        subtitle={username ? `Session history for ${username}` : "Session history"}
+        title={t("userSessions.title")}
+        subtitle={username ? t("userSessions.subtitle_for", { username }) : t("userSessions.subtitle")}
         icon={History}
         actions={
           <div className="flex gap-2">

@@ -21,8 +21,10 @@ import {
   type ImportPreviewData,
 } from '@/lib/externalInvoiceImport';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 const InvoiceUpload: React.FC = () => {
+  const { t } = useTranslation("screens");
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -164,8 +166,8 @@ const InvoiceUpload: React.FC = () => {
   return (
     <div className="w-full py-6 space-y-6">
       <PageHeader
-        title="Upload Invoice"
-        subtitle="Import external invoices — preview columns, map fields, then upsert by username + billing month + provider"
+        title={t("invoiceUpload.title")}
+        subtitle={t("invoiceUpload.subtitle")}
         icon={FileSpreadsheet}
       />
 
@@ -179,7 +181,7 @@ const InvoiceUpload: React.FC = () => {
                 other layouts (e.g. from upstream billing systems) can be mapped before import.
               </CardDescription>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => downloadExternalInvoiceImportTemplate()}>
+            <Button type="button" variant="outline" size="sm" onClick={() => void downloadExternalInvoiceImportTemplate()}>
               <Download className="mr-2 h-4 w-4" />
               Download template
             </Button>

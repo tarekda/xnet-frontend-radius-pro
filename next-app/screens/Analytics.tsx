@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from "react-i18next";
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ import { useOnlineMetrics } from '@/hooks/useOnlineMetrics';
 import { useBandwidthMetrics } from '@/hooks/useBandwidth';
 
 const Analytics: React.FC = () => {
+  const { t } = useTranslation("screens");
   const [timeRange, setTimeRange] = useState('24h');
   
   // Fetch data using hooks
@@ -135,8 +137,8 @@ const Analytics: React.FC = () => {
   return (
     <div className="w-full space-y-6 p-6">
       <PageHeader
-        title="Analytics Dashboard"
-        subtitle="Real-time insights into your RADIUS system performance and user activity."
+        title={t("analytics.title")}
+        subtitle={t("analytics.subtitle")}
         icon={Activity}
         rightContent={(
           <Select value={timeRange} onValueChange={setTimeRange}>

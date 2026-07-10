@@ -13,8 +13,10 @@ import { notify } from "@/lib/notify";
 import { RefreshCw } from "lucide-react";
 import { createReseller, createResellerLogin, fetchResellerLedger, fetchResellers, fundReseller, type ResellerDto, type ResellerLoginDto } from "@/api/resellers";
 import TableRowActions from "@/components/TableRowActions";
+import { useTranslation } from "react-i18next";
 
 export default function ResellersPage() {
+  const { t } = useTranslation("screens");
   const { user } = useAuth();
   const canManage = can(user, "admin.resellers.manage");
   const canFund = can(user, "admin.resellers.fund");
@@ -117,7 +119,7 @@ export default function ResellersPage() {
   if (!canManage) {
     return (
       <div className="w-full space-y-6 py-6">
-        <PageHeader title="Resellers" subtitle="Forbidden" />
+        <PageHeader title={t("resellers.title")} subtitle={t("resellers.subtitle_forbidden")} />
         <Card><CardContent className="p-6">You don’t have access.</CardContent></Card>
       </div>
     );
@@ -125,7 +127,7 @@ export default function ResellersPage() {
 
   return (
     <div className="w-full space-y-6 py-6">
-      <PageHeader title="Resellers" subtitle="Create and fund reseller accounts" />
+      <PageHeader title={t("resellers.title")} subtitle={t("resellers.subtitle")} />
 
       <Card>
         <CardHeader>

@@ -6,6 +6,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
+  // The local Next dev server compiles routes on demand; too many parallel
+  // first-visits stall compilation and time out page.goto on Windows.
+  workers: process.env.CI ? undefined : 4,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"], ["html"]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:5173",

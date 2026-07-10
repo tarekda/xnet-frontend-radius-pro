@@ -8,8 +8,10 @@ import { changePassword } from "@/api/auth";
 import { useAuth } from "@/context/AuthContext";
 import PageHeader from "@/components/PageHeader";
 import { KeyRound } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function ChangePasswordPage() {
+  const { t } = useTranslation("screens");
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
 
@@ -49,8 +51,8 @@ export default function ChangePasswordPage() {
     <div className="shop-app-shell flex min-h-full items-center justify-center overflow-y-auto p-4">
       <div className="w-full max-w-md space-y-4">
         <PageHeader
-          title="Change password"
-          subtitle={user?.mustChangePassword ? "First login requires a password change." : "Update your password."}
+          title={t("changePassword.title")}
+          subtitle={user?.mustChangePassword ? t("changePassword.subtitle_first_login") : t("changePassword.subtitle")}
           icon={KeyRound}
         />
 

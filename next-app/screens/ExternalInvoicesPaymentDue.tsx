@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 function localYmd(d: Date = new Date()): string {
   const y = d.getFullYear();
@@ -87,6 +88,7 @@ function Section({
 }
 
 export default function ExternalInvoicesPaymentDuePage() {
+  const { t } = useTranslation("screens");
   const { data, isLoading, error } = useQuery({
     queryKey: ["externalInvoicesPaymentDue"],
     queryFn: fetchExternalInvoicesPaymentDue,
@@ -109,8 +111,8 @@ export default function ExternalInvoicesPaymentDuePage() {
   return (
     <div className="w-full space-y-6 py-2">
       <PageHeader
-        title="Payment due"
-        subtitle="Unpaid and pending external invoices with a pay due date. Overdue and near-term items also appear in the notification bell (deduped)."
+        title={t("paymentDue.title")}
+        subtitle={t("paymentDue.subtitle")}
         icon={CalendarClock}
         actions={
           <Button variant="outline" asChild>

@@ -1,13 +1,15 @@
 import React from 'react';
 import PageHeader from "@/components/PageHeader";
 import { Info } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const About: React.FC = () => {
+  const { t } = useTranslation("screens");
   return (
     <div className="w-full space-y-6 p-6">
       <PageHeader
-        title="About RADIUS Pro"
-        subtitle="Your comprehensive RADIUS server management solution"
+        title={t("about.title")}
+        subtitle={t("about.subtitle")}
         icon={Info}
       />
 

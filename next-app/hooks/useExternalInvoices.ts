@@ -182,15 +182,18 @@ type Props = {
     sortDir?: 'asc' | 'desc';
     missing?: string;
     payDue?: string;
+    /** Set to false to skip the list query and use only the mutations. */
+    enabled?: boolean;
 };
 
-export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue }: Props) => {
+export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue, enabled = true }: Props) => {
     const [currentPage, setCurrentPage] = useState(initialPage);
     const queryClient = useQueryClient();
 
     const { data, error, isLoading, refetch } = useQuery<ApiResponse<PaginatedResponse<ExternalInvoice>>, Error>({
         queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue],
         queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue),
+        enabled,
     });
 
     const updateInvoiceMutation = useMutation<ApiResponse<ExternalInvoice>, Error, UpdateInvoiceVariables>({

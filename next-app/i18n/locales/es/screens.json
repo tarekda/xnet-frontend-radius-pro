@@ -28,5 +28,99 @@
     "title_reconciliation": "Conciliación de facturas",
     "subtitle": "Busque, cobre y envíe recordatorios de WhatsApp para facturación externa.",
     "subtitle_reconciliation": "Encuentre duplicados, discrepancias de importes y pagos faltantes en las facturas importadas."
+  },
+  "addUser": {
+    "title": "Añadir usuario",
+    "subtitle": "Cree un usuario nuevo y asígnele un plan"
+  },
+  "access": {
+    "title": "Roles y accesos",
+    "subtitle": "Gestione permisos por rol y excepciones por usuario",
+    "subtitle_forbidden": "No tiene acceso para gestionar permisos."
+  },
+  "about": {
+    "title": "Acerca de RADIUS Pro",
+    "subtitle": "Su solución integral de gestión de servidores RADIUS"
+  },
+  "changePassword": {
+    "title": "Cambiar contraseña",
+    "subtitle": "Actualice su contraseña.",
+    "subtitle_first_login": "El primer inicio de sesión requiere cambiar la contraseña."
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "subtitle": "La página que busca no existe."
+  },
+  "forbidden": {
+    "title": "Acceso denegado",
+    "subtitle": "No tiene permiso para ver esta página.",
+    "subtitle_path": "No tiene permiso para ver: {{path}}"
+  },
+  "authFailures": {
+    "title": "Fallos de autenticación",
+    "subtitle": "Intentos de autenticación fallidos con desglose por rango de tiempo y exportación"
+  },
+  "userSessions": {
+    "title": "Sesiones de usuario",
+    "subtitle": "Historial de sesiones",
+    "subtitle_for": "Historial de sesiones de {{username}}"
+  },
+  "analytics": {
+    "title": "Panel de analítica",
+    "subtitle": "Información en tiempo real del rendimiento del sistema RADIUS y la actividad de usuarios."
+  },
+  "nas": {
+    "title": "Servidores de acceso (NAS)",
+    "subtitle": "Gestione entradas y configuración de NAS"
+  },
+  "paymentDue": {
+    "title": "Pagos vencidos",
+    "subtitle": "Facturas externas impagadas o pendientes con fecha de vencimiento. Los elementos vencidos y próximos también aparecen en la campana de notificaciones (sin duplicados)."
+  },
+  "authUsers": {
+    "title": "Usuarios de autenticación",
+    "subtitle": "Gestione y configure el acceso de usuarios"
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "subtitle": "Introduzca sus credenciales para acceder a su cuenta"
+  },
+  "dunning": {
+    "title": "Centro de reclamaciones",
+    "subtitle": "Ejecute campañas de recordatorio, limitación y suspensión para facturas vencidas"
+  },
+  "backups": {
+    "title": "Copias de seguridad",
+    "subtitle": "Ejecute y descargue copias de base de datos / MikroTik",
+    "subtitle_forbidden": "No tiene acceso para ejecutar copias de seguridad."
+  },
+  "collections": {
+    "title": "Cobros",
+    "subtitle": "Supervise facturas cobradas y efectivo por cobrador."
+  },
+  "expenses": {
+    "title": "Gastos",
+    "subtitle": "Registre y gestione los gastos operativos."
+  },
+  "invoiceUpload": {
+    "title": "Subir factura",
+    "subtitle": "Importe facturas externas: previsualice columnas, asigne campos y actualice por usuario + mes de facturación + proveedor"
+  },
+  "resellers": {
+    "title": "Revendedores",
+    "subtitle": "Cree y financie cuentas de revendedor",
+    "subtitle_forbidden": "Prohibido"
+  },
+  "generatedInvoices": {
+    "title": "Facturas",
+    "subtitle": "Vea y gestione las facturas generadas"
+  },
+  "alerts": {
+    "title": "Gestión de alertas",
+    "subtitle": "Supervise métricas del sistema y configure notificaciones por umbral."
+  },
+  "settings": {
+    "title": "Configuración",
+    "subtitle": "Gestione la configuración y preferencias de su servidor RADIUS"
   }
 }

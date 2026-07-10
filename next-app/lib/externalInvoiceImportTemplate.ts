@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 const HEADERS = [
   "username",
   "fullName",
@@ -35,8 +33,9 @@ const SAMPLE_CARRYOVER: Record<(typeof HEADERS)[number], string | number> = {
   payDueDate: "2026-07-10",
 };
 
-/** Download a starter Excel template for external invoice import. */
-export function downloadExternalInvoiceImportTemplate(filename = "external_invoices_import_template.xlsx") {
+/** Download a starter Excel template for external invoice import. xlsx is loaded lazily to keep it out of the page bundle. */
+export async function downloadExternalInvoiceImportTemplate(filename = "external_invoices_import_template.xlsx") {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.json_to_sheet([SAMPLE_ROW, SAMPLE_CARRYOVER], { header: [...HEADERS] });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Invoices");

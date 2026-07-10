@@ -4,13 +4,15 @@ import PageHeader from "@/components/PageHeader";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Home, SearchX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function NotFoundPage() {
+  const { t } = useTranslation("screens");
   const router = useRouter();
 
   return (
     <div className="w-full py-6 space-y-6">
-      <PageHeader title="Page not found" subtitle="The page you’re looking for doesn’t exist." icon={SearchX} />
+      <PageHeader title={t("notFound.title")} subtitle={t("notFound.subtitle")} icon={SearchX} />
       <EmptyState
         title="404 — Not Found"
         description="Check the URL or go back to the dashboard."

@@ -11,8 +11,10 @@ import { fetchPermissions, fetchRoles, fetchUserOverrides, searchAccessUsers, up
 import { Shield } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { MESSAGES } from "@/constants/messages";
+import { useTranslation } from "react-i18next";
 
 export default function AccessPage() {
+  const { t } = useTranslation("screens");
   const { user } = useAuth();
 
   const canManage = can(user, "admin.access.manage");
@@ -53,10 +55,51 @@ export default function AccessPage() {
     setRolePermsDraft(next);
   }, [selectedRole]);
 
+  // Close username autocomplete when clicking outside
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      if (!userBoxRef.current) return;
+      if (!userBoxRef.current.contains(e.target as Node)) {
+        setUserMatchesOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
+  // Username autocomplete for userId input
+  useEffect(() => {
+    const raw = userIdInput.trim();
+    const isNumeric = raw !== "" && /^[0-9]+$/.test(raw);
+
+    if (raw === "" || isNumeric) {
+      setUserMatches([]);
+      setUserMatchesOpen(false);
+      return;
+    }
+
+    const seq = ++userSearchSeq.current;
+    const t = setTimeout(() => {
+      searchAccessUsers(raw, 20)
+        .then((users) => {
+          if (seq !== userSearchSeq.current) return;
+          setUserMatches(users);
+          setUserMatchesOpen(true);
+        })
+        .catch(() => {
+          if (seq !== userSearchSeq.current) return;
+          setUserMatches([]);
+          setUserMatchesOpen(false);
+        });
+    }, 250);
+
+    return () => clearTimeout(t);
+  }, [userIdInput]);
+
   if (!canManage) {
     return (
       <div className="w-full space-y-6 py-6">
-        <PageHeader title="Roles & Access" subtitle="You don't have access to manage permissions." icon={Shield} />
+        <PageHeader title={t("access.title")} subtitle={t("access.subtitle_forbidden")} icon={Shield} />
         <Card>
           <CardContent className="p-6">Forbidden</CardContent>
         </Card>
@@ -109,49 +152,9 @@ export default function AccessPage() {
     }
   };
 
-  // Username autocomplete for userId input
-  useEffect(() => {
-    function onDocMouseDown(e: MouseEvent) {
-      if (!userBoxRef.current) return;
-      if (!userBoxRef.current.contains(e.target as Node)) {
-        setUserMatchesOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, []);
-
-  useEffect(() => {
-    const raw = userIdInput.trim();
-    const isNumeric = raw !== "" && /^[0-9]+$/.test(raw);
-
-    if (raw === "" || isNumeric) {
-      setUserMatches([]);
-      setUserMatchesOpen(false);
-      return;
-    }
-
-    const seq = ++userSearchSeq.current;
-    const t = setTimeout(() => {
-      searchAccessUsers(raw, 20)
-        .then((users) => {
-          if (seq !== userSearchSeq.current) return;
-          setUserMatches(users);
-          setUserMatchesOpen(true);
-        })
-        .catch(() => {
-          if (seq !== userSearchSeq.current) return;
-          setUserMatches([]);
-          setUserMatchesOpen(false);
-        });
-    }, 250);
-
-    return () => clearTimeout(t);
-  }, [userIdInput]);
-
   return (
     <div className="w-full space-y-6 py-6 sm:py-8 px-2 sm:px-0 animate-in fade-in-50">
-      <PageHeader title="Roles & Access" subtitle="Manage role permissions and per-user overrides" icon={Shield} />
+      <PageHeader title={t("access.title")} subtitle={t("access.subtitle")} icon={Shield} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">

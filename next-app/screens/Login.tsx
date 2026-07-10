@@ -11,8 +11,10 @@ import Alert from '@/components/ui/Alert';
 import PageHeader from "@/components/PageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 
 const Login: React.FC = () => {
+  const { t } = useTranslation("screens");
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState<boolean>(true);
@@ -61,8 +63,8 @@ const Login: React.FC = () => {
     <div className="shop-app-shell flex min-h-full items-center justify-center overflow-y-auto p-4">
       <div className="w-full max-w-md space-y-4">
         <PageHeader
-          title="Sign in"
-          subtitle="Enter your credentials to access your account"
+          title={t("login.title")}
+          subtitle={t("login.subtitle")}
           icon={Lock}
         />
 

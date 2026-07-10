@@ -7,7 +7,7 @@ import {
     RowSelectionState,
 } from "@tanstack/react-table";
 
-import { useExternalInvoices } from "@/hooks/useExternalInvoices";
+import { useExternalInvoices, type InvoiceMetrics } from "@/hooks/useExternalInvoices";
 
 // import { Button } from "@/components/ui/button"; // not used here
 import ExternalInvoiceCard from "@/components/ExternalInvoiceCard";
@@ -28,6 +28,14 @@ import TablePager from "@/components/TablePager";
 import QueryState from "@/components/QueryState";
 
 const initialPage = 1;
+
+export type ExternalInvoicesTableData = {
+    rows: ExternalInvoice[];
+    total: number;
+    totalPages: number;
+    metrics: InvoiceMetrics | undefined;
+    isLoading: boolean;
+};
 
 type Props = { 
     search: string;
@@ -50,6 +58,11 @@ type Props = {
     /** When provided, the empty state offers a "Clear filters" action. */
     onClearFilters?: () => void;
     hasActiveFilters?: boolean;
+    /**
+     * Notifies the parent whenever the table's data changes, so containers can
+     * derive metrics/selection info without mounting a duplicate query.
+     */
+    onDataLoaded?: (payload: ExternalInvoicesTableData) => void;
 };
 
 const ExternalInvoicesTable: React.FC<Props> = ({ 
@@ -71,6 +84,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     totalItems,
     onClearFilters,
     hasActiveFilters = false,
+    onDataLoaded,
 }) => {
     const { user } = useAuth();
     const canPay = can(user, 'billing.externalInvoices.pay');
@@ -124,6 +138,18 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         }
         prevFilterKeyRef.current = filterKey;
     }, [filterKey, setCurrentPage]);
+
+    const onDataLoadedRef = React.useRef(onDataLoaded);
+    onDataLoadedRef.current = onDataLoaded;
+    React.useEffect(() => {
+        onDataLoadedRef.current?.({
+            rows: data?.data?.data ?? [],
+            total: data?.data?.total ?? 0,
+            totalPages: data?.data?.totalPages ?? 1,
+            metrics: data?.data?.metrics,
+            isLoading,
+        });
+    }, [data, isLoading]);
 
     // Safety net: if the loaded result set has fewer pages than the current page
     // (e.g. rows were deleted), snap to the last available page.

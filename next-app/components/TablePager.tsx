@@ -62,26 +62,28 @@ export default function TablePager({
         </span>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <nav className="flex items-center space-x-2" aria-label="Pagination">
         <Button
           variant="outline"
           size="sm"
           onClick={() => onPageChange(1)}
           disabled={safePage === 1 || isDisabled}
           className="hidden sm:flex"
+          aria-label="First page"
         >
-          <ChevronsLeft className="h-4 w-4" />
+          <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => onPageChange(safePage - 1)}
           disabled={safePage === 1 || isDisabled}
+          aria-label="Previous page"
         >
-          <ChevronLeft className="h-4 w-4 sm:mr-2" />
+          <ChevronLeft className="h-4 w-4 sm:mr-2" aria-hidden="true" />
           <span className="hidden sm:inline">Previous</span>
         </Button>
-        <div className="flex items-center gap-1 text-sm font-medium">
+        <div className="flex items-center gap-1 text-sm font-medium" aria-live="polite">
           Page {safePage} of {safeTotalPages}
         </div>
         <Button
@@ -89,9 +91,10 @@ export default function TablePager({
           size="sm"
           onClick={() => onPageChange(safePage + 1)}
           disabled={safePage === safeTotalPages || isDisabled}
+          aria-label="Next page"
         >
           <span className="hidden sm:inline">Next</span>
-          <ChevronRight className="h-4 w-4 sm:ml-2" />
+          <ChevronRight className="h-4 w-4 sm:ml-2" aria-hidden="true" />
         </Button>
         <Button
           variant="outline"
@@ -99,10 +102,11 @@ export default function TablePager({
           onClick={() => onPageChange(safeTotalPages)}
           disabled={safePage === safeTotalPages || isDisabled}
           className="hidden sm:flex"
+          aria-label="Last page"
         >
-          <ChevronsRight className="h-4 w-4" />
+          <ChevronsRight className="h-4 w-4" aria-hidden="true" />
         </Button>
-      </div>
+      </nav>
     </div>
   );
 }

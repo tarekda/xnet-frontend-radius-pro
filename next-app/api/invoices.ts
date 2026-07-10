@@ -236,6 +236,57 @@ export async function fetchExternalInvoicesPaymentDue(): Promise<ExternalInvoice
   return data.data as ExternalInvoice[];
 }
 
+export type ExternalInvoiceListFilters = {
+  search?: string;
+  from?: string;
+  to?: string;
+  status?: string;
+  ageBucket?: string;
+  graceDays?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  missing?: string;
+  payDue?: string;
+};
+
+function buildExternalInvoiceListParams(filters: ExternalInvoiceListFilters, page: number, limit: number): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  if (filters.search) params.set('search', filters.search);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.status && filters.status !== 'all') params.set('status', filters.status);
+  if (filters.ageBucket && filters.ageBucket !== 'all') params.set('ageBucket', filters.ageBucket);
+  if (typeof filters.graceDays === 'number') params.set('graceDays', String(Math.max(0, Math.round(filters.graceDays))));
+  if (filters.sortBy) params.set('sortBy', filters.sortBy);
+  if (filters.sortDir) params.set('sortDir', filters.sortDir);
+  if (filters.missing && filters.missing !== 'all') params.set('missing', filters.missing);
+  if (filters.payDue && filters.payDue !== 'all') params.set('payDue', filters.payDue);
+  return params;
+}
+
+/** Fetch every page of the external invoices list matching the filters (for exports / full-dataset scans). */
+export async function fetchAllExternalInvoicePages(
+  filters: ExternalInvoiceListFilters,
+  pageSize = 500
+): Promise<ExternalInvoice[]> {
+  const first = await apiClient.get(`/invoices/external?${buildExternalInvoiceListParams(filters, 1, pageSize).toString()}`);
+  const payload = first?.data?.data ?? first?.data;
+  const rows: ExternalInvoice[] = [...(payload?.data ?? [])];
+  const totalPages = payload?.totalPages ?? 1;
+  for (let page = 2; page <= totalPages; page++) {
+    const next = await apiClient.get(`/invoices/external?${buildExternalInvoiceListParams(filters, page, pageSize).toString()}`);
+    const nextPayload = next?.data?.data ?? next?.data;
+    if (nextPayload?.data?.length) rows.push(...nextPayload.data);
+  }
+  return rows;
+}
+
+export async function remindExternalInvoice(invoiceId: number): Promise<void> {
+  await apiClient.post(`/invoices/external/${invoiceId}/remind`);
+}
+
 export async function fetchExternalInvoicePaymentLines(
   username: string,
   billingMonth: string,

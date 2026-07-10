@@ -17,6 +17,7 @@ import TableRowActions from '@/components/TableRowActions';
 import QueryState from '@/components/QueryState';
 import { Skeleton } from '@/components/ui/skeleton';
 import IconActionButton from "@/components/IconActionButton";
+import { useTranslation } from "react-i18next";
 
 function useCollectionsUrlQuery() {
   const [sp] = useSearchParams();
@@ -24,6 +25,7 @@ function useCollectionsUrlQuery() {
 }
 
 const Collections: React.FC = () => {
+  const { t } = useTranslation("screens");
   const params = useCollectionsUrlQuery();
   const view = params.get('view') || 'breakdown';
   const [page, setPage] = useState(1);
@@ -61,8 +63,8 @@ const Collections: React.FC = () => {
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
-        title="Collections"
-        subtitle="Monitor collected invoices and cash by collectors."
+        title={t("collections.title")}
+        subtitle={t("collections.subtitle")}
         icon={DollarSign}
       />
 

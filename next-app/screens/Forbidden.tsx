@@ -3,8 +3,10 @@ import { usePathname, useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import EmptyState from "@/components/EmptyState";
 import { Home, ShieldAlert } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function ForbiddenPage() {
+  const { t } = useTranslation("screens");
   const router = useRouter();
   const pathname = usePathname();
   const path = pathname || "";
@@ -12,8 +14,8 @@ export default function ForbiddenPage() {
   return (
     <div className="w-full py-6 space-y-6">
       <PageHeader
-        title="Access denied"
-        subtitle={path ? `You don’t have permission to view: ${path}` : "You don’t have permission to view this page."}
+        title={t("forbidden.title")}
+        subtitle={path ? t("forbidden.subtitle_path", { path }) : t("forbidden.subtitle")}
         icon={ShieldAlert}
       />
       <EmptyState
