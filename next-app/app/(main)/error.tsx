@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { captureException } from "@/lib/telemetry";
 
 export default function MainSegmentError({
   error,
@@ -15,6 +16,7 @@ export default function MainSegmentError({
 
   useEffect(() => {
     console.error(error);
+    captureException(error, { digest: error.digest, boundary: "main" });
   }, [error]);
 
   return (

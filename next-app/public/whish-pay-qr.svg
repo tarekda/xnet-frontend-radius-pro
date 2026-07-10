@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Replace with your Whish QR">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <rect x="32" y="32" width="448" height="448" rx="24" fill="none" stroke="#111827" stroke-width="8" stroke-dasharray="16 12"/>
+  <text x="256" y="230" text-anchor="middle" font-family="system-ui,sans-serif" font-size="28" fill="#111827">Whish QR</text>
+  <text x="256" y="275" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" fill="#6b7280">Replace this file with</text>
+  <text x="256" y="305" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" fill="#6b7280">your real Whish QR image</text>
+  <text x="256" y="350" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" fill="#9ca3af">public/whish-pay-qr.png</text>
+</svg>

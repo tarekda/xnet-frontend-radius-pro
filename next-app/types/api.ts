@@ -84,7 +84,13 @@ export type ExternalInvoice = {
     paidAt: string | null;
 
     /** How payment was captured */
-    paymentMethod?: "cash" | "pos" | "transfer" | "other" | "gateway" | null;
+    paymentMethod?: "cash" | "pos" | "transfer" | "other" | "gateway" | "wallet" | null;
+
+    /** Gateway / wallet provider (e.g. whish, wallet) */
+    paymentProvider?: string | null;
+
+    /** Payment transaction / reference number (e.g. WALLET-123, Whish ref) */
+    paymentReference?: string | null;
 
     /** Collector username for field collections */
     collectedBy?: string | null;
@@ -211,6 +217,8 @@ export interface AuthUser {
   permissions?: string[];
   resellerId?: number | null;
   mustChangePassword?: boolean;
+  mfaEnabled?: boolean;
+  mfaRequired?: boolean;
   isActive: number;
   createdAt: string;
   updatedAt: string;

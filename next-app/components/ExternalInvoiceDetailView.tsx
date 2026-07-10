@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon, Copy, User } from "lucide-react";
@@ -26,6 +26,7 @@ import { can } from "@/lib/permissions";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { notify } from "@/lib/notify";
 import { fetchExternalInvoiceHistory, fetchExternalInvoicePaymentLines, setExternalInvoiceWorkflow } from "@/api/invoices";
+import { apiClient } from "@/api/client";
 import ExternalInvoiceAddDebitDialog from "@/components/ExternalInvoiceAddDebitDialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
@@ -49,7 +50,10 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [isAddDebitOpen, setIsAddDebitOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "pos" | "transfer" | "other" | "gateway">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "pos" | "transfer" | "other" | "gateway" | "wallet">("cash");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [whishClaims, setWhishClaims] = useState<any[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
   const [promiseDateInput, setPromiseDateInput] = useState<string>(parsePromiseDateFromLastAction((invoice as any).lastAction) || "");
   const [editedInvoice, setEditedInvoice] = useState<ExternalInvoice>({
     ...invoice,
@@ -83,6 +87,36 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
       notify.error("Workflow failed", e instanceof Error ? e.message : "Could not update workflow.");
     },
   });
+
+  const loadWhishClaims = async () => {
+    setClaimsLoading(true);
+    try {
+      const { data } = await apiClient.get("/invoices/whish-claims", { params: { status: "pending" } });
+      const all = data?.data || [];
+      setWhishClaims(all.filter((c: any) => Number(c.externalInvoiceId) === Number(invoice.id)));
+    } catch {
+      setWhishClaims([]);
+    } finally {
+      setClaimsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadWhishClaims();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice.id]);
+
+  const confirmClaim = async (claimId: number) => {
+    try {
+      await apiClient.post(`/invoices/whish-claims/${claimId}/confirm`, {});
+      notify.success("Wallet credited", "Whish payment approved — subscriber balance updated.");
+      refetch();
+      void loadWhishClaims();
+      onClose();
+    } catch (e: any) {
+      notify.error("Confirm failed", e?.response?.data?.message || e?.message || "Could not confirm");
+    }
+  };
 
   /* ── handlers ─────────────────────────────── */
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,7 +228,21 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     if (!canPay) return;
     const prev = { status: editedInvoice.status, paidAt: (editedInvoice as any).paidAt } as any;
     setEditedInvoice((prevInv: any) => ({ ...prevInv, status: "paid", paidAt: new Date().toISOString() }));
-    setInvoiceAsPaidMutation.mutate({ invoiceId: editedInvoice.id, paymentMethod, silent: true }, {
+    const ref = paymentReference.trim();
+    setInvoiceAsPaidMutation.mutate(
+      {
+        invoiceId: editedInvoice.id,
+        paymentMethod: ref ? "gateway" : paymentMethod,
+        paymentReference: ref || undefined,
+        paymentProvider:
+          paymentMethod === "wallet"
+            ? "wallet"
+            : ref || paymentMethod === "gateway"
+              ? "whish"
+              : undefined,
+        silent: true,
+      },
+      {
       onSuccess: () => {
         refetch();
         toast({
@@ -385,21 +433,107 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 {renderField("status", (editedInvoice as any).status)}
                 {renderField("paidAt", (editedInvoice as any).paidAt)}
               </div>
-              <div className="max-w-xs">
-                <Label className="block mb-2">Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="pos">POS</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                    <SelectItem value="gateway">Gateway</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              {String((editedInvoice as any).status || "").toLowerCase() === "paid" ? (
+                <div
+                  className={`rounded-xl border p-4 space-y-2 ${
+                    String((editedInvoice as any).paymentProvider || "").toLowerCase() === "wallet" ||
+                    String((editedInvoice as any).paymentMethod || "").toLowerCase() === "wallet"
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : "border-border bg-muted/20"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">Payment details</div>
+                  <div className="grid gap-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Paid via</div>
+                      <div className="font-medium">
+                        {String((editedInvoice as any).paymentProvider || "").toLowerCase() === "wallet" ||
+                        String((editedInvoice as any).paymentMethod || "").toLowerCase() === "wallet"
+                          ? "Paid from own wallet"
+                          : String((editedInvoice as any).paymentProvider || "").toLowerCase() === "whish"
+                            ? "Whish"
+                            : (editedInvoice as any).paymentMethod || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Payment date</div>
+                      <div className="font-medium">
+                        {(editedInvoice as any).paidAt
+                          ? new Date((editedInvoice as any).paidAt).toLocaleString()
+                          : "—"}
+                      </div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-muted-foreground">Transaction / reference #</div>
+                      <div className="font-mono text-sm font-semibold break-all">
+                        {(editedInvoice as any).paymentReference || "—"}
+                      </div>
+                    </div>
+                    {(editedInvoice as any).collectedBy ? (
+                      <div>
+                        <div className="text-xs text-muted-foreground">Collected / paid by</div>
+                        <div className="font-medium">{(editedInvoice as any).collectedBy}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="max-w-xs space-y-3">
+                <div>
+                  <Label className="block mb-2">Payment Method</Label>
+                  <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="pos">POS</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
+                      <SelectItem value="gateway">Whish / Gateway</SelectItem>
+                      <SelectItem value="wallet">Own wallet</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="block mb-2">Whish reference / transaction #</Label>
+                  <Input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Paste Whish txn / reference"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    For Whish top-ups. Wallet pays auto-save as WALLET-&#123;id&#125;.
+                  </p>
+                </div>
               </div>
+              {whishClaims.length > 0 ? (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                  <div className="text-sm font-medium">Pending Whish payment reports</div>
+                  <p className="text-xs text-muted-foreground">
+                    Approving credits the subscriber wallet. They then pay the invoice from balance
+                    (renews if expired).
+                  </p>
+                  {claimsLoading ? <p className="text-xs text-muted-foreground">Loading…</p> : null}
+                  {whishClaims.map((c) => (
+                    <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <div>
+                        <div className="font-mono text-xs">{c.whishReference}</div>
+                        <div className="text-muted-foreground">
+                          {c.amount} {c.currency} · @{c.username}
+                        </div>
+                      </div>
+                      {canPay ? (
+                        <Button size="sm" onClick={() => confirmClaim(c.id)}>
+                          Approve → credit wallet
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="flex items-center gap-2">
                 {editedInvoice.status !== "paid" ? (
                   <Button onClick={markPaidLocal}>Mark Paid</Button>

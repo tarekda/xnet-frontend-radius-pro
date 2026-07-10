@@ -12,8 +12,12 @@ export const useEventBus = () => {
     const apiUrl =
       resolveBrowserApiUrl().replace(/\/api\/?$/, "") ||
       DEFAULT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
-    const wsUrl = apiUrl.replace('http', 'ws');
-    ws.current = new WebSocket(wsUrl);
+    const wsUrl = apiUrl.replace(/^http/, "ws");
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken")
+        : null;
+    ws.current = new WebSocket(token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl);
 
     ws.current.onopen = () => {
       console.log('WebSocket connected');

@@ -236,7 +236,23 @@ const Collections: React.FC = () => {
                           <TableCell>{inv?.username ?? '-'}</TableCell>
                           <TableCell>{inv?.fullName ?? '-'}</TableCell>
                           <TableCell>{inv.amount?.toFixed(2)}</TableCell>
-                          <TableCell>{inv.paymentMethod ?? '-'}</TableCell>
+                          <TableCell>
+                            {String(inv.paymentMethod ?? "").toLowerCase() === "wallet" ||
+                            String((inv as any).paymentProvider ?? "").toLowerCase() === "wallet" ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                                  Own wallet
+                                </span>
+                                {(inv as any).paymentReference ? (
+                                  <span className="font-mono text-[11px] text-muted-foreground">
+                                    {(inv as any).paymentReference}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              inv.paymentMethod ?? "-"
+                            )}
+                          </TableCell>
                           <TableCell>{inv.collectedBy ?? '-'}</TableCell>
                           <TableCell>{inv.collectedAt ? new Date(inv.collectedAt).toLocaleString() : '-'}</TableCell>
                           <TableCell>

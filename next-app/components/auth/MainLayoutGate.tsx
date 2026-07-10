@@ -25,9 +25,19 @@ export default function MainLayoutGate({ children }: { children: React.ReactNode
     router.replace("/change-password");
   }, [isAuthenticated, user, pathname, router]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !user?.mfaRequired) return;
+    if (pathname === "/settings/security" || pathname === "/change-password") return;
+    localStorage.setItem("redirectTo", pathname);
+    router.replace("/settings/security");
+  }, [isAuthenticated, user, pathname, router]);
+
   if (!isAuthenticated) return <PageSkeleton />;
 
   if (user?.mustChangePassword && pathname !== "/change-password") return <PageSkeleton />;
+  if (user?.mfaRequired && pathname !== "/settings/security" && pathname !== "/change-password") {
+    return <PageSkeleton />;
+  }
 
   return (
     <DashboardLayout>

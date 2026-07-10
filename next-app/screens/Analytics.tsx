@@ -299,7 +299,7 @@ const Analytics: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="geographic" className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
-            Geographic
+            By NAS
           </TabsTrigger>
           <TabsTrigger value="peak" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -452,8 +452,8 @@ const Analytics: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Geographic Distribution</CardTitle>
-                <CardDescription>User distribution by region</CardDescription>
+                <CardTitle>Distribution by NAS</CardTitle>
+                <CardDescription>Accepted auths by NAS IP (last 7 days)</CardDescription>
               </CardHeader>
               <CardContent>
                 {geoLoading ? (
@@ -466,7 +466,7 @@ const Analytics: React.FC = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, users }) => `${name}: ${users}%`}
+                        label={({ name, users }) => `${name}: ${users}`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="users"
@@ -489,8 +489,8 @@ const Analytics: React.FC = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Regions by Users</CardTitle>
-                <CardDescription>User count by geographic region</CardDescription>
+                <CardTitle>Top NAS by Users</CardTitle>
+                <CardDescription>Distinct users with accepted auth per NAS</CardDescription>
               </CardHeader>
               <CardContent>
                 {geoLoading ? (

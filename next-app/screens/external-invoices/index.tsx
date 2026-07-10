@@ -54,7 +54,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   const canPayExternalInvoices = can(user, "billing.externalInvoices.pay");
   const canUploadInvoice = can(user, "billing.invoiceUpload.create") && isFeatureEnabled("invoice-upload");
 
-  const defaultPageSize = 200;
+  const defaultPageSize = 50;
   const {
     searchTerm,
     searchInput,

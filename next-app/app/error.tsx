@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { captureException } from "@/lib/telemetry";
 
 /** Fallback for errors in routes not covered by a nested `error.tsx` (still wrapped by root layout). */
 export default function RootError({
@@ -16,6 +17,7 @@ export default function RootError({
 
   useEffect(() => {
     console.error(error);
+    captureException(error, { digest: error.digest, boundary: "root" });
   }, [error]);
 
   return (

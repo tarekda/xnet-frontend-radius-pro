@@ -322,6 +322,37 @@ const DesktopTable: React.FC<Props> = ({
           ),
       },
       {
+        id: "paymentVia",
+        header: () => <span>Paid&nbsp;via</span>,
+        cell: ({ row }) => {
+          const inv = row.original as any;
+          if (String(inv.status || "").toLowerCase() !== "paid") {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const method = String(inv.paymentMethod || "").toLowerCase();
+          const provider = String(inv.paymentProvider || "").toLowerCase();
+          const isWallet = method === "wallet" || provider === "wallet";
+          const label = isWallet
+            ? "Own wallet"
+            : provider === "whish"
+              ? "Whish"
+              : inv.paymentMethod || inv.paymentProvider || "—";
+          const ref = inv.paymentReference ? String(inv.paymentReference) : "";
+          return (
+            <div className="flex flex-col gap-0.5 min-w-[120px]">
+              <span className={`text-xs font-medium ${isWallet ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
+                {label}
+              </span>
+              {ref ? (
+                <span className="font-mono text-[11px] text-muted-foreground break-all" title={ref}>
+                  {ref}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "modifiedBy",
         header: ({ column }) => (
           <HeaderButton column={column}>Last Action</HeaderButton>

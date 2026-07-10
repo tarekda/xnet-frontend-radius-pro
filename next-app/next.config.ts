@@ -37,6 +37,22 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
           // HSTS is a no-op over plain HTTP; effective once served via HTTPS.
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // Baseline CSP — tighten further once inline styles/scripts are audited.
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "base-uri 'self'",
+              "frame-ancestors 'none'",
+              "object-src 'none'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "style-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "connect-src 'self' https: wss: ws:",
+              "form-action 'self'",
+            ].join("; "),
+          },
         ],
       },
     ];

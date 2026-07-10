@@ -1,6 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios, { AxiosError } from 'axios';
-import { useRouter } from 'next/navigation';
 import { AuthUser } from '@/types/api';
 import { apiClient } from '@/api/client';
 import { clearTelemetryUser, setTelemetryUser } from '@/lib/telemetry';
@@ -69,7 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       storage: stored.storage,
     };
   });
-  const router = useRouter();
 
   // Keep the middleware presence cookie in sync with the stored session
   // (covers sessions that existed before the cookie was introduced).
@@ -95,44 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: (u as any).role,
     });
   }, [authState.isAuthenticated, authState.user]);
-
-  useEffect(() => {
-    if (authState.accessToken) {
-      // Set up axios interceptor for adding the token to requests
-      const requestInterceptor = axios.interceptors.request.use((config) => {
-        config.headers.Authorization = `Bearer ${authState.accessToken}`;
-        return config;
-      });
-
-
-
-      // Response interceptor
-      const responseInterceptor = axios.interceptors.response.use(
-        (response) => response,
-        async (error: AxiosError) => {
-          if (error.response?.status === 403) {
-            // Try to refresh the token
-            const refreshed = await refreshToken();
-            if (refreshed && error.config) {
-              // Retry the original request with the new token
-              return axios(error.config);
-            } else {
-              // If refresh failed, logout and redirect to login page
-              logout();
-              router.replace('/login');
-            }
-          }
-          return Promise.reject(error);
-        }
-      );
-
-      // Clean up the interceptor when the component unmounts or the token changes
-      return () => {
-        axios.interceptors.request.eject(requestInterceptor);
-        axios.interceptors.response.eject(responseInterceptor);
-      };
-    }
-  }, [authState.accessToken, router]);
 
   // Ensure we always have up-to-date permissions in localStorage/user state
   useEffect(() => {
@@ -160,31 +119,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authState.accessToken]);
-
-  const refreshToken = async (): Promise<boolean> => {
-    try {
-      if (typeof window === "undefined") return false;
-      const rt = localStorage.getItem("refreshToken") ?? sessionStorage.getItem("refreshToken");
-      if (!rt) return false;
-
-      const response = await apiClient.post<{
-        success: boolean;
-        data?: { accessToken: string; refreshToken?: string };
-      }>("/auth/refresh-token", { token: rt });
-
-      const payload = response.data?.data;
-      if (!response.data?.success || !payload?.accessToken) return false;
-
-      const rememberMe = authState.storage !== "session";
-      const user = authState.user;
-      if (!user) return false;
-      login(user, payload.accessToken, rememberMe, payload.refreshToken ?? rt);
-      return true;
-    } catch (error) {
-      console.error("Failed to refresh token:", error);
-      return false;
-    }
-  };
 
   const login = (user: AuthUser, accessToken: string, rememberMe: boolean = true, refreshToken?: string) => {
     const store = storageFor(Boolean(rememberMe));

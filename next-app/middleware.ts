@@ -11,7 +11,7 @@ import type { NextRequest } from "next/server";
  */
 const AUTH_COOKIE = "xnet_auth";
 
-const PUBLIC_PATHS = ["/login", "/healthz", "/expired", "/forbidden"];
+const PUBLIC_PATHS = ["/login", "/healthz", "/expired", "/forbidden", "/subscriber"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

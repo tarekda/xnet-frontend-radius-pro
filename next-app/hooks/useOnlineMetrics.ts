@@ -48,7 +48,8 @@ export const useOnlineMetrics = () => {
         // Set up WebSocket connection
         const apiBase = (apiClient.defaults.baseURL || resolveBrowserApiUrl()) as string;
         const wsUrl = deriveWsUrlFromApiBase(apiBase);
-        const ws = new WebSocket(wsUrl);
+        const token = localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
+        const ws = new WebSocket(token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl);
 
         ws.onopen = () => {
             console.log('✅ WebSocket connected');
