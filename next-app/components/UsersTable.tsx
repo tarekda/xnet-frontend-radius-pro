@@ -526,7 +526,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
     return (
         <div>
             <div className="overflow-hidden rounded-md border border-border/60 bg-card/30 shadow-sm dark:border-border/60 dark:bg-card/40">
-                <TableToolbar label={displayUsers.length ? `${displayUsers.length} users` : "No users"} />
+                <TableToolbar label={totalUsers ? `${totalUsers} users` : "No users"} />
 
                 <div className="min-w-[768px] hidden md:block">
                     <div className="max-h-[70vh] overflow-x-auto">

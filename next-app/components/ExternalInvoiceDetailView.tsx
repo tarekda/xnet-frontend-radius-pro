@@ -53,6 +53,10 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "pos" | "transfer" | "other" | "gateway" | "wallet">("cash");
   const [paymentReference, setPaymentReference] = useState("");
   const [whishClaims, setWhishClaims] = useState<any[]>([]);
+  const [matchedClaims, setMatchedClaims] = useState<any[]>([]);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [gatewayBusy, setGatewayBusy] = useState(false);
+  const [creditNoteBusy, setCreditNoteBusy] = useState(false);
   const [claimsLoading, setClaimsLoading] = useState(false);
   const [promiseDateInput, setPromiseDateInput] = useState<string>(parsePromiseDateFromLastAction((invoice as any).lastAction) || "");
   const [editedInvoice, setEditedInvoice] = useState<ExternalInvoice>({
@@ -105,6 +109,32 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     void loadWhishClaims();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice.id]);
+
+  useEffect(() => {
+    const ref = paymentReference.trim();
+    if (ref.length < 4) {
+      setMatchedClaims([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setMatchLoading(true);
+      try {
+        const { data } = await apiClient.get("/invoices/whish-claims", {
+          params: { status: "pending", reference: ref },
+        });
+        if (!cancelled) setMatchedClaims(data?.data || []);
+      } catch {
+        if (!cancelled) setMatchedClaims([]);
+      } finally {
+        if (!cancelled) setMatchLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [paymentReference]);
 
   const confirmClaim = async (claimId: number) => {
     try {
@@ -434,6 +464,41 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 {renderField("paidAt", (editedInvoice as any).paidAt)}
               </div>
 
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                <div className="text-sm font-semibold">Amount / tax</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Subtotal</div>
+                    <div className="font-medium">
+                      {Number((editedInvoice as any).subtotalAmount ?? editedInvoice.amount ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Tax ({(((editedInvoice as any).taxRate ?? 0) * 100).toFixed(1)}%)
+                    </div>
+                    <div className="font-medium">
+                      {Number((editedInvoice as any).taxAmount ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Total</div>
+                    <div className="font-semibold">
+                      {Number((editedInvoice as any).totalAmount ?? editedInvoice.amount ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Document</div>
+                    <div className="font-medium capitalize">
+                      {(editedInvoice as any).documentType || "invoice"}
+                      {(editedInvoice as any).parentInvoiceId
+                        ? ` (parent #${(editedInvoice as any).parentInvoiceId})`
+                        : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {String((editedInvoice as any).status || "").toLowerCase() === "paid" ? (
                 <div
                   className={`rounded-xl border p-4 space-y-2 ${
@@ -505,8 +570,39 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                     placeholder="Paste Whish txn / reference"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    For Whish top-ups. Wallet pays auto-save as WALLET-&#123;id&#125;.
+                    Paste a Whish ref to auto-match pending claims. Wallet pays auto-save as WALLET-&#123;id&#125;.
                   </p>
+                  {matchLoading ? (
+                    <p className="mt-1 text-xs text-muted-foreground">Matching…</p>
+                  ) : null}
+                  {matchedClaims.length > 0 ? (
+                    <div className="mt-2 space-y-2 rounded-md border border-sky-500/30 bg-sky-500/5 p-2">
+                      <div className="text-xs font-medium">Matched Whish claims</div>
+                      {matchedClaims.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                        >
+                          <div>
+                            <div className="font-mono text-xs">{c.whishReference}</div>
+                            <div className="text-muted-foreground">
+                              {c.amount} {c.currency} · @{c.username} · Invoice #{c.externalInvoiceId}
+                              {Number(c.externalInvoiceId) !== Number(invoice.id) ? (
+                                <span className="text-amber-600"> (other invoice)</span>
+                              ) : null}
+                            </div>
+                          </div>
+                          {canPay && c.status === "pending" ? (
+                            <Button size="sm" onClick={() => confirmClaim(c.id)}>
+                              Approve → credit wallet
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : paymentReference.trim().length >= 4 && !matchLoading ? (
+                    <p className="mt-1 text-xs text-muted-foreground">No pending claim matches this reference.</p>
+                  ) : null}
                 </div>
               </div>
               {whishClaims.length > 0 ? (
@@ -534,12 +630,82 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   ))}
                 </div>
               ) : null}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {editedInvoice.status !== "paid" ? (
                   <Button onClick={markPaidLocal}>Mark Paid</Button>
                 ) : (
                   <Button variant="outline" onClick={markUnpaidLocal}>Mark Unpaid</Button>
                 )}
+                {canPay &&
+                String((editedInvoice as any).documentType || "invoice") !== "credit_note" &&
+                String(editedInvoice.status).toLowerCase() !== "paid" ? (
+                  <Button
+                    variant="secondary"
+                    disabled={gatewayBusy}
+                    onClick={async () => {
+                      setGatewayBusy(true);
+                      try {
+                        const { data } = await apiClient.post(
+                          `/invoices/external/${editedInvoice.id}/payment-intent`
+                        );
+                        const url = data?.data?.checkoutUrl;
+                        notify.success(
+                          "Payment intent created",
+                          url ? "Checkout link ready." : "Intent created."
+                        );
+                        if (url && typeof window !== "undefined") {
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }
+                        refetch();
+                      } catch (e: any) {
+                        notify.error(
+                          "Payment intent failed",
+                          e?.response?.data?.message || e?.message || "Could not create intent"
+                        );
+                      } finally {
+                        setGatewayBusy(false);
+                      }
+                    }}
+                  >
+                    {gatewayBusy ? "Creating…" : "Create payment link"}
+                  </Button>
+                ) : null}
+                {canPay &&
+                String((editedInvoice as any).documentType || "invoice") !== "credit_note" ? (
+                  <Button
+                    variant="outline"
+                    disabled={creditNoteBusy}
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Create a credit note for invoice #${editedInvoice.id}? This adds a linked credit_note document.`
+                        )
+                      ) {
+                        return;
+                      }
+                      setCreditNoteBusy(true);
+                      try {
+                        const { data } = await apiClient.post(
+                          `/invoices/external/${editedInvoice.id}/credit-note`
+                        );
+                        notify.success(
+                          "Credit note created",
+                          data?.data?.id ? `Document #${data.data.id}` : "Saved."
+                        );
+                        refetch();
+                      } catch (e: any) {
+                        notify.error(
+                          "Credit note failed",
+                          e?.response?.data?.message || e?.message || "Could not create credit note"
+                        );
+                      } finally {
+                        setCreditNoteBusy(false);
+                      }
+                    }}
+                  >
+                    {creditNoteBusy ? "Creating…" : "Create credit note"}
+                  </Button>
+                ) : null}
               </div>
               <div className="rounded-md border p-3 space-y-2">
                 <div className="text-xs text-muted-foreground">Collection workflow</div>

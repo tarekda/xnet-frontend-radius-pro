@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import React, { useState } from 'react';
+import Link from 'next/link';
 import PageHeader from "@/components/PageHeader";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, Shield } from "lucide-react";
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -70,6 +71,14 @@ const Setting: React.FC = () => {
           subtitle={tScreens("settings.subtitle")}
           icon={SettingsIcon}
         />
+        <div className="mt-3">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/settings/security">
+              <Shield className="h-4 w-4" />
+              Security & MFA
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">

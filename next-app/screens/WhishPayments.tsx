@@ -36,8 +36,13 @@ type WhishClaim = {
   createdAt?: string | null;
 };
 
-async function fetchWhishClaims(status: string): Promise<WhishClaim[]> {
-  const { data } = await apiClient.get("/invoices/whish-claims", { params: { status } });
+async function fetchWhishClaims(status: string, reference?: string): Promise<WhishClaim[]> {
+  const { data } = await apiClient.get("/invoices/whish-claims", {
+    params: {
+      status,
+      ...(reference ? { reference } : {}),
+    },
+  });
   return data?.data || [];
 }
 
@@ -66,10 +71,12 @@ export default function WhishPaymentsPage() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<"pending" | "confirmed" | "rejected">("pending");
   const [search, setSearch] = useState("");
+  const [lookupRef, setLookupRef] = useState("");
+  const [lookupApplied, setLookupApplied] = useState("");
 
   const claimsQuery = useQuery({
-    queryKey: ["whishClaims", status],
-    queryFn: () => fetchWhishClaims(status),
+    queryKey: ["whishClaims", status, lookupApplied],
+    queryFn: () => fetchWhishClaims(status, lookupApplied || undefined),
     refetchInterval: 30_000,
   });
 
@@ -165,11 +172,46 @@ export default function WhishPaymentsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            <div className="flex flex-wrap gap-2">
+              <Input
+                className="max-w-xs font-mono"
+                placeholder="Paste Whish ref to auto-match"
+                value={lookupRef}
+                onChange={(e) => setLookupRef(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setLookupApplied(lookupRef.trim());
+                }}
+              />
+              <Button
+                variant="secondary"
+                onClick={() => setLookupApplied(lookupRef.trim())}
+              >
+                Match ref
+              </Button>
+              {lookupApplied ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setLookupRef("");
+                    setLookupApplied("");
+                  }}
+                >
+                  Clear match
+                </Button>
+              ) : null}
+            </div>
             <Button variant="outline" onClick={() => claimsQuery.refetch()} disabled={claimsQuery.isFetching}>
               {claimsQuery.isFetching ? <Loader2 className="animate-spin" /> : null}
               Refresh
             </Button>
           </div>
+          {lookupApplied ? (
+            <p className="text-xs text-muted-foreground">
+              Showing claims matching reference <span className="font-mono">{lookupApplied}</span>
+              {rows.length === 1 ? " — one match found." : rows.length > 1 ? ` — ${rows.length} matches.` : "."}
+            </p>
+          ) : null}
 
           {claimsQuery.isError ? (
             <p className="text-sm text-destructive">Failed to load Whish claims.</p>

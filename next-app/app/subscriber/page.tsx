@@ -140,6 +140,7 @@ function SubscriberPortalContent() {
   const [me, setMe] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [walletLedger, setWalletLedger] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [provider, setProvider] = useState<PaymentProviderInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -186,12 +187,13 @@ function SubscriberPortalContent() {
     setError(null);
     try {
       const h = { Authorization: `Bearer ${accessToken}` };
-      const [meRes, usageRes, invRes, sessRes, payRes] = await Promise.all([
+      const [meRes, usageRes, invRes, sessRes, payRes, ledgerRes] = await Promise.all([
         fetch(`${API_BASE}/subscriber/me`, { headers: h }),
         fetch(`${API_BASE}/subscriber/usage`, { headers: h }),
         fetch(`${API_BASE}/subscriber/invoices`, { headers: h }),
         fetch(`${API_BASE}/subscriber/sessions?limit=5`, { headers: h }),
         fetch(`${API_BASE}/subscriber/payment-provider`, { headers: h }),
+        fetch(`${API_BASE}/subscriber/wallet/ledger?limit=20`, { headers: h }),
       ]);
       if (!meRes.ok) throw new Error("Session expired — please sign in again");
       setMe((await meRes.json()).data);
@@ -201,6 +203,12 @@ function SubscriberPortalContent() {
       setSessions(sessJson.data?.sessions || []);
       if (payRes.ok) {
         setProvider((await payRes.json()).data || null);
+      }
+      if (ledgerRes.ok) {
+        const ledgerJson = await ledgerRes.json();
+        setWalletLedger(ledgerJson.data || []);
+      } else {
+        setWalletLedger([]);
       }
     } finally {
       setLoading(false);
@@ -255,6 +263,7 @@ function SubscriberPortalContent() {
     setMe(null);
     setUsage(null);
     setInvoices([]);
+    setWalletLedger([]);
     setSessions([]);
     setProvider(null);
     sessionStorage.removeItem(storageKey("accessToken"));
@@ -356,14 +365,26 @@ function SubscriberPortalContent() {
     if (token) void load(token);
   };
 
-  const payFromWallet = async (inv: { id: number; totalAmount?: number; amount?: number }) => {
+  const payFromWallet = async (inv: {
+    id: number;
+    totalAmount?: number;
+    amount?: number;
+    remainingDue?: number;
+  }) => {
     if (!headers) return;
-    const due = Number(inv.totalAmount ?? inv.amount ?? 0);
+    const due = Number(inv.remainingDue ?? inv.totalAmount ?? inv.amount ?? 0);
     const bal = Number(me?.walletBalance ?? 0);
-    if (bal + 1e-9 < due) {
-      setError(
-        `Insufficient wallet balance (${formatMoney(bal, provider?.currency || "USD")}). Top up via Whish first.`
-      );
+    if (bal + 1e-9 < 0.01) {
+      setError("Wallet is empty — top up via Whish first.");
+      return;
+    }
+    const willPartial = bal + 1e-9 < due;
+    if (
+      willPartial &&
+      !window.confirm(
+        `Your balance (${formatMoney(bal, provider?.currency || "USD")}) is less than the remaining due (${formatMoney(due, provider?.currency || "USD")}). Pay what you can now?`
+      )
+    ) {
       return;
     }
     setWalletPayingId(inv.id);
@@ -377,11 +398,17 @@ function SubscriberPortalContent() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message || "Wallet payment failed");
-      setNotice(
-        json.data?.renewed
-          ? "Paid from wallet — account renewed."
-          : "Invoice paid from your wallet balance."
-      );
+      if (json.data?.partial) {
+        setNotice(
+          `Partial payment applied: ${formatMoney(json.data.amountApplied, currency)}. Remaining: ${formatMoney(json.data.remainingDue, currency)}.`
+        );
+      } else {
+        setNotice(
+          json.data?.renewed
+            ? "Paid from wallet — account renewed."
+            : "Invoice paid from your wallet balance."
+        );
+      }
       if (token) await load(token);
     } catch (err: any) {
       setError(err?.message || "Wallet payment failed");
@@ -427,7 +454,11 @@ function SubscriberPortalContent() {
     [invoices]
   );
   const unpaidTotal = useMemo(
-    () => unpaid.reduce((sum, inv) => sum + Number(inv.totalAmount ?? inv.amount ?? 0), 0),
+    () =>
+      unpaid.reduce((sum, inv) => {
+        const rem = Number(inv.remainingDue ?? inv.totalAmount ?? inv.amount ?? 0);
+        return sum + (Number.isFinite(rem) ? rem : 0);
+      }, 0),
     [unpaid]
   );
   const currency = provider?.currency || "USD";
@@ -613,6 +644,54 @@ function SubscriberPortalContent() {
           </Card>
         </section>
 
+        {walletLedger.length > 0 ? (
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Receipt className="h-4 w-4" />
+                Wallet activity
+              </CardTitle>
+              <CardDescription>Recent top-ups and payments</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {walletLedger.slice(0, 12).map((e: any) => {
+                const isCredit = e.entryType === "credit";
+                const refType = String(e.referenceType || "");
+                const label =
+                  refType === "whish_claim"
+                    ? "Whish top-up"
+                    : refType === "external_invoice"
+                      ? `Invoice #${String(e.referenceId || "").split(":")[0]}`
+                      : refType === "admin_credit"
+                        ? "Staff credit"
+                        : refType || "Wallet";
+                return (
+                  <div
+                    key={e.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium">{label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}
+                        {e.note ? ` · ${e.note}` : ""}
+                      </div>
+                    </div>
+                    <div
+                      className={`shrink-0 font-semibold ${
+                        isCredit ? "text-green-700 dark:text-green-400" : ""
+                      }`}
+                    >
+                      {isCredit ? "+" : "−"}
+                      {formatMoney(Number(e.amount), e.currency || currency)}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -758,6 +837,11 @@ function SubscriberPortalContent() {
             {invoices.map((inv) => {
               const paid = String(inv.status || "").toLowerCase() === "paid";
               const amount = Number(inv.totalAmount ?? inv.amount ?? 0);
+              const remaining = Number(inv.remainingDue ?? amount);
+              const amountPaidToward = Number(inv.amountPaidToward ?? 0);
+              const bal = Number(me?.walletBalance ?? 0);
+              const canPayPartial = !paid && bal + 1e-9 >= 0.01;
+              const isPartialAvailable = canPayPartial && bal + 1e-9 < remaining;
               const isPaying = payingId === inv.id;
               return (
                 <div
@@ -768,6 +852,11 @@ function SubscriberPortalContent() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{formatMonth(inv.billingMonth)}</span>
                       <Badge variant={statusVariant(inv.status)}>{inv.status || "—"}</Badge>
+                      {!paid && amountPaidToward > 0 ? (
+                        <Badge variant="secondary" className="font-normal">
+                          Partial {formatMoney(amountPaidToward, currency)} paid
+                        </Badge>
+                      ) : null}
                       {inv.debitLabel ? (
                         <Badge variant="outline" className="font-normal">
                           {inv.debitLabel}
@@ -777,6 +866,9 @@ function SubscriberPortalContent() {
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">
                         {formatMoney(amount, currency)}
+                        {!paid && remaining < amount - 1e-9
+                          ? ` · remaining ${formatMoney(remaining, currency)}`
+                          : ""}
                       </span>
                       {inv.payDueDate ? (
                         <span className="inline-flex items-center gap-1">
@@ -804,11 +896,7 @@ function SubscriberPortalContent() {
                   {!paid ? (
                     <div className="flex shrink-0 flex-col gap-2 sm:items-end">
                       <Button
-                        disabled={
-                          walletPayingId !== null ||
-                          Number(me?.walletBalance ?? 0) + 1e-9 <
-                            Number(inv.totalAmount ?? inv.amount ?? 0)
-                        }
+                        disabled={walletPayingId !== null || !canPayPartial}
                         onClick={() => payFromWallet(inv)}
                       >
                         {walletPayingId === inv.id ? (
@@ -818,9 +906,11 @@ function SubscriberPortalContent() {
                         )}
                         {walletPayingId === inv.id
                           ? "Paying…"
-                          : me?.isExpired
-                            ? "Pay & renew"
-                            : "Pay from wallet"}
+                          : isPartialAvailable
+                            ? `Pay ${formatMoney(Math.min(bal, remaining), currency)} now`
+                            : me?.isExpired
+                              ? "Pay & renew"
+                              : "Pay from wallet"}
                       </Button>
                       <Button
                         variant="outline"

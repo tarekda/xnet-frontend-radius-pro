@@ -84,6 +84,7 @@ const providerStyles = {
   idm: { color: "text-blue-700", bg: "bg-blue-100" },
   isp11s: { color: "text-violet-700", bg: "bg-violet-100" },
   myisp: { color: "text-red-700", bg: "bg-red-100" },
+  myisp2: { color: "text-rose-700", bg: "bg-rose-100" },
   terra: { color: "text-blue-700", bg: "bg-blue-100" },
   mobi: { color: "text-blue-700", bg: "bg-blue-100" },
   tisp: { color: "text-orange-700", bg: "bg-orange-100" },

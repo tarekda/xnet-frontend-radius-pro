@@ -37,15 +37,33 @@ interface UserMutationData {
 //   });
 //   return response.data;
 // };
-const fetchUsers = async (page: number, pageSize: number, searchQuery: string): Promise<UsersApiResponse> => {
+type UserListFilters = {
+  accountStatus?: string;
+  connectivityStatus?: string;
+};
+
+const fetchUsers = async (
+  page: number,
+  pageSize: number,
+  searchQuery: string,
+  filters: UserListFilters
+): Promise<UsersApiResponse> => {
+  const filterParams = {
+    ...(filters.accountStatus ? { accountStatus: filters.accountStatus } : {}),
+    ...(filters.connectivityStatus === 'online'
+      ? { online: true }
+      : filters.connectivityStatus === 'offline'
+        ? { online: false }
+        : {}),
+  };
   if (searchQuery) {
     const response = await apiClient.get<UsersApiResponse>('/radius/users/search', {
-      params: { query: searchQuery }
+      params: { query: searchQuery, ...filterParams }
     });
     return response.data;
   } else {
     const response = await apiClient.get<UsersApiResponse>('/radius/users', {
-      params: { page, pageSize }
+      params: { page, pageSize, ...filterParams }
     });
     return response.data;
   }
@@ -71,14 +89,14 @@ const resetMacAddress = async (username: string): Promise<User> => {
 };
 
 
-const useUsers = (initialPage = 1, pageSize = 10) => {
+const useUsers = (initialPage = 1, pageSize = 10, filters: UserListFilters = {}) => {
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
 
   const usersQuery = useQuery<UsersApiResponse, Error>({
-    queryKey: ['users',currentPage, pageSize,searchQuery],
-    queryFn: () => fetchUsers(currentPage, pageSize,searchQuery),
+    queryKey: ['users', currentPage, pageSize, searchQuery, filters.accountStatus ?? '', filters.connectivityStatus ?? ''],
+    queryFn: () => fetchUsers(currentPage, pageSize, searchQuery, filters),
   });
 
   const createUserMutation = useMutation<User, Error, UserMutationData & { username: string }>({

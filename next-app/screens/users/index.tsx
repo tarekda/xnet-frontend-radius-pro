@@ -90,7 +90,10 @@ const UsersPage: React.FC = () => {
         setSearchQuery,
         deleteUserMutation,
         resetMacAddressMutation,
-    } = useUsers(1, pageSize);
+    } = useUsers(1, pageSize, {
+        accountStatus: advancedFilters.accountStatus,
+        connectivityStatus: statusFilter,
+    });
     const profilesQuery = useProfiles();
     const recentRejectQuery = useRecentRejectUsers(canSeeOpsSignals);
     const recentRejectCounts = recentRejectQuery.data ?? {};
@@ -266,7 +269,8 @@ const UsersPage: React.FC = () => {
             default:
                 dispatch({ type: "SET_STATUS_FILTER", payload: "" });
         }
-    }, [advancedFilters]);
+        setCurrentPage(1);
+    }, [advancedFilters, setCurrentPage]);
 
     const quickFilterPillValue = useMemo(() => {
         if (statusFilter === "online") return "online";

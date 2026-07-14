@@ -71,8 +71,18 @@ export type ExternalInvoice = {
     /** Target payment date (YYYY-MM-DD); optional, for collection tracking */
     payDueDate?: string | null;
 
-    /** Invoice amount in chosen currency (e.g. USD) */
+    /** Invoice amount in chosen currency (e.g. USD) — typically equals totalAmount */
     amount: number;
+
+    /** Tax breakdown (optional; amount usually = totalAmount) */
+    subtotalAmount?: number | null;
+    taxRate?: number | null;
+    taxAmount?: number | null;
+    totalAmount?: number | null;
+
+    /** invoice | credit_note */
+    documentType?: "invoice" | "credit_note" | string | null;
+    parentInvoiceId?: number | null;
 
     /** Payment status */
     status: "paid" | "unpaid" | "pending";
