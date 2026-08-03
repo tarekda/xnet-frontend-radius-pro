@@ -20,14 +20,25 @@ export type ProviderImportParams = {
   source: InvoiceImportSource;
   billingMonth: string;
   payDueDayOffset?: number;
+  /** Provider login names — when set, only these accounts are imported (partial import). */
+  usernames?: string;
+  partialImport?: boolean;
 };
+
+function buildProviderImportBody(params: Pick<ProviderImportParams, 'billingMonth' | 'payDueDayOffset' | 'usernames' | 'partialImport'>) {
+  const usernames = params.usernames?.trim();
+  const hasFilter = Boolean(usernames);
+  return {
+    billingMonth: params.billingMonth,
+    ...(typeof params.payDueDayOffset === 'number' ? { payDueDayOffset: params.payDueDayOffset } : {}),
+    ...(hasFilter ? { usernames, partialImport: params.partialImport !== false } : {}),
+  };
+}
 
 export function useProviderImportPreview() {
   return useMutation({
-    mutationFn: async ({ source, billingMonth }: Pick<ProviderImportParams, 'source' | 'billingMonth'>) => {
-      const response = await apiClient.post<PreviewResponse>(`/invoices/${source}/preview`, {
-        billingMonth,
-      });
+    mutationFn: async ({ source, billingMonth, usernames, partialImport }: Pick<ProviderImportParams, 'source' | 'billingMonth' | 'usernames' | 'partialImport'>) => {
+      const response = await apiClient.post<PreviewResponse>(`/invoices/${source}/preview`, buildProviderImportBody({ billingMonth, usernames, partialImport }));
       return response.data.data;
     },
   });
@@ -35,11 +46,8 @@ export function useProviderImportPreview() {
 
 export function useProviderInvoiceImport() {
   return useMutation({
-    mutationFn: async ({ source, billingMonth, payDueDayOffset }: ProviderImportParams) => {
-      const response = await apiClient.post<ImportResponse>(`/invoices/${source}/import`, {
-        billingMonth,
-        ...(typeof payDueDayOffset === 'number' ? { payDueDayOffset } : {}),
-      });
+    mutationFn: async ({ source, billingMonth, payDueDayOffset, usernames, partialImport }: ProviderImportParams) => {
+      const response = await apiClient.post<ImportResponse>(`/invoices/${source}/import`, buildProviderImportBody({ billingMonth, payDueDayOffset, usernames, partialImport }));
       return response.data;
     },
   });

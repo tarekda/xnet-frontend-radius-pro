@@ -1,0 +1,218 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Loader2, MessageCircle, XCircle } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { notify } from "@/lib/notify";
+import { apiClient } from "@/api/client";
+import { useAuth } from "@/context/AuthContext";
+import { can } from "@/lib/permissions";
+import type { ExternalInvoice } from "@/types/api";
+import { useExternalInvoiceRealtimeSync } from "@/hooks/useExternalInvoiceRealtimeSync";
+
+type WhatsappAmbiguity = {
+  id: number;
+  submittedName: string;
+  billingMonth: string;
+  status: "pending" | "resolved" | "dismissed";
+  sourceFrom?: string | null;
+  createdAt?: string | null;
+  candidates: ExternalInvoice[];
+};
+
+async function fetchWhatsappAmbiguities(status: string): Promise<WhatsappAmbiguity[]> {
+  const { data } = await apiClient.get("/invoices/external/whatsapp-payment-ambiguities", {
+    params: { status },
+  });
+  return data?.data || [];
+}
+
+function formatWhen(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+}
+
+export default function WhatsappPaymentAmbiguitiesPage() {
+  const { user } = useAuth();
+  const canPay = can(user, "billing.externalInvoices.pay");
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<"pending" | "resolved" | "dismissed">("pending");
+
+  const listQuery = useQuery({
+    queryKey: ["whatsappPaymentAmbiguities", status],
+    queryFn: () => fetchWhatsappAmbiguities(status),
+    refetchInterval: 30_000,
+  });
+
+  useExternalInvoiceRealtimeSync(() => {
+    queryClient.invalidateQueries({ queryKey: ["whatsappPaymentAmbiguities"] });
+    queryClient.invalidateQueries({ queryKey: ["externalInvoices"] });
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: async (vars: { ambiguityId: number; invoiceId: number }) => {
+      const { data } = await apiClient.post(
+        `/invoices/external/whatsapp-payment-ambiguities/${vars.ambiguityId}/resolve`,
+        { invoiceId: vars.invoiceId }
+      );
+      return data;
+    },
+    onSuccess: () => {
+      notify.success("Marked paid", "The selected subscriber was marked paid.");
+      queryClient.invalidateQueries({ queryKey: ["whatsappPaymentAmbiguities"] });
+      queryClient.invalidateQueries({ queryKey: ["externalInvoices"] });
+    },
+    onError: (e: any) => {
+      notify.error("Failed", e?.response?.data?.message || e?.message || "Could not apply payment");
+    },
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: async (ambiguityId: number) => {
+      const { data } = await apiClient.post(
+        `/invoices/external/whatsapp-payment-ambiguities/${ambiguityId}/dismiss`,
+        { reason: "Not a payment / wrong message" }
+      );
+      return data;
+    },
+    onSuccess: () => {
+      notify.success("Dismissed", "Removed from the queue without marking anyone paid.");
+      queryClient.invalidateQueries({ queryKey: ["whatsappPaymentAmbiguities"] });
+    },
+    onError: (e: any) => {
+      notify.error("Dismiss failed", e?.response?.data?.message || e?.message || "Could not dismiss");
+    },
+  });
+
+  const rows = useMemo(() => listQuery.data || [], [listQuery.data]);
+  const pendingCount = status === "pending" ? rows.length : undefined;
+
+  return (
+    <div className="space-y-4 p-4 md:p-6">
+      <PageHeader
+        title="WhatsApp name matches"
+        subtitle="When collectors send a name without a middle name and several subscribers match, choose who paid here."
+        icon={MessageCircle}
+        actions={
+          <Button variant="outline" asChild>
+            <Link href="/external-invoices">External invoices</Link>
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap gap-2">
+        {(["pending", "resolved", "dismissed"] as const).map((s) => (
+          <Button
+            key={s}
+            variant={status === s ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatus(s)}
+          >
+            {s === "pending" ? "Needs review" : s === "resolved" ? "Resolved" : "Dismissed"}
+          </Button>
+        ))}
+      </div>
+
+      {listQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : listQuery.error ? (
+        <p className="text-sm text-destructive">Could not load queue.</p>
+      ) : rows.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {status === "pending"
+              ? "No ambiguous WhatsApp payments waiting for review."
+              : `No ${status} items.`}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {rows.map((item) => (
+            <Card key={item.id}>
+              <CardHeader className="pb-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">
+                      “{item.submittedName}”
+                      {status === "pending" && (
+                        <Badge variant="secondary" className="ml-2">
+                          {item.candidates.length} matches
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      Billing month {item.billingMonth.slice(0, 7)} · {formatWhen(item.createdAt)}
+                      {item.sourceFrom ? ` · from ${item.sourceFrom}` : ""}
+                    </CardDescription>
+                  </div>
+                  {status === "pending" && canPay && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      disabled={dismissMutation.isPending}
+                      onClick={() => dismissMutation.mutate(item.id)}
+                    >
+                      <XCircle className="mr-1 h-4 w-4" />
+                      Dismiss
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {item.candidates.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border border-border/60 px-3 py-2 text-sm"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground">#{c.id}</span>
+                    <span className="min-w-[160px] font-medium">{c.fullName}</span>
+                    <span className="text-muted-foreground">{c.username}</span>
+                    <span className="font-semibold">${Number(c.amount).toFixed(2)}</span>
+                    {c.debitLabel ? (
+                      <Badge variant="outline">{c.debitLabel}</Badge>
+                    ) : null}
+                    {status === "pending" && canPay ? (
+                      <Button
+                        size="sm"
+                        className="ml-auto"
+                        disabled={resolveMutation.isPending}
+                        onClick={() =>
+                          resolveMutation.mutate({ ambiguityId: item.id, invoiceId: c.id! })
+                        }
+                      >
+                        {resolveMutation.isPending ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-1 h-4 w-4" />
+                        )}
+                        Mark this one paid
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="ml-auto" asChild>
+                        <Link href={`/external-invoices?q=${c.id}`}>Open</Link>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {pendingCount !== undefined && pendingCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {pendingCount} item{pendingCount === 1 ? "" : "s"} need a choice before payment is applied.
+        </p>
+      )}
+    </div>
+  );
+}

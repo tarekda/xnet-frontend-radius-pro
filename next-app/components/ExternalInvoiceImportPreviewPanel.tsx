@@ -1,8 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertCircle, Columns3, Save } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,6 +48,8 @@ export default function ExternalInvoiceImportPreviewPanel({
     () => detectProviderFromMapping(mapping, preview.mappedPreview),
     [mapping, preview.mappedPreview]
   );
+  const [providerDialogOpen, setProviderDialogOpen] = useState(false);
+  const [providerName, setProviderName] = useState('');
 
   const setFieldMapping = (field: keyof ImportColumnMapping, header: string) => {
     const next = { ...mapping };
@@ -48,9 +59,20 @@ export default function ExternalInvoiceImportPreviewPanel({
   };
 
   const handleSaveMapping = () => {
-    const provider = providerHint || prompt('Provider name for saved mapping?')?.trim();
+    if (providerHint) {
+      saveMappingForProvider(providerHint, mapping);
+      return;
+    }
+    setProviderName('');
+    setProviderDialogOpen(true);
+  };
+
+  const handleConfirmSaveMapping = () => {
+    const provider = providerName.trim();
     if (!provider) return;
     saveMappingForProvider(provider, mapping);
+    setProviderDialogOpen(false);
+    setProviderName('');
   };
 
   const previewColumns: Array<{ key: string; label: string }> = [
@@ -176,6 +198,45 @@ export default function ExternalInvoiceImportPreviewPanel({
           <Badge variant="secondary">Username → {mapping.username}</Badge>
         )}
       </div>
+
+      <Dialog
+        open={providerDialogOpen}
+        onOpenChange={(open) => {
+          setProviderDialogOpen(open);
+          if (!open) setProviderName('');
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save column mapping</DialogTitle>
+            <DialogDescription>
+              Name the provider so this mapping can be reused automatically on future imports.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="mapping-provider">Provider name</Label>
+            <Input
+              id="mapping-provider"
+              autoFocus
+              value={providerName}
+              onChange={(e) => setProviderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmSaveMapping();
+              }}
+              placeholder="For example: MyISP"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setProviderDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleConfirmSaveMapping} disabled={!providerName.trim()}>
+              <Save className="mr-2 h-4 w-4" />
+              Save mapping
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

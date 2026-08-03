@@ -47,7 +47,7 @@ export function currentMonthKey(now: Date = new Date()): string {
 }
 
 function isOpen(inv: ExternalInvoice): boolean {
-  return inv.status !== "paid";
+  return !inv.voidedAt && inv.status !== "paid";
 }
 
 export function classifyLine(inv: ExternalInvoice, nowMonth: string): PaymentLineKind {

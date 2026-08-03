@@ -83,6 +83,10 @@ export type ExternalInvoice = {
     /** invoice | credit_note */
     documentType?: "invoice" | "credit_note" | string | null;
     parentInvoiceId?: number | null;
+    /** Credit notes remain visible when voided, but no longer affect financial totals. */
+    voidedAt?: string | null;
+    voidedBy?: string | null;
+    voidReason?: string | null;
 
     /** Payment status */
     status: "paid" | "unpaid" | "pending";

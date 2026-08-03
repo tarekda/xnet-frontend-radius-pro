@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { notify } from '@/lib/notify';
 import type { ImportPreviewData } from '@/lib/externalInvoiceImport';
@@ -58,11 +59,13 @@ export default function MyISPInvoiceImport() {
   const [billingMonth, setBillingMonth] = useState(currentBillingMonth);
   const [autoPayDue, setAutoPayDue] = useState(false);
   const [payDueDayOffset, setPayDueDayOffset] = useState(15);
+  const [usernameFilter, setUsernameFilter] = useState('');
   const [preview, setPreview] = useState<ImportPreviewData | null>(null);
   const [lastImportSummary, setLastImportSummary] = useState<string | null>(null);
   const previewMutation = useProviderImportPreview();
   const importMutation = useProviderInvoiceImport();
   const sourceLabel = IMPORT_SOURCES.find((item) => item.value === source)?.label ?? source;
+  const hasUsernameFilter = usernameFilter.trim().length > 0;
 
   const fetchPreview = async () => {
     if (!billingMonth) {
@@ -71,7 +74,12 @@ export default function MyISPInvoiceImport() {
     }
     try {
       setLastImportSummary(null);
-      const data = await previewMutation.mutateAsync({ source, billingMonth });
+      const data = await previewMutation.mutateAsync({
+        source,
+        billingMonth,
+        usernames: usernameFilter,
+        partialImport: hasUsernameFilter,
+      });
       setPreview(data);
       if (!data.validRowCount) {
         notify.error('No invoices ready', `${sourceLabel} returned no valid invoice rows for import.`);
@@ -89,6 +97,8 @@ export default function MyISPInvoiceImport() {
         source,
         billingMonth,
         payDueDayOffset: autoPayDue ? payDueDayOffset : undefined,
+        usernames: usernameFilter,
+        partialImport: hasUsernameFilter,
       });
       const summary = importSummary(result.data);
       setLastImportSummary(summary);
@@ -165,6 +175,29 @@ export default function MyISPInvoiceImport() {
                   setLastImportSummary(null);
                 }}
               />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="provider-username-filter">Import only these usernames (optional)</Label>
+              <textarea
+                id="provider-username-filter"
+                placeholder={'One per line or comma-separated\nExample:\nxnet101\nxnet102'}
+                value={usernameFilter}
+                disabled={isBusy}
+                rows={4}
+                className={cn(
+                  'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+                )}
+                onChange={(event) => {
+                  setUsernameFilter(event.target.value);
+                  setPreview(null);
+                  setLastImportSummary(null);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                {hasUsernameFilter
+                  ? 'Partial import: only listed provider logins are added or updated. Other external invoices for this month are left unchanged.'
+                  : 'Leave empty to import everyone from the provider (same as before). Missing accounts for that month may be removed for this provider only.'}
+              </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Pay due on import</Label>

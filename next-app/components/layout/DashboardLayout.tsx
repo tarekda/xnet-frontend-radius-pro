@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAppPreferences } from "@/context/AppPreferencesContext";
 import SystemHealthStrip from "@/components/SystemHealthStrip";
 import ExternalInvoicePayDueInboxSync from "@/components/ExternalInvoicePayDueInboxSync";
+import GlobalCommandPalette from "@/components/GlobalCommandPalette";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { density } = useAppPreferences();
@@ -38,6 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             density === "compact" && "table-compact"
           )}
         >
+          <GlobalCommandPalette />
           <Breadcrumb />
           {children}
         </main>

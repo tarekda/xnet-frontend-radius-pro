@@ -26,6 +26,7 @@ import { FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import TablePager from "@/components/TablePager";
 import QueryState from "@/components/QueryState";
+import { useExternalInvoiceRealtimeSync } from "@/hooks/useExternalInvoiceRealtimeSync";
 
 const initialPage = 1;
 
@@ -112,6 +113,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         updateInvoiceMutation,
         deleteInvoiceMutation,
         sendReminderMutation,
+        sharePaidInvoiceMutation,
     } = useExternalInvoices({
         initialPage,
         pageSize,
@@ -126,6 +128,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         sortBy: (searchParams.get('sort') || '').split(':')[0] || undefined,
         sortDir: ((searchParams.get('sort') || '').split(':')[1] as 'asc' | 'desc') || undefined,
     });
+
+    useExternalInvoiceRealtimeSync(refetch);
 
     // Jump back to page 1 whenever the search or any filter changes. Staying on a
     // later page would request a page that may not exist in the narrower result
@@ -220,6 +224,10 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             return;
         }
         sendReminderMutation.mutate(id);
+    };
+
+    const sharePaid = (id: number) => {
+        sharePaidInvoiceMutation.mutate(id);
     };
 
     const confirmDelete = () => {
@@ -368,6 +376,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                     onViewInvoice={setSelected}
                     onDeleteInvoice={handleDelete}
                     onSendReminder={remind}
+                    onSharePaid={sharePaid}
                     onSetWorkflowStage={onSetWorkflowStage}
                     reconciliationMode={reconciliationMode}
                     reconciliationFlags={reconciliationFlags}

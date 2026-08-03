@@ -69,7 +69,7 @@ export default function SystemHealthStrip() {
       role="status"
       aria-live="polite"
     >
-      <Link href="/dashboard" className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline">
+      <Link href="/integrations" className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline">
         <Activity className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("health_api")}: {healthState}
       </Link>

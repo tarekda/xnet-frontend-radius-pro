@@ -20,13 +20,16 @@ import { notify } from "@/lib/notify";
 import ActionConfirmDialog from "@/components/ActionConfirmDialog";
 import UserSessionsPanel from "@/components/UserSessionsPanel";
 import ConnectivityDiagnosisPanel from "@/components/ConnectivityDiagnosisPanel";
+import { Customer360Summary, CustomerBillingPanel, CustomerWalletPanel } from "@/components/Customer360";
 import { useProfiles } from "@/hooks/useProfiles";
 import { downloadTextFile, toCsv } from "@/lib/csv";
+import { useAuth } from "@/context/AuthContext";
+import { canAny } from "@/lib/permissions";
 
 import type { User } from "@/types/api";
 import type { DateRange } from "react-day-picker";
 import { monthlyCycleSummary } from "@/lib/quotaCycle";
-import { ArrowLeft, History, Settings, Trash2, Wifi, KeyRound, Activity, Download, RefreshCw } from "lucide-react";
+import { ArrowLeft, History, Settings, Trash2, Wifi, KeyRound, Activity, Download, RefreshCw, FileText, Wallet } from "lucide-react";
 
 type AuditLogRow = {
   id: number;
@@ -61,8 +64,16 @@ async function fetchAudit(params: {
 export default function UserDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { user: authUser } = useAuth();
   const { username: usernameParam } = useParams();
   const username = String(usernameParam ?? "").trim();
+  const canSeeBilling = canAny(authUser, [
+    "billing.externalInvoices.view",
+    "billing.externalInvoices.viewTotals",
+    "billing.externalInvoices.pay",
+    "billing.externalInvoices.unpay",
+  ]);
+  const canSeeWallet = canAny(authUser, ["billing.externalInvoices.view", "billing.externalInvoices.pay"]);
 
   const userQuery = useQuery({
     queryKey: ["userDetail", username],
@@ -341,10 +352,24 @@ export default function UserDetailPage() {
         </CardContent>
       </Card>
 
+      {user ? <Customer360Summary user={user} /> : null}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
+        <TabsList className="h-auto max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
+          {canSeeBilling ? (
+            <TabsTrigger value="billing" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Billing
+            </TabsTrigger>
+          ) : null}
+          {canSeeWallet ? (
+            <TabsTrigger value="wallet" className="gap-1.5">
+              <Wallet className="h-3.5 w-3.5" />
+              Wallet
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
         </TabsList>
@@ -544,6 +569,18 @@ export default function UserDetailPage() {
         <TabsContent value="sessions" className="space-y-4">
           <UserSessionsPanel username={username} />
         </TabsContent>
+
+        {canSeeBilling ? (
+          <TabsContent value="billing" className="space-y-4">
+            <CustomerBillingPanel username={username} />
+          </TabsContent>
+        ) : null}
+
+        {canSeeWallet ? (
+          <TabsContent value="wallet" className="space-y-4">
+            <CustomerWalletPanel username={username} />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="activity" className="space-y-4">
           <Card>

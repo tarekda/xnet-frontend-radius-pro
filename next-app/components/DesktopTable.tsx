@@ -41,6 +41,7 @@ import {
   DollarSign,
   Eye,
   Mail,
+  MessageCircle,
   SlidersHorizontal,
   Trash2,
   User,
@@ -117,6 +118,7 @@ type Props = {
   onSetPaid?: (id: number) => void;
   onUnpay?: (id: number) => void;
   onSendReminder?: (id: number) => void;
+  onSharePaid?: (id: number) => void;
   onSetWorkflowStage?: (id: number, stage: WorkflowStage) => void;
   onViewInvoice: (inv: ExternalInvoice) => void;
   onDeleteInvoice: (id: number) => void;
@@ -161,6 +163,7 @@ const DesktopTable: React.FC<Props> = ({
   onSetPaid,
   onUnpay,
   onSendReminder,
+  onSharePaid,
   onSetWorkflowStage,
   onViewInvoice,
   onDeleteInvoice,
@@ -603,12 +606,27 @@ const DesktopTable: React.FC<Props> = ({
                         },
                       ]
                     : []),
-                  ...(onSendReminder
+                  ...(onSendReminder &&
+                  String(inv.status).toLowerCase() !== "paid" &&
+                  !inv.voidedAt &&
+                  String(inv.documentType || "invoice") !== "credit_note"
                     ? [
                         {
                           label: "Send Reminder",
                           icon: BellRing,
                           onClick: () => onSendReminder(inv.id),
+                        },
+                      ]
+                    : []),
+                  ...(onSharePaid &&
+                  String(inv.status).toLowerCase() === "paid" &&
+                  !inv.voidedAt &&
+                  String(inv.documentType || "invoice") !== "credit_note"
+                    ? [
+                        {
+                          label: "Share Paid Invoice",
+                          icon: MessageCircle,
+                          onClick: () => onSharePaid(inv.id),
                         },
                       ]
                     : []),
@@ -647,7 +665,7 @@ const DesktopTable: React.FC<Props> = ({
 
       return cols;
     },
-    [onSetPaid, onSendReminder, onSetWorkflowStage, onUnpay, onViewInvoice, onDeleteInvoice, workflowGraceDays, groupsById, expandedGroups, toggleGroup]
+    [onSetPaid, onSendReminder, onSharePaid, onSetWorkflowStage, onUnpay, onViewInvoice, onDeleteInvoice, workflowGraceDays, groupsById, expandedGroups, toggleGroup]
   );
 
   /* ── table instance ───────────────────────── */
@@ -824,6 +842,34 @@ const DesktopTable: React.FC<Props> = ({
                                 <span className="w-[88px] text-xs text-muted-foreground">
                                   {line.payDueDate ? `due ${String(line.payDueDate).slice(0, 10)}` : "no due date"}
                                 </span>
+                                {!line.voidedAt &&
+                                String(line.documentType || "invoice") !== "credit_note" &&
+                                String(line.status).toLowerCase() !== "paid" &&
+                                onSendReminder ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => onSendReminder(line.id)}
+                                  >
+                                    <BellRing className="mr-1 h-3 w-3" />
+                                    Remind
+                                  </Button>
+                                ) : null}
+                                {!line.voidedAt &&
+                                String(line.documentType || "invoice") !== "credit_note" &&
+                                String(line.status).toLowerCase() === "paid" &&
+                                onSharePaid ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => onSharePaid(line.id)}
+                                  >
+                                    <MessageCircle className="mr-1 h-3 w-3" />
+                                    Share paid
+                                  </Button>
+                                ) : null}
                                 {canPayLine ? (
                                   <Button
                                     size="sm"

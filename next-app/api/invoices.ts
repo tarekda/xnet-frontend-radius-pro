@@ -51,6 +51,25 @@ export async function reconcileCollectedInvoice(invoiceId: number): Promise<void
   await apiClient.post(`/invoices/reconcile/${invoiceId}`);
 }
 
+export async function fetchExternalInvoiceById(invoiceId: number): Promise<ExternalInvoice> {
+  const { data } = await apiClient.get(`/invoices/external/${invoiceId}`);
+  return data.data as ExternalInvoice;
+}
+
+export async function sharePaidExternalInvoice(invoiceId: number): Promise<void> {
+  await apiClient.post(`/invoices/external/${invoiceId}/share-paid`);
+}
+
+export async function voidExternalCreditNote(
+  creditNoteId: number,
+  voidReason: string
+): Promise<ExternalInvoice> {
+  const { data } = await apiClient.post(`/invoices/external/${creditNoteId}/void`, {
+    voidReason,
+  });
+  return data.data as ExternalInvoice;
+}
+
 export type DunningCandidate = {
   id: number;
   username: string;

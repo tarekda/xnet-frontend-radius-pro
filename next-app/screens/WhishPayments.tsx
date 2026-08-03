@@ -9,6 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -73,6 +82,8 @@ export default function WhishPaymentsPage() {
   const [search, setSearch] = useState("");
   const [lookupRef, setLookupRef] = useState("");
   const [lookupApplied, setLookupApplied] = useState("");
+  const [rejectClaim, setRejectClaim] = useState<WhishClaim | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const claimsQuery = useQuery({
     queryKey: ["whishClaims", status, lookupApplied],
@@ -110,6 +121,8 @@ export default function WhishPaymentsPage() {
     },
     onSuccess: () => {
       notify.success("Claim rejected", "Subscriber can submit a new reference if needed.");
+      setRejectClaim(null);
+      setRejectionReason("");
       queryClient.invalidateQueries({ queryKey: ["whishClaims"] });
     },
     onError: (e: any) => {
@@ -287,8 +300,8 @@ export default function WhishPaymentsPage() {
                           variant="outline"
                           disabled={rejectMutation.isPending}
                           onClick={() => {
-                            const reason = window.prompt("Rejection reason (optional)") || undefined;
-                            rejectMutation.mutate({ claimId: c.id, reason });
+                            setRejectClaim(c);
+                            setRejectionReason("");
                           }}
                         >
                           <XCircle />
@@ -303,6 +316,72 @@ export default function WhishPaymentsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(rejectClaim)}
+        onOpenChange={(open) => {
+          if (rejectMutation.isPending) return;
+          if (!open) {
+            setRejectClaim(null);
+            setRejectionReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Whish payment</DialogTitle>
+            <DialogDescription>
+              {rejectClaim ? (
+                <>
+                  Reject reference <span className="font-mono">{rejectClaim.whishReference}</span> from{" "}
+                  <span className="font-medium">@{rejectClaim.username}</span>. The subscriber can submit another reference.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="rejection-reason">Reason (optional)</Label>
+            <Input
+              id="rejection-reason"
+              autoFocus
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && rejectClaim && !rejectMutation.isPending) {
+                  rejectMutation.mutate({
+                    claimId: rejectClaim.id,
+                    reason: rejectionReason.trim() || undefined,
+                  });
+                }
+              }}
+              placeholder="For example: reference could not be verified"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectClaim(null)}
+              disabled={rejectMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rejectClaim || rejectMutation.isPending}
+              onClick={() => {
+                if (!rejectClaim) return;
+                rejectMutation.mutate({
+                  claimId: rejectClaim.id,
+                  reason: rejectionReason.trim() || undefined,
+                });
+              }}
+            >
+              {rejectMutation.isPending ? <Loader2 className="animate-spin" /> : <XCircle />}
+              {rejectMutation.isPending ? "Rejecting..." : "Reject payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

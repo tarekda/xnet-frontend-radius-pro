@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, Copy, User } from "lucide-react";
+import { Ban, CalendarIcon, Copy, MessageCircle, Printer, ReceiptText, User } from "lucide-react";
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,7 +27,7 @@ import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import { isFeatureEnabled } from "@/lib/featureFlags";
 import { notify } from "@/lib/notify";
-import { fetchExternalInvoiceHistory, fetchExternalInvoicePaymentLines, setExternalInvoiceWorkflow } from "@/api/invoices";
+import { fetchExternalInvoiceHistory, fetchExternalInvoicePaymentLines, setExternalInvoiceWorkflow, voidExternalCreditNote } from "@/api/invoices";
 import { apiClient } from "@/api/client";
 import ExternalInvoiceAddDebitDialog from "@/components/ExternalInvoiceAddDebitDialog";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +48,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const { user } = useAuth();
   const canPay = can(user, "billing.externalInvoices.pay");
   const canUnpay = can(user, "billing.externalInvoices.unpay");
+  const canPrint = can(user, "billing.externalInvoices.viewTotals");
   const canSendReminder = isFeatureEnabled("whatsapp-remind");
 
   const [isEditing, setIsEditing] = useState(false);
@@ -57,14 +60,35 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const [matchLoading, setMatchLoading] = useState(false);
   const [gatewayBusy, setGatewayBusy] = useState(false);
   const [creditNoteBusy, setCreditNoteBusy] = useState(false);
+  const [creditNoteToVoid, setCreditNoteToVoid] = useState<ExternalInvoice | null>(null);
+  const [voidReason, setVoidReason] = useState("");
   const [claimsLoading, setClaimsLoading] = useState(false);
   const [promiseDateInput, setPromiseDateInput] = useState<string>(parsePromiseDateFromLastAction((invoice as any).lastAction) || "");
   const [editedInvoice, setEditedInvoice] = useState<ExternalInvoice>({
     ...invoice,
   });
+  const isCreditNote = String(editedInvoice.documentType || "invoice") === "credit_note";
+  const isVoided = Boolean(editedInvoice.voidedAt);
+  const openDocument = (
+    target: ExternalInvoice,
+    kind: "invoice" | "credit_note" | "receipt"
+  ) => {
+    window.open(
+      `/external-invoices/${target.id}/print?kind=${kind}&auto=1`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
 
   // lightweight access to mutations via hook (pageSize 1 to avoid heavy work)
-  const { updateInvoiceMutation, setInvoiceAsPaidMutation, unpayInvoiceMutation, sendReminderMutation, refetch } = useExternalInvoices({ initialPage: 1, pageSize: 1, search: "", });
+  const {
+    updateInvoiceMutation,
+    setInvoiceAsPaidMutation,
+    unpayInvoiceMutation,
+    sendReminderMutation,
+    sharePaidInvoiceMutation,
+    refetch,
+  } = useExternalInvoices({ initialPage: 1, pageSize: 1, search: "", });
   const { toast } = useToast();
   const historyQuery = useQuery({
     queryKey: ["externalInvoiceHistory", invoice.id],
@@ -89,6 +113,28 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     },
     onError: (e: unknown) => {
       notify.error("Workflow failed", e instanceof Error ? e.message : "Could not update workflow.");
+    },
+  });
+  const voidCreditNoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!creditNoteToVoid?.id) throw new Error("Credit note is required");
+      return voidExternalCreditNote(creditNoteToVoid.id, voidReason.trim());
+    },
+    onSuccess: async (voided) => {
+      notify.success("Credit note voided", `Document #${voided.id} no longer affects financial totals.`);
+      setCreditNoteToVoid(null);
+      setVoidReason("");
+      await Promise.all([
+        paymentLinesQuery.refetch(),
+        historyQuery.refetch(),
+        refetch(),
+      ]);
+    },
+    onError: (e: any) => {
+      notify.error(
+        "Void failed",
+        e?.response?.data?.message || e?.message || "Could not void credit note"
+      );
     },
   });
 
@@ -241,7 +287,10 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 : ""
               : String(value ?? "")
           }
-          readOnly={!isEditing || key === "id" || key === "createdAt"}
+          readOnly={
+            !isEditing ||
+            ["id", "createdAt", "documentType", "parentInvoiceId", "voidedAt", "voidedBy", "voidReason"].includes(key)
+          }
           onChange={handleInput}
           className="w-full"
         />
@@ -354,7 +403,27 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
               <User className="h-4 w-4 mr-1" />
               Copy User
             </Button>
-            {editedInvoice.status !== "paid" ? (
+            {canPrint ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openDocument(editedInvoice, isCreditNote ? "credit_note" : "invoice")}
+              >
+                <Printer className="mr-1 h-4 w-4" />
+                {isCreditNote ? "Credit note" : "Invoice"}
+              </Button>
+            ) : null}
+            {canPrint && !isCreditNote && editedInvoice.status === "paid" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openDocument(editedInvoice, "receipt")}
+              >
+                <ReceiptText className="mr-1 h-4 w-4" />
+                Receipt
+              </Button>
+            ) : null}
+            {!isCreditNote && !isVoided && (editedInvoice.status !== "paid" ? (
               canPay ? (
                 <Button variant="outline" size="sm" onClick={markPaidLocal}>
                   Mark Paid
@@ -366,24 +435,48 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   Mark Unpaid
                 </Button>
               ) : null
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => sendReminderMutation.mutate(editedInvoice.id)}
-              disabled={!canSendReminder}
-              title={!canSendReminder ? "Reminder feature is disabled" : "Send WhatsApp reminder"}
-            >
-              Send Reminder
-            </Button>
-            {isEditing ? (
+            ))}
+            {!isCreditNote && !isVoided ? (
+              String(editedInvoice.status).toLowerCase() === "paid" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    sharePaidInvoiceMutation.mutate(editedInvoice.id, {
+                      onSuccess: () => historyQuery.refetch(),
+                    })
+                  }
+                  disabled={!canSendReminder || sharePaidInvoiceMutation.isPending}
+                  title={!canSendReminder ? "WhatsApp messaging is disabled" : "Share paid invoice on WhatsApp"}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Share paid
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    sendReminderMutation.mutate(editedInvoice.id, {
+                      onSuccess: () => historyQuery.refetch(),
+                    })
+                  }
+                  disabled={!canSendReminder || sendReminderMutation.isPending}
+                  title={!canSendReminder ? "Reminder feature is disabled" : "Send WhatsApp reminder"}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Send reminder
+                </Button>
+              )
+            ) : null}
+            {!isVoided && (isEditing ? (
               <>
                 <Button size="sm" onClick={saveAndClose}>Save</Button>
                 <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
               </>
             ) : (
               <Button size="sm" variant="secondary" onClick={() => setIsEditing(true)}>Edit</Button>
-            )}
+            ))}
             <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
           </div>
         </div>
@@ -437,7 +530,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                         key={line.id}
                         className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
                           line.id === invoice.id ? "border-primary/40 bg-primary/5" : ""
-                        }`}
+                        } ${line.voidedAt ? "border-muted bg-muted/40 text-muted-foreground" : ""}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-medium">#{line.id}</span>
@@ -447,13 +540,91 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                             <Badge variant="outline">primary</Badge>
                           )}
                           <span className="text-muted-foreground capitalize">{line.status}</span>
+                          {line.voidedAt ? <Badge variant="destructive">Voided</Badge> : null}
                         </div>
                         <div className="flex items-center gap-3 tabular-nums">
-                          <span className="font-semibold">${Number(line.amount).toFixed(2)}</span>
+                          <span className={cn("font-semibold", line.voidedAt && "line-through")}>
+                            ${Number(line.amount).toFixed(2)}
+                          </span>
                           <span className="text-muted-foreground">
                             {line.payDueDate ? String(line.payDueDate).slice(0, 10) : "No due date"}
                           </span>
+                          {!line.voidedAt &&
+                          String(line.documentType || "invoice") !== "credit_note" ? (
+                            String(line.status).toLowerCase() === "paid" ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={!canSendReminder || sharePaidInvoiceMutation.isPending}
+                                onClick={() =>
+                                  sharePaidInvoiceMutation.mutate(line.id, {
+                                    onSuccess: () => historyQuery.refetch(),
+                                  })
+                                }
+                              >
+                                <MessageCircle className="mr-1 h-3.5 w-3.5" />
+                                Share paid
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={!canSendReminder || sendReminderMutation.isPending}
+                                onClick={() =>
+                                  sendReminderMutation.mutate(line.id, {
+                                    onSuccess: () => historyQuery.refetch(),
+                                  })
+                                }
+                              >
+                                <MessageCircle className="mr-1 h-3.5 w-3.5" />
+                                Remind
+                              </Button>
+                            )
+                          ) : null}
+                          {canPrint ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                openDocument(
+                                  line,
+                                  String(line.documentType || "invoice") === "credit_note"
+                                    ? "credit_note"
+                                    : "invoice"
+                                )
+                              }
+                              title="Print or save as PDF"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                          {String(line.documentType || "invoice") === "credit_note" &&
+                          !line.voidedAt &&
+                          (canPay || canUnpay) ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setCreditNoteToVoid(line);
+                                setVoidReason("");
+                              }}
+                            >
+                              <Ban className="mr-1 h-3.5 w-3.5" />
+                              Void
+                            </Button>
+                          ) : null}
                         </div>
+                        {line.voidedAt ? (
+                          <div className="w-full text-xs text-muted-foreground">
+                            Voided {new Date(line.voidedAt).toLocaleString()}
+                            {line.voidedBy ? ` by ${line.voidedBy}` : ""}
+                            {line.voidReason ? ` · ${line.voidReason}` : ""}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -631,13 +802,14 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 </div>
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
-                {editedInvoice.status !== "paid" ? (
+                {!isCreditNote && !isVoided && (editedInvoice.status !== "paid" ? (
                   <Button onClick={markPaidLocal}>Mark Paid</Button>
                 ) : (
                   <Button variant="outline" onClick={markUnpaidLocal}>Mark Unpaid</Button>
-                )}
+                ))}
                 {canPay &&
-                String((editedInvoice as any).documentType || "invoice") !== "credit_note" &&
+                !isCreditNote &&
+                !isVoided &&
                 String(editedInvoice.status).toLowerCase() !== "paid" ? (
                   <Button
                     variant="secondary"
@@ -671,7 +843,8 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   </Button>
                 ) : null}
                 {canPay &&
-                String((editedInvoice as any).documentType || "invoice") !== "credit_note" ? (
+                !isCreditNote &&
+                !isVoided ? (
                   <Button
                     variant="outline"
                     disabled={creditNoteBusy}
@@ -692,7 +865,11 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                           "Credit note created",
                           data?.data?.id ? `Document #${data.data.id}` : "Saved."
                         );
-                        refetch();
+                        await Promise.all([
+                          paymentLinesQuery.refetch(),
+                          historyQuery.refetch(),
+                          refetch(),
+                        ]);
                       } catch (e: any) {
                         notify.error(
                           "Credit note failed",
@@ -753,6 +930,58 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
           </Tabs>
         </div>
       </DialogContent>
+      <Dialog
+        open={Boolean(creditNoteToVoid)}
+        onOpenChange={(open) => {
+          if (voidCreditNoteMutation.isPending) return;
+          if (!open) {
+            setCreditNoteToVoid(null);
+            setVoidReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Void credit note #{creditNoteToVoid?.id}</DialogTitle>
+            <DialogDescription>
+              The credit note will remain visible for audit purposes but will no longer affect financial totals.
+              This does not refund a wallet or payment transaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="credit-note-void-reason">Reason</Label>
+            <Input
+              id="credit-note-void-reason"
+              autoFocus
+              maxLength={255}
+              value={voidReason}
+              onChange={(event) => setVoidReason(event.target.value)}
+              placeholder="For example: created for the wrong invoice"
+            />
+            <p className="text-xs text-muted-foreground">
+              Required · {voidReason.trim().length}/255 characters
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={voidCreditNoteMutation.isPending}
+              onClick={() => setCreditNoteToVoid(null)}
+            >
+              Keep credit note
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={voidReason.trim().length < 3 || voidCreditNoteMutation.isPending}
+              onClick={() => voidCreditNoteMutation.mutate()}
+            >
+              {voidCreditNoteMutation.isPending ? "Voiding…" : "Void credit note"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ExternalInvoiceAddDebitDialog
         invoice={invoice}
         open={isAddDebitOpen}

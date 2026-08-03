@@ -5,6 +5,7 @@ import { ExternalInvoice } from '@/types/api';
 import { notify } from '@/lib/notify';
 import { MESSAGES } from '@/constants/messages';
 import { isFeatureEnabled } from "@/lib/featureFlags";
+import { sharePaidExternalInvoice } from "@/api/invoices";
 // Removed unused local table states (sorting/rowSelection) from this hook
 
 // interface ExternalInvoice {
@@ -273,6 +274,21 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         },
     });
 
+    const sharePaidInvoiceMutation = useMutation({
+        mutationFn: async (invoiceId: number) => {
+            if (!isFeatureEnabled("whatsapp-remind")) {
+                throw new Error("WhatsApp messaging is disabled");
+            }
+            await sharePaidExternalInvoice(invoiceId);
+        },
+        onSuccess: () => {
+            notify.success("Shared", "Paid invoice confirmation sent on WhatsApp.");
+        },
+        onError: (error: Error) => {
+            notify.error("Share failed", error.message);
+        },
+    });
+
     const bulkUpdateInvoicesMutation = useMutation<
         BulkUpdateResult,
         Error,
@@ -307,6 +323,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         deleteInvoiceMutation,
         bulkDeleteInvoicesMutation,
         sendReminderMutation,
+        sharePaidInvoiceMutation,
         bulkUpdateInvoicesMutation,
     };
 };

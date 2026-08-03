@@ -27,6 +27,11 @@ export default function ResellersPage() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
 
+  const [fundOpen, setFundOpen] = useState(false);
+  const [fundTarget, setFundTarget] = useState<ResellerDto | null>(null);
+  const [fundAmount, setFundAmount] = useState("");
+  const [fundSaving, setFundSaving] = useState(false);
+
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginReseller, setLoginReseller] = useState<ResellerDto | null>(null);
   const [loginUsername, setLoginUsername] = useState("");
@@ -64,21 +69,32 @@ export default function ResellersPage() {
     }
   };
 
-  const onFund = async (r: ResellerDto) => {
+  const openFundDialog = (r: ResellerDto) => {
     if (!canFund) return;
-    const amountStr = prompt(`Fund reseller ${r.code} (amount):`);
-    if (!amountStr) return;
-    const amt = Number(amountStr);
+    setFundTarget(r);
+    setFundAmount("");
+    setFundOpen(true);
+  };
+
+  const onFund = async () => {
+    if (!canFund || !fundTarget) return;
+    const amt = Number(fundAmount);
     if (!Number.isFinite(amt) || amt <= 0) {
       notify.error("Invalid amount", "Enter a number > 0");
       return;
     }
+    setFundSaving(true);
     try {
-      await fundReseller(r.id, { amount: amt });
-      const ledger = await fetchResellerLedger(r.id);
+      await fundReseller(fundTarget.id, { amount: amt });
+      const ledger = await fetchResellerLedger(fundTarget.id);
       notify.success("Funded", `New balance: ${ledger.balance.toFixed(2)}`);
+      setFundOpen(false);
+      setFundTarget(null);
+      setFundAmount("");
     } catch (e: any) {
       notify.error("Fund failed", e?.message || "Failed to fund reseller");
+    } finally {
+      setFundSaving(false);
     }
   };
 
@@ -178,7 +194,7 @@ export default function ResellersPage() {
                         <TableRowActions
                           actions={[
                             { label: "Create login", onClick: () => openCreateLogin(r) },
-                            { label: "Fund", onClick: () => onFund(r), disabled: !canFund },
+                            { label: "Fund", onClick: () => openFundDialog(r), disabled: !canFund },
                           ]}
                         />
                       </div>
@@ -190,6 +206,61 @@ export default function ResellersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={fundOpen}
+        onOpenChange={(open) => {
+          if (fundSaving) return;
+          setFundOpen(open);
+          if (!open) {
+            setFundTarget(null);
+            setFundAmount("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fund reseller wallet</DialogTitle>
+            <DialogDescription>
+              {fundTarget ? (
+                <>
+                  Add credit to reseller <span className="font-mono">{fundTarget.code}</span>. This action is recorded in the reseller ledger.
+                </>
+              ) : (
+                "Add credit to this reseller."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="fund-amount">Amount</Label>
+            <Input
+              id="fund-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              autoFocus
+              value={fundAmount}
+              onChange={(e) => setFundAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !fundSaving) void onFund();
+              }}
+              placeholder="0.00"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFundOpen(false)} disabled={fundSaving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={onFund}
+              disabled={fundSaving || !fundTarget || !Number.isFinite(Number(fundAmount)) || Number(fundAmount) <= 0}
+            >
+              {fundSaving ? "Adding credit..." : "Add credit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent>

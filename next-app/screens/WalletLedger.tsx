@@ -2,13 +2,22 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Wallet } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Plus, Wallet } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -17,6 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiClient } from "@/api/client";
+import { useAuth } from "@/context/AuthContext";
+import { can } from "@/lib/permissions";
+import { notify } from "@/lib/notify";
 
 type LedgerEntry = {
   id: string;
@@ -82,10 +94,17 @@ async function fetchLedger(params: {
 }
 
 export default function WalletLedgerPage() {
+  const { user } = useAuth();
+  const canCredit = can(user, "billing.externalInvoices.pay");
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [appliedUser, setAppliedUser] = useState("");
   const [entryType, setEntryType] = useState<"all" | "credit" | "debit">("all");
   const [page, setPage] = useState(1);
+  const [creditOpen, setCreditOpen] = useState(false);
+  const [creditUsername, setCreditUsername] = useState("");
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditNote, setCreditNote] = useState("");
 
   const query = useQuery({
     queryKey: ["subscriberWalletLedger", appliedUser, entryType, page],
@@ -93,6 +112,54 @@ export default function WalletLedgerPage() {
   });
 
   const rows = query.data?.data || [];
+
+  const creditMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post("/invoices/subscriber-wallet/credit", {
+        username: creditUsername.trim(),
+        amount: Number(creditAmount),
+        note: creditNote.trim() || undefined,
+      });
+      return data as { data?: { balance?: number } };
+    },
+    onSuccess: (result) => {
+      const creditedUser = creditUsername.trim();
+      const balance = result?.data?.balance;
+      notify.success(
+        "Wallet credited",
+        balance != null
+          ? `${creditedUser} now has a balance of ${formatMoney(balance)}.`
+          : `Credit was added to ${creditedUser}.`
+      );
+      setUsername(creditedUser);
+      setAppliedUser(creditedUser);
+      setEntryType("all");
+      setPage(1);
+      setCreditOpen(false);
+      setCreditUsername("");
+      setCreditAmount("");
+      setCreditNote("");
+      queryClient.invalidateQueries({ queryKey: ["subscriberWalletLedger"] });
+    },
+    onError: (error: any) => {
+      notify.error(
+        "Credit failed",
+        error?.response?.data?.message || error?.message || "Could not credit the subscriber wallet"
+      );
+    },
+  });
+
+  const openCreditDialog = () => {
+    setCreditUsername(appliedUser || username.trim());
+    setCreditAmount("");
+    setCreditNote("");
+    setCreditOpen(true);
+  };
+
+  const validCredit =
+    creditUsername.trim().length > 0 &&
+    Number.isFinite(Number(creditAmount)) &&
+    Number(creditAmount) > 0;
 
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -105,11 +172,19 @@ export default function WalletLedgerPage() {
         </Button>
       </div>
 
-      <PageHeader
-        title="Wallet ledger"
-        subtitle="Credits and debits for subscriber wallets (Whish top-ups, invoice payments)"
-        icon={Wallet}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title="Wallet ledger"
+          subtitle="Credits and debits for subscriber wallets (Whish top-ups, invoice payments)"
+          icon={Wallet}
+        />
+        {canCredit ? (
+          <Button onClick={openCreditDialog}>
+            <Plus className="h-4 w-4" />
+            Credit wallet
+          </Button>
+        ) : null}
+      </div>
 
       <Card>
         <CardHeader>
@@ -265,6 +340,77 @@ export default function WalletLedgerPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={creditOpen}
+        onOpenChange={(open) => {
+          if (creditMutation.isPending) return;
+          setCreditOpen(open);
+          if (!open) {
+            setCreditUsername("");
+            setCreditAmount("");
+            setCreditNote("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Credit subscriber wallet</DialogTitle>
+            <DialogDescription>
+              Add a manual wallet credit. The transaction will identify you as the staff member and appear in the ledger.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="credit-username">RADIUS username</Label>
+              <Input
+                id="credit-username"
+                autoFocus
+                value={creditUsername}
+                onChange={(e) => setCreditUsername(e.target.value)}
+                placeholder="e.g. john.doe"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="credit-amount">Amount (USD)</Label>
+              <Input
+                id="credit-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="credit-note">Reason or reference</Label>
+              <Input
+                id="credit-note"
+                value={creditNote}
+                onChange={(e) => setCreditNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && validCredit && !creditMutation.isPending) {
+                    creditMutation.mutate();
+                  }
+                }}
+                placeholder="For example: cash payment at office"
+              />
+              <p className="text-xs text-muted-foreground">Recommended for audit and reconciliation.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreditOpen(false)} disabled={creditMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={() => creditMutation.mutate()} disabled={!validCredit || creditMutation.isPending}>
+              {creditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {creditMutation.isPending ? "Crediting..." : "Add credit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

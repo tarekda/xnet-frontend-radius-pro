@@ -21,7 +21,7 @@ import {
 import { useSidebar } from './Sidebar.context';
 import { useIsMobile } from '../../../hooks/use-mobile';
 import { Button } from '../button';
-import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet } from 'lucide-react';
+import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { can, canAny } from '@/lib/permissions';
@@ -212,7 +212,7 @@ const Sidebar: React.FC = () => {
 
     const isUsersRoute = useMemo(() => {
       const p = pathname || "";
-      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles");
+      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit");
     }, [pathname]);
 
     const isRadiusSettingsRoute = useMemo(() => {
@@ -244,6 +244,7 @@ const Sidebar: React.FC = () => {
       { to: '/', label: 'Home', icon: FaHome, navPerm: "ui.sidebar.home.show" },
       { to: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt, navPerm: "ui.sidebar.dashboard.show" },
       { to: '/settings/security', label: 'Security (MFA)', icon: FaUserShield, navPerm: "ui.sidebar.home.show" },
+      { to: '/about', label: 'About & Help', icon: CircleHelp, navPerm: "ui.sidebar.home.show" },
     ];
 
     const adminItems = [
@@ -261,6 +262,7 @@ const Sidebar: React.FC = () => {
       { to: '/online-users', label: 'Live Sessions', icon: FaUserClock, perms: ['users.online.view', 'reseller.users.view'], navPerm: "ui.sidebar.users.online.show" },
       { to: '/auth-failures', label: 'Auth Failures', icon: FaBell, perms: ['users.online.view', 'reseller.users.view'] },
       { to: '/profiles/list', label: 'Profile Plans', icon: FaCreditCard, perms: ['radius.profiles.view'], navPerm: "ui.sidebar.users.profiles.show" },
+      { to: '/audit', label: 'Audit Log', icon: History, perms: ['users.view'], navPerm: "ui.sidebar.users.list.show" },
     ] as const;
 
     const radiusSettingsItems = [
@@ -269,14 +271,22 @@ const Sidebar: React.FC = () => {
     ] as const;
 
     const billingItems = [
+      { label: 'RADIUS Invoices', to: '/invoices', icon: Receipt, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       { label: 'Upload Invoice', icon: Upload, to: '/invoice-upload', perm: 'billing.invoiceUpload.create', navPerm: "ui.sidebar.billing.invoiceUpload.show", feature: "invoice-upload" },
       { label: 'Provider Import', icon: CloudDownload, to: '/invoice-upload/myisp', perm: 'billing.invoiceUpload.create', navPerm: "ui.sidebar.billing.invoiceUpload.show", feature: "invoice-upload" },
       { label: 'External Invoices', to: '/external-invoices', icon: FileText, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Whish payments', to: '/external-invoices/whish-payments', icon: Smartphone, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Wallet ledger', to: '/external-invoices/wallet-ledger', icon: Wallet, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'WhatsApp name matches', to: '/external-invoices/whatsapp-matches', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Payment due', to: '/external-invoices/payment-due', icon: CalendarClock, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Dunning Center', to: '/external-invoices/dunning', icon: AlertCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Reconciliation', to: '/external-invoices/reconciliation', icon: Search, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      {
+        label: 'System Health',
+        to: '/integrations',
+        icon: HeartPulse,
+        perms: ['users.online.view', 'reseller.users.view', 'radius.nas.view', 'admin.analytics.view', 'admin.access.manage', 'billing.externalInvoices.view'],
+      },
       { label: 'Collections', to: '/collections', icon: DollarSign, perm: 'billing.collections.view', navPerm: "ui.sidebar.billing.collections.show", feature: "collections" },
       {
         label: 'Cable Vision',
