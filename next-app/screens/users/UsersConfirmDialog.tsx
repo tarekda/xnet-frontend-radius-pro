@@ -6,6 +6,7 @@ import {
   bulkDeleteUsers,
   bulkResetMac,
   bulkSetStatus,
+  renewSubscription,
   resetDailyQuota,
   resetMonthlyQuota,
 } from "@/api/users";
@@ -22,6 +23,8 @@ function confirmTitle(confirmAction: ConfirmActionState): string {
       return "Reset quota?";
     case "reset-monthly-quota":
       return "Reset monthly traffic?";
+    case "renew-subscription":
+      return "Renew subscription?";
     case "bulk": {
       const n = confirmAction.usernames.length;
       switch (confirmAction.action) {
@@ -51,6 +54,8 @@ function confirmDescription(confirmAction: ConfirmActionState): string | undefin
       return `This will reset the daily quota counters for ${confirmAction.username}.`;
     case "reset-monthly-quota":
       return `This will reset the monthly traffic counters for ${confirmAction.username}.`;
+    case "renew-subscription":
+      return `Add 1 calendar month from today (or from the current end date), set ${confirmAction.username} to active, and request a disconnect so the new session can authenticate.`;
     case "bulk": {
       const profileLine =
         confirmAction.action === "assign-profile"
@@ -111,6 +116,22 @@ export const UsersConfirmDialog = ({
         await resetMonthlyQuota(confirmAction.username);
         await refetch();
         notify.success("Quota reset", `Monthly traffic reset for ${confirmAction.username}.`);
+        return;
+      }
+      if (confirmAction.kind === "renew-subscription") {
+        try {
+          await renewSubscription(confirmAction.username, 1);
+          await refetch();
+          notify.success(
+            "Renewed",
+            `Added 1 month for ${confirmAction.username} and set account to active.`
+          );
+        } catch (e: any) {
+          notify.error(
+            "Renew failed",
+            e?.response?.data?.message || e?.message || "Could not renew subscription"
+          );
+        }
         return;
       }
       if (confirmAction.kind === "bulk") {

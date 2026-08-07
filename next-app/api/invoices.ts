@@ -60,6 +60,57 @@ export async function sharePaidExternalInvoice(invoiceId: number): Promise<void>
   await apiClient.post(`/invoices/external/${invoiceId}/share-paid`);
 }
 
+export type ProviderMacList = {
+  provider: string;
+  billingMonth: string;
+  macAddresses: string[];
+  stats: {
+    totalSubscribers: number;
+    withMac: number;
+    missingMac: number;
+    invalidMac: number;
+    uniqueMacs: number;
+    duplicateAssignments: number;
+  };
+};
+
+export async function fetchProviderMacOptions(billingMonth: string): Promise<string[]> {
+  const { data } = await apiClient.get("/invoices/external/provider-macs/providers", {
+    params: { billingMonth },
+  });
+  return Array.isArray(data?.data) ? data.data.map(String) : [];
+}
+
+export async function fetchProviderMacList(
+  provider: string,
+  billingMonth: string
+): Promise<ProviderMacList> {
+  const { data } = await apiClient.get("/invoices/external/provider-macs", {
+    params: { provider, billingMonth },
+  });
+  return data.data as ProviderMacList;
+}
+
+export type ProviderMacSyncResult = {
+  provider: string;
+  billingMonth: string;
+  providerMacs: number;
+  matchedSubscribers: number;
+  updatedInvoiceRows: number;
+  missingSubscribers: number;
+};
+
+export async function syncProviderMacAddresses(
+  provider: string,
+  billingMonth: string
+): Promise<ProviderMacSyncResult> {
+  const { data } = await apiClient.post("/invoices/external/provider-macs/sync", {
+    provider,
+    billingMonth,
+  });
+  return data.data as ProviderMacSyncResult;
+}
+
 export async function voidExternalCreditNote(
   creditNoteId: number,
   voidReason: string

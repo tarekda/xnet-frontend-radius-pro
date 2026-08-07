@@ -124,3 +124,8 @@ export async function resetDailyQuota(username: string): Promise<void> {
 export async function resetMonthlyQuota(username: string): Promise<void> {
   await apiClient.put(`/radius/users/resetMonthlyQuota/${encodeURIComponent(username)}`);
 }
+
+/** Extend expiry by N calendar months and set accountStatus to active (expired / past-due only). */
+export async function renewSubscription(username: string, months = 1): Promise<void> {
+  await apiClient.post(`/radius/users/${encodeURIComponent(username)}/renew`, { months });
+}

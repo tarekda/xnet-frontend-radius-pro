@@ -12,6 +12,7 @@ import {
   HeartPulse,
   History,
   Loader2,
+  Network,
   Search,
   Server,
   Settings,
@@ -56,6 +57,7 @@ const PAGE_ITEMS: Array<
   { label: "NAS Devices", description: "RADIUS network access servers", href: "/nas", icon: Server, permissions: ["radius.nas.view"] },
   { label: "External Invoices", description: "Imported customer billing records", href: "/external-invoices", icon: FileText, permissions: ["billing.externalInvoices.view"] },
   { label: "RADIUS Invoices", description: "Generated monthly invoices", href: "/invoices", icon: FileText, permissions: ["billing.externalInvoices.view"] },
+  { label: "Provider MAC Lists", description: "View and download MAC addresses by invoice provider", href: "/invoice-upload/provider-macs", icon: Network, permissions: ["billing.invoiceUpload.create", "users.view"] },
   { label: "Wallet Ledger", description: "Subscriber wallet credits and debits", href: "/external-invoices/wallet-ledger", icon: Wallet, permissions: ["billing.externalInvoices.view", "billing.externalInvoices.pay"] },
   { label: "Audit Log", description: "Administrative activity history", href: "/audit", icon: History, permissions: ["users.view"] },
   {

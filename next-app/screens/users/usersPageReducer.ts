@@ -15,6 +15,7 @@ export type ConfirmActionState =
   | { kind: "reset-mac"; username: string }
   | { kind: "reset-quota"; username: string }
   | { kind: "reset-monthly-quota"; username: string }
+  | { kind: "renew-subscription"; username: string }
   | {
       kind: "bulk";
       action: "suspend" | "activate" | "delete" | "reset-mac" | "assign-profile";

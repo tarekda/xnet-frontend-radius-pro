@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { RefreshCw, Edit, Trash2, CalendarPlus } from 'lucide-react';
 import Loader from '@/components/ui/loader';
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,6 +17,7 @@ interface UserCardProps {
     onResetMAC?: () => void;
     onResetQuota?: () => void;
     onResetMonthly?: () => void;
+    onRenew?: () => void;
     isResettingMAC?: boolean;
     isSelected?: boolean;
     onToggleSelected?: (selected: boolean) => void;
@@ -34,6 +35,7 @@ const UserCard: React.FC<UserCardProps> = ({
     onResetMAC,
     onResetQuota,
     onResetMonthly,
+    onRenew,
     isResettingMAC,
     isSelected,
     onToggleSelected,
@@ -160,6 +162,22 @@ const UserCard: React.FC<UserCardProps> = ({
                         title={!canResetMonthlyQuota ? "You don't have permission to reset monthly quota." : "Reset Monthly Traffic"}
                     >
                         <RefreshCw className="w-4 h-4 mr-2" /> Reset Monthly
+                    </Button>
+                ) : null}
+                {onRenew ? (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className="col-span-2 w-full justify-center"
+                        onClick={onRenew}
+                        disabled={!canManageUsers}
+                        title={
+                            !canManageUsers
+                                ? manageUsersReason
+                                : "Add 1 calendar month, set active, and request disconnect"
+                        }
+                    >
+                        <CalendarPlus className="w-4 h-4 mr-2" /> Renew +1 month
                     </Button>
                 ) : null}
                 <Button variant="outline" size="sm" className="w-full justify-center text-red-600" onClick={onDelete} disabled={!canManageUsers} title={!canManageUsers ? manageUsersReason : "Delete user"}>

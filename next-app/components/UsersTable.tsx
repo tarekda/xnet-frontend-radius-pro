@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Edit, Trash2, ArrowUpDown, ChevronDown, ChevronUp, Mail, Phone, MapPin, Copy, User as UserIcon, ExternalLink } from 'lucide-react';
+import { RefreshCw, Edit, Trash2, ArrowUpDown, ChevronDown, ChevronUp, Mail, Phone, MapPin, Copy, User as UserIcon, ExternalLink, CalendarPlus } from 'lucide-react';
 import { User } from '../types/api';
+
+/** Same rules as user detail Renew +1 month. */
+export function canRenewUserSubscription(user: User): boolean {
+    const st = String(user.accountStatus ?? "").trim().toLowerCase();
+    if (st === "suspended" || st === "terminated") return false;
+    if (st === "expired") return true;
+    if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) return true;
+    return false;
+}
 import { UseMutationResult } from '@tanstack/react-query';
 import UserCard from './UserCard';
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table';
@@ -287,6 +296,15 @@ const UserRow: React.FC<{
                             },
                             { label: "Reset Quota", icon: RefreshCw, onClick: () => onAction("reset-quota", user), disabled: !canResetDailyQuota, disabledReason: !canResetDailyQuota ? "You don't have permission to reset daily quota." : undefined },
                             { label: "Reset Monthly", icon: RefreshCw, onClick: () => onAction("reset-monthly", user), disabled: !canResetMonthlyQuota, disabledReason: !canResetMonthlyQuota ? "You don't have permission to reset monthly quota." : undefined },
+                            ...(canRenewUserSubscription(user)
+                                ? [{
+                                    label: "Renew +1 month",
+                                    icon: CalendarPlus,
+                                    onClick: () => onAction("renew", user),
+                                    disabled: !canManageUsers,
+                                    disabledReason: !canManageUsers ? manageUsersReason : undefined,
+                                }]
+                                : []),
                             { label: "Edit", icon: Edit, onClick: () => onAction("edit", user), disabled: !canManageUsers, disabledReason: manageUsersReason },
                             { label: "Delete", icon: Trash2, onClick: () => onAction("delete", user), tone: "destructive", disabled: !canManageUsers, disabledReason: manageUsersReason },
                         ]}
@@ -601,6 +619,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                         onResetMAC={() => onAction('reset-mac', user)}
                         onResetQuota={() => onAction('reset-quota', user)}
                         onResetMonthly={() => onAction('reset-monthly', user)}
+                        onRenew={canRenewUserSubscription(user) ? () => onAction('renew', user) : undefined}
                         isResettingMAC={resetMacAddressMutation.variables === user.username}
                         isSelected={selectedUserIds?.has(user.id)}
                         onToggleSelected={(checked) => onToggleSelected?.(user.id, checked)}

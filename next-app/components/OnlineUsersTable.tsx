@@ -132,7 +132,25 @@ const profileClass = (p: string) =>
             : "text-foreground/90";
 const profileBadge = (p: string, compact = false) => {
     const sizeClass = compact ? "px-1.5 py-0 text-[10px]" : "";
-    const l = p.toLowerCase();
+    const l = String(p || "").toLowerCase();
+    if (!l || l === "—")
+        return (
+            <Badge variant="outline" className={cn("border-border bg-muted text-foreground", sizeClass)}>
+                —
+            </Badge>
+        );
+    if (l === "fallback" || l.includes("fallback"))
+        return (
+            <Badge
+                variant="outline"
+                className={cn(
+                    "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/45 dark:text-red-200",
+                    sizeClass
+                )}
+            >
+                Fallback
+            </Badge>
+        );
     if (l === "premium")
         return (
             <Badge
@@ -164,7 +182,7 @@ const profileBadge = (p: string, compact = false) => {
             </Badge>
         );
     return (
-            <Badge variant="outline" className={cn("border-border bg-muted text-foreground max-w-[5rem] truncate", sizeClass)}>
+            <Badge variant="outline" className={cn("border-border bg-muted text-foreground max-w-[5rem] truncate", sizeClass)} title={p}>
             {p}
         </Badge>
     );
@@ -192,6 +210,35 @@ const isFupUser = (u: OnlineUser) => {
     const dailyExceeded = dailyQuota > 0 && toInt(u.real_time_data_usage) >= dailyQuota;
     const monthlyExceeded = monthlyQuota > 0 && toInt(u.monthly_usage) >= monthlyQuota;
     return byFlag || byProfile || dailyExceeded || monthlyExceeded;
+};
+
+/** Profile column: when FUP, show original plan (not only Fallback). */
+const ProfileCell: React.FC<{ user: OnlineUser; compact?: boolean }> = ({ user, compact }) => {
+    const fup = isFupUser(user);
+    const current = String(user.profile_profile_name || "").trim();
+    const original = String(user.original_profile_name || current).trim();
+    const originalIsDifferent =
+        fup &&
+        original &&
+        original.toLowerCase() !== current.toLowerCase() &&
+        !original.toLowerCase().includes("fallback");
+
+    if (!fup) return profileBadge(current || "—", compact);
+
+    return (
+        <div className={cn("flex flex-col gap-0.5", compact ? "min-w-0" : "gap-1")}>
+            {originalIsDifferent ? profileBadge(original, compact) : profileBadge(current || "—", compact)}
+            <span
+                className={cn(
+                    "font-medium text-red-600 dark:text-red-400",
+                    compact ? "text-[9px] leading-none" : "text-[11px]"
+                )}
+                title={`Throttled (current RADIUS profile: ${current || "Fallback"})`}
+            >
+                FUP{originalIsDifferent ? ` · ${current || "Fallback"}` : ""}
+            </span>
+        </div>
+    );
 };
 
 function computeSessionStats(rows: OnlineUser[]): OnlineSessionStats {
@@ -439,7 +486,7 @@ const MobileCard: React.FC<{
                     </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    {profileBadge(user.profile_profile_name, true)}
+                    <ProfileCell user={user} compact />
                     <StatusBadge status={user.session_status} compact />
                 </div>
             </div>
@@ -544,7 +591,9 @@ const TableRows = function TableRows({
                             {u.session_mac_address}
                         </span>
                     </TableCell>
-                    <TableCell className={cn("px-2 py-2 align-middle", getSessionMiddleCellClasses())}>{profileBadge(u.profile_profile_name, true)}</TableCell>
+                    <TableCell className={cn("px-2 py-2 align-middle", getSessionMiddleCellClasses())}>
+                        <ProfileCell user={u} compact />
+                    </TableCell>
                     <TableCell className={cn("px-2 py-2 align-middle", getSessionMiddleCellClasses())}>
                         <StatusBadge status={u.session_status} compact />
                     </TableCell>

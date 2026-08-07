@@ -12,6 +12,8 @@ export interface OnlineUser {
   session_status: string;
   session_session_time: number;
   profile_profile_name: string;
+  /** Original plan when current profile is Fallback (FUP); otherwise same as profile_profile_name */
+  original_profile_name?: string;
   profile_daily_quota: string;
   profile_monthly_quota: string;
   monthly_usage: string;

@@ -373,6 +373,7 @@ const UsersPage: React.FC = () => {
             // Not wired in Users module yet (Live Sessions has it); keep consistent UX.
             'reset-quota': () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'reset-quota', username: user.username } }),
             'reset-monthly': () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'reset-monthly-quota', username: user.username } }),
+            renew: () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'renew-subscription', username: user.username } }),
         };
 
         const actionFunction = actions[action as keyof typeof actions];
