@@ -30,13 +30,12 @@ export const BulkActionsBar = ({
   const manageUsersReason = "You don't have permission to manage users.";
 
   return (
-    <div className="sticky top-2 z-10 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-violet-50/50 p-4 shadow-md dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-violet-950/20">
+    <div className="sticky top-2 z-10 overflow-hidden rounded-xl border border-border/80 bg-card p-3 shadow-[var(--shop-shadow)]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Checkbox
             checked={isAllSelected}
             onCheckedChange={onSelectAll}
-            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
           />
           <div>
             <Label className="text-sm font-semibold text-foreground">
@@ -53,27 +52,27 @@ export const BulkActionsBar = ({
               onClick={() => onBulkAction("suspend")}
               disabled={!canManageUsers || isBulkActionInProgress}
               icon={<UserX className="h-4 w-4" />}
-              className="border border-orange-200 bg-orange-50 text-orange-700 transition-all duration-300 hover:border-orange-300 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/45 dark:text-orange-200 dark:hover:bg-orange-950/65"
+              className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
             />
             <IconActionButton
               label={!canManageUsers ? manageUsersReason : "Activate selected users"}
               onClick={() => onBulkAction("activate")}
               disabled={!canManageUsers || isBulkActionInProgress}
               icon={<UserCheck className="h-4 w-4" />}
-              className="border border-emerald-200 bg-emerald-50 text-emerald-700 transition-all duration-300 hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-200 dark:hover:bg-emerald-950/65"
+              className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
             />
             <IconActionButton
               label="Export selected users"
               onClick={() => onBulkAction("export")}
               icon={<Download className="h-4 w-4" />}
-              className="border border-blue-200 bg-blue-50 text-blue-700 transition-all duration-300 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/55"
+              className="border-primary/20 bg-secondary text-secondary-foreground hover:bg-secondary/80"
             />
             <IconActionButton
               label={!canManageUsers ? manageUsersReason : "Reset MAC for selected users"}
               onClick={() => onBulkAction("reset-mac")}
               disabled={!canManageUsers || isBulkActionInProgress}
               icon={<RefreshCw className="h-4 w-4" />}
-              className="border border-purple-200 bg-purple-50 text-purple-700 transition-all duration-300 hover:border-purple-300 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/45 dark:text-purple-200 dark:hover:bg-purple-950/65"
+              className="border-border bg-card text-foreground hover:bg-muted"
             />
 
             <div className="flex items-center gap-1.5 ml-1">
@@ -94,7 +93,7 @@ export const BulkActionsBar = ({
                 onClick={() => onBulkAction(`assign-profile:${profileId}`)}
                 disabled={!profileId || !canManageUsers || isBulkActionInProgress}
                 icon={<UserCheck className="h-4 w-4" />}
-                className="border border-border bg-card/90 text-foreground transition-all duration-300 hover:bg-card dark:border-border/70"
+                className="border-border bg-card text-foreground hover:bg-muted"
               />
             </div>
             <IconActionButton
@@ -102,7 +101,7 @@ export const BulkActionsBar = ({
               onClick={() => onBulkAction("delete")}
               disabled={!canManageUsers || isBulkActionInProgress}
               icon={<Trash2 className="h-4 w-4" />}
-              className="border border-red-200 bg-red-50 text-red-700 transition-all duration-300 hover:border-red-300 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/45 dark:text-red-200 dark:hover:bg-red-950/65"
+              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
             />
           </div>
         )}

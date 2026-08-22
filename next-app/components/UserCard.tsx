@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { User } from "@/types/api";
 import { getUserHealth } from "@/lib/userHealth";
 import MonthlyCycleCell from "@/components/MonthlyCycleCell";
+import StatusPill from "@/components/StatusPill";
 
 interface UserCardProps {
     user: User;
@@ -51,8 +52,8 @@ const UserCard: React.FC<UserCardProps> = ({
     // const monthlyUsagePercentage = user.profile.monthlyQuota ? (user.monthlyUsage / user.profile.monthlyQuota) * 100 : 0;
 
     return (
-        <Card className="mb-4">
-            <CardHeader>
+        <Card className="overflow-hidden border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 bg-muted/15 p-4 pb-3">
                 <CardTitle className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
@@ -62,7 +63,7 @@ const UserCard: React.FC<UserCardProps> = ({
                         />
                     <button
                         type="button"
-                        className="min-w-0 text-left hover:underline truncate"
+                        className="min-w-0 truncate text-left text-base font-semibold hover:text-primary"
                         onClick={() => router.push(`/users/${encodeURIComponent(user.username)}`)}
                         title="View user"
                     >
@@ -70,9 +71,7 @@ const UserCard: React.FC<UserCardProps> = ({
                     </button>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                        <Badge variant={user.isOnline ? "success" : "secondary"}>
-                            {user.isOnline ? "Online" : "Offline"}
-                        </Badge>
+                        <StatusPill label={user.isOnline ? "Online" : "Offline"} tone={user.isOnline ? "info" : "default"} dot pulseDot={Boolean(user.isOnline)} />
                         <Badge
                             variant="outline"
                             className={
@@ -88,20 +87,20 @@ const UserCard: React.FC<UserCardProps> = ({
                         </Badge>
                     </div>
                 </CardTitle>
-                <CardDescription>{user.userDetails?.fullName || 'N/A'}</CardDescription>
+                <CardDescription className="text-xs">{user.userDetails?.fullName || 'N/A'}</CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-2">
-                    <div>
-                        <span className="font-semibold">Profile:</span>{" "}
+            <CardContent className="p-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    <div className="min-w-0">
+                        <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">Profile</span>
                         {user.profile?.profileName ?? '—'}
                     </div>
-                    <div>
-                        <span className="font-semibold">MAC Address:</span>{" "}
-                        {user.macAddress?.macAddress ?? 'Not set'}
+                    <div className="min-w-0">
+                        <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">MAC address</span>
+                        <span className="font-mono text-xs">{user.macAddress?.macAddress ?? 'Not set'}</span>
                     </div>
-                    <div>
-                        <span className="font-semibold">Monthly cycle:</span>
+                    <div className="col-span-2 border-y border-border/50 py-3">
+                        <span className="mb-1 block text-[11px] uppercase tracking-wide text-muted-foreground">Monthly cycle</span>
                         <div className="mt-1">
                             <MonthlyCycleCell
                                 monthlyUsage={user.monthlyUsage}
@@ -116,15 +115,15 @@ const UserCard: React.FC<UserCardProps> = ({
                             />
                         </div>
                     </div>
-                    <div>
-                        <span className="font-semibold">Last Active:</span>{" "}
+                    <div className="col-span-2">
+                        <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">Last active</span>
                         {user.lastTimeActive
                             ? new Date(user.lastTimeActive).toLocaleString()
                             : "—"}
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="grid grid-cols-2 gap-2">
+            <CardFooter className="grid grid-cols-2 gap-2 border-t border-border/50 bg-muted/10 p-3">
                 <Button variant="outline" size="sm" className="w-full justify-center" onClick={onEdit} disabled={!canManageUsers} title={!canManageUsers ? manageUsersReason : "Edit user"}>
                     <Edit className="w-4 h-4 mr-2" /> Edit
                 </Button>
@@ -180,7 +179,7 @@ const UserCard: React.FC<UserCardProps> = ({
                         <CalendarPlus className="w-4 h-4 mr-2" /> Renew +1 month
                     </Button>
                 ) : null}
-                <Button variant="outline" size="sm" className="w-full justify-center text-red-600" onClick={onDelete} disabled={!canManageUsers} title={!canManageUsers ? manageUsersReason : "Delete user"}>
+                <Button variant="ghost" size="sm" className="w-full justify-center text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete} disabled={!canManageUsers} title={!canManageUsers ? manageUsersReason : "Delete user"}>
                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                 </Button>
             </CardFooter>

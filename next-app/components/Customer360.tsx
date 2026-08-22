@@ -8,6 +8,8 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  MessageCircle,
+  Minus,
   Plus,
   Radio,
   Wallet,
@@ -18,6 +20,7 @@ import { can, canAny } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
 import type { ExternalInvoice, User } from "@/types/api";
 import ExternalInvoiceDetailView from "@/components/ExternalInvoiceDetailView";
+import SendWhatsAppDialog from "@/components/SendWhatsAppDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -195,8 +198,10 @@ export function Customer360Summary({ user }: { user: User }) {
 
   const invoicesQuery = useCustomerInvoices(username, canSeeBilling);
   const walletQuery = useCustomerWallet(username, canSeeWallet);
-  const liveQuery = useLiveSession(username, canSeeSessions && Boolean(user.isOnline));
+  const liveQuery = useLiveSession(username, canSeeSessions && Boolean(username));
   const usageQuery = useUsageWindow(username, canSeeSessions);
+
+  const isLiveOnline = Boolean(liveQuery.data || user.isOnline);
 
   const openInvoices = useMemo(
     () => (invoicesQuery.data?.data ?? []).filter((invoice) => invoice.status !== "paid"),
@@ -209,14 +214,14 @@ export function Customer360Summary({ user }: { user: User }) {
   );
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <Card className="border-border/70">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <Card className="border-border/60 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Service</span>
-            <Radio className={`h-4 w-4 ${user.isOnline ? "text-emerald-500" : "text-muted-foreground"}`} />
+            <Radio className={`h-4 w-4 ${isLiveOnline ? "text-emerald-500 animate-pulse" : "text-muted-foreground"}`} />
           </div>
-          <div className="mt-2 text-xl font-semibold">{user.isOnline ? "Online" : "Offline"}</div>
+          <div className="mt-2 text-xl font-semibold tracking-tight">{isLiveOnline ? "Online" : "Offline"}</div>
           <div className="mt-1 truncate text-xs text-muted-foreground">
             {liveQuery.data?.framedIpAddress
               ? `${liveQuery.data.framedIpAddress} · ${formatDuration(liveQuery.data.sessionTime)}`
@@ -227,11 +232,11 @@ export function Customer360Summary({ user }: { user: User }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/70">
+      <Card className="border-border/60 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Usage · last 24h</span>
-            <Activity className="h-4 w-4 text-blue-500" />
+            <Activity className="h-4 w-4 text-primary" />
           </div>
           <div className="mt-2 text-xl font-semibold">
             {usageQuery.isLoading ? "…" : formatBytes(recentBytes)}
@@ -243,7 +248,7 @@ export function Customer360Summary({ user }: { user: User }) {
       </Card>
 
       {canSeeBilling ? (
-        <Card className="border-border/70">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Outstanding billing</span>
@@ -262,7 +267,7 @@ export function Customer360Summary({ user }: { user: User }) {
       ) : null}
 
       {canSeeWallet ? (
-        <Card className="border-border/70">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Wallet balance</span>
@@ -291,6 +296,7 @@ export function CustomerBillingPanel({ username }: { username: string }) {
   const canSeeTotals = can(user, "billing.externalInvoices.viewTotals");
   const query = useCustomerInvoices(username, hasAccess);
   const [selectedInvoice, setSelectedInvoice] = useState<ExternalInvoice | null>(null);
+  const [whatsAppInvoice, setWhatsAppInvoice] = useState<ExternalInvoice | null>(null);
 
   const rows = query.data?.data ?? [];
   const openRows = rows.filter((invoice) => invoice.status !== "paid");
@@ -319,20 +325,36 @@ export function CustomerBillingPanel({ username }: { username: string }) {
         />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
+      {whatsAppInvoice ? (
+        <SendWhatsAppDialog
+          open={Boolean(whatsAppInvoice)}
+          onOpenChange={(open) => {
+            if (!open) setWhatsAppInvoice(null);
+          }}
+          recipientPhone={whatsAppInvoice.phoneNumber || ""}
+          recipientName={whatsAppInvoice.fullName || whatsAppInvoice.username || username}
+          invoiceNumber={String(whatsAppInvoice.id)}
+          invoiceAmount={whatsAppInvoice.amount || 0}
+          currency="USD"
+          dueDate={whatsAppInvoice.payDueDate || ""}
+          defaultTemplate={whatsAppInvoice.status === "paid" ? "payment_receipt" : "payment_reminder"}
+        />
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Invoices</div>
-            <div className="mt-1 text-2xl font-semibold">{rows.length}</div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">{rows.length}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Open invoices</div>
             <div className="mt-1 text-2xl font-semibold">{openRows.length}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Outstanding</div>
             <div className="mt-1 text-2xl font-semibold">
@@ -342,8 +364,8 @@ export function CustomerBillingPanel({ username }: { username: string }) {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
+      <Card className="border-border/60 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/50 p-4">
           <div>
             <CardTitle>Customer invoices</CardTitle>
             <CardDescription>External billing records matched exactly to @{username}</CardDescription>
@@ -355,7 +377,7 @@ export function CustomerBillingPanel({ username }: { username: string }) {
             </Link>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {query.isLoading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -368,9 +390,9 @@ export function CustomerBillingPanel({ username }: { username: string }) {
               No external invoices found for this customer.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[720px]">
-                <TableHeader>
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <Table className="min-w-[720px] text-sm">
+                <TableHeader className="bg-muted/50">
                   <TableRow>
                     <TableHead>Invoice</TableHead>
                     <TableHead>Billing month</TableHead>
@@ -382,8 +404,8 @@ export function CustomerBillingPanel({ username }: { username: string }) {
                 </TableHeader>
                 <TableBody>
                   {rows.slice(0, 20).map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono">#{invoice.id}</TableCell>
+                    <TableRow key={invoice.id} className="hover:bg-primary/[0.03]">
+                      <TableCell className="py-2 font-mono text-xs">#{invoice.id}</TableCell>
                       <TableCell>{formatDate(invoice.billingMonth)}</TableCell>
                       <TableCell>
                         <Badge
@@ -396,9 +418,20 @@ export function CustomerBillingPanel({ username }: { username: string }) {
                       <TableCell>{formatDate(invoice.payDueDate)}</TableCell>
                       {canSeeTotals ? <TableCell className="text-right font-medium">{formatMoney(invoice.amount)}</TableCell> : null}
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(invoice)}>
-                          Manage
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                            onClick={() => setWhatsAppInvoice(invoice)}
+                            title="Send WhatsApp notice"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedInvoice(invoice)}>
+                            Manage
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -419,8 +452,11 @@ export function CustomerWalletPanel({ username }: { username: string }) {
   const canCredit = can(user, "billing.externalInvoices.pay");
   const query = useCustomerWallet(username, hasAccess);
   const [creditOpen, setCreditOpen] = useState(false);
+  const [debitOpen, setDebitOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [debitAmount, setDebitAmount] = useState("");
+  const [debitNote, setDebitNote] = useState("");
 
   const creditMutation = useMutation({
     mutationFn: async () => {
@@ -452,7 +488,38 @@ export function CustomerWalletPanel({ username }: { username: string }) {
     },
   });
 
+  const debitMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post("/invoices/subscriber-wallet/debit", {
+        username,
+        amount: Number(debitAmount),
+        note: debitNote.trim() || undefined,
+      });
+      return data;
+    },
+    onSuccess: (result) => {
+      notify.success(
+        "Wallet debited",
+        result?.data?.balance != null
+          ? `New balance: ${formatMoney(result.data.balance)}`
+          : `Debit recorded for ${username}.`
+      );
+      setDebitOpen(false);
+      setDebitAmount("");
+      setDebitNote("");
+      queryClient.invalidateQueries({ queryKey: ["customer360", "wallet", username] });
+      queryClient.invalidateQueries({ queryKey: ["subscriberWalletLedger"] });
+    },
+    onError: (error: any) => {
+      notify.error(
+        "Debit failed",
+        error?.response?.data?.message || error?.message || "Could not debit wallet"
+      );
+    },
+  });
+
   const validAmount = Number.isFinite(Number(amount)) && Number(amount) > 0;
+  const validDebit = Number.isFinite(Number(debitAmount)) && Number(debitAmount) > 0;
 
   if (!hasAccess) {
     return (
@@ -524,8 +591,66 @@ export function CustomerWalletPanel({ username }: { username: string }) {
         </DialogContent>
       </Dialog>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
+      <Dialog
+        open={debitOpen}
+        onOpenChange={(open) => {
+          if (debitMutation.isPending) return;
+          setDebitOpen(open);
+          if (!open) {
+            setDebitAmount("");
+            setDebitNote("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Debit @{username}&apos;s wallet</DialogTitle>
+            <DialogDescription>
+              Remove credit from this subscriber wallet. This requires available balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="customer-wallet-debit-amount">Amount (USD)</Label>
+              <Input
+                id="customer-wallet-debit-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                autoFocus
+                value={debitAmount}
+                onChange={(event) => setDebitAmount(event.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="customer-wallet-debit-note">Reason</Label>
+              <Input
+                id="customer-wallet-debit-note"
+                value={debitNote}
+                onChange={(event) => setDebitNote(event.target.value)}
+                placeholder="For example: correction / clawback"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDebitOpen(false)} disabled={debitMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => debitMutation.mutate()}
+              disabled={!validDebit || debitMutation.isPending}
+            >
+              {debitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Minus className="h-4 w-4" />}
+              {debitMutation.isPending ? "Debiting…" : "Debit wallet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="border-border/60 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/50 p-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
@@ -534,14 +659,20 @@ export function CustomerWalletPanel({ username }: { username: string }) {
             <CardDescription>Balance and recent financial transactions</CardDescription>
           </div>
           {canCredit ? (
-            <Button onClick={() => setCreditOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Credit wallet
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setDebitOpen(true)}>
+                <Minus className="h-4 w-4" />
+                Debit
+              </Button>
+              <Button onClick={() => setCreditOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Credit wallet
+              </Button>
+            </div>
           ) : null}
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border bg-muted/20 p-4">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-primary/15 bg-primary/[0.035] p-4">
             <div>
               <div className="text-sm text-muted-foreground">Available balance</div>
               <div className="mt-1 text-3xl font-semibold">
@@ -568,9 +699,9 @@ export function CustomerWalletPanel({ username }: { username: string }) {
               No wallet transactions yet.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[760px]">
-                <TableHeader>
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <Table className="min-w-[760px] text-sm">
+                <TableHeader className="bg-muted/50">
                   <TableRow>
                     <TableHead>When</TableHead>
                     <TableHead>Type</TableHead>
@@ -582,8 +713,8 @@ export function CustomerWalletPanel({ username }: { username: string }) {
                 </TableHeader>
                 <TableBody>
                   {(query.data?.data ?? []).map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="whitespace-nowrap">{formatDateTime(entry.createdAt)}</TableCell>
+                    <TableRow key={entry.id} className="hover:bg-primary/[0.03]">
+                      <TableCell className="whitespace-nowrap py-2">{formatDateTime(entry.createdAt)}</TableCell>
                       <TableCell>
                         <Badge variant={entry.entryType === "credit" ? "success" : "outline"} className="capitalize">
                           {entry.entryType}

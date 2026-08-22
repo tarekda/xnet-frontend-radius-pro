@@ -6,15 +6,15 @@ type Tone = "default" | "success" | "warning" | "danger" | "info";
 
 const toneClasses: Record<Tone, string> = {
   default:
-    "border-border bg-muted/50 text-foreground dark:bg-muted/30",
+    "border-border/80 bg-secondary/50 text-foreground dark:bg-secondary/30 backdrop-blur-xs",
   success:
-    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 backdrop-blur-xs shadow-2xs shadow-emerald-500/10",
   warning:
-    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300",
+    "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300 backdrop-blur-xs shadow-2xs shadow-amber-500/10",
   danger:
-    "border-red-200 bg-red-50 text-red-800 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-300",
+    "border-rose-500/30 bg-rose-500/10 text-rose-800 dark:text-rose-300 backdrop-blur-xs shadow-2xs shadow-rose-500/10",
   info:
-    "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-300",
+    "border-indigo-500/30 bg-indigo-500/10 text-indigo-800 dark:text-indigo-300 backdrop-blur-xs shadow-2xs shadow-indigo-500/10",
 };
 
 export default function StatusPill(props: {
@@ -29,18 +29,18 @@ export default function StatusPill(props: {
   return (
     <Badge
       variant="outline"
-      className={cn("relative gap-2 px-2.5 py-1 border", toneClasses[tone], className)}
+      className={cn("relative gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-tight transition-all duration-200 hover:scale-105", toneClasses[tone], className)}
     >
       {dot ? (
         <span
           className={cn(
-            "inline-block h-2 w-2 rounded-full",
-            tone === "success" && "bg-emerald-500",
-            tone === "warning" && "bg-amber-500",
-            tone === "danger" && "bg-red-500",
-            tone === "info" && "bg-blue-500",
-            tone === "default" && "bg-muted-foreground/60",
-            pulseDot && "animate-pulse"
+            "relative inline-block h-1.5 w-1.5 rounded-full shrink-0",
+            tone === "success" && "bg-emerald-500 text-emerald-500",
+            tone === "warning" && "bg-amber-500 text-amber-500",
+            tone === "danger" && "bg-rose-500 text-rose-500",
+            tone === "info" && "bg-indigo-500 text-indigo-500",
+            tone === "default" && "bg-muted-foreground/60 text-muted-foreground",
+            pulseDot && "status-dot-pulse"
           )}
         />
       ) : null}

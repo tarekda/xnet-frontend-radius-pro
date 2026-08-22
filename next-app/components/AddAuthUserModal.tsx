@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from './ui/switch';
 import useAuthUsers, { type AuthUserRole } from '../hooks/useAuthUsers';
 import { AuthUser } from '../types/api';
+import { validateStaffPassword } from '@/lib/passwordPolicy';
+import { notify } from '@/lib/notify';
 
 interface AddAuthUserModalProps {
   isOpen: boolean;
@@ -39,7 +41,6 @@ const AddAuthUserModal: React.FC<AddAuthUserModalProps> = ({ isOpen, onClose, us
         role: userToEdit.role as AuthUserRole,
         isActive: userToEdit.isActive === 1,
       });
-      console.log('User to edit:', userToEdit);
     } else {
       // Reset form when opening for a new user
       setFormData({
@@ -67,9 +68,16 @@ const AddAuthUserModal: React.FC<AddAuthUserModalProps> = ({ isOpen, onClose, us
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const password = formData.password.trim();
+    if (!userToEdit || password.length) {
+      const check = validateStaffPassword(password);
+      if (!check.ok) {
+        notify.error("Password too weak", check.message);
+        return;
+      }
+    }
     try {
       if (userToEdit) {
-        const password = formData.password.trim();
         await updateAuthUserMutation.mutateAsync({
           id: userToEdit.id,
           username: formData.username,
@@ -129,7 +137,7 @@ const AddAuthUserModal: React.FC<AddAuthUserModalProps> = ({ isOpen, onClose, us
               <Input
                 id="password"
                 name="password"
-                type="text"
+                type="password"
                 value={formData.password}
                 onChange={handleInputChange}
                 className="col-span-3"

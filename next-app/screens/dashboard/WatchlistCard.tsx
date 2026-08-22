@@ -67,8 +67,8 @@ const WatchlistCard: React.FC<Props> = ({
   snapshotFetching,
 }) => {
   return (
-    <Card className="lg:col-span-3 border-border/70 shadow-sm">
-      <CardHeader>
+    <Card className="rounded-lg border-border shadow-none lg:col-span-3">
+      <CardHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Live Session Watchlist</CardTitle>
@@ -80,9 +80,9 @@ const WatchlistCard: React.FC<Props> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         {watchlistLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {[...Array(5)].map((_, idx) => (
               <Skeleton key={idx} className="h-10 w-full" />
             ))}
@@ -104,7 +104,7 @@ const WatchlistCard: React.FC<Props> = ({
               />
             </div>
             {filteredWatchlistRows.map((row) => (
-              <div key={`${row.session_username}-${row.session_mac_address}`} className="flex items-center justify-between rounded-lg border p-2.5">
+              <div key={`${row.session_username}-${row.session_mac_address}`} className="flex items-center justify-between rounded-md border border-border p-2.5">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{row.session_username}</div>
                   <div className="truncate text-xs text-muted-foreground">
@@ -113,7 +113,7 @@ const WatchlistCard: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                   {isSessionStale(row.session_last_update, watchlistStaleThresholdSec) ? (
-                    <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
+                    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                       Stale
                     </Badge>
                   ) : null}
@@ -126,25 +126,25 @@ const WatchlistCard: React.FC<Props> = ({
           </div>
         )}
         <div className="my-3 border-t" />
-        <div className="mb-3 rounded-lg border p-3">
+        <div className="mb-3 rounded-md border border-border bg-muted/10 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-sm font-medium">API Health</div>
             <Badge variant="outline" className={healthBadgeClass}>{healthState}</Badge>
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded border p-2">
+            <div className="rounded-md border border-border bg-background p-2">
               <div className="text-muted-foreground">DB latency</div>
               <div className="font-semibold">{Math.round(Number(nocHealth.dbLatencyMs ?? 0))} ms</div>
             </div>
-            <div className="rounded border p-2">
+            <div className="rounded-md border border-border bg-background p-2">
               <div className="text-muted-foreground">Server processing</div>
               <div className="font-semibold">{Math.round(Number(nocHealth.serverProcessingMs ?? 0))} ms</div>
             </div>
-            <div className="rounded border p-2">
+            <div className="rounded-md border border-border bg-background p-2">
               <div className="text-muted-foreground">Client RTT</div>
               <div className="font-semibold">{Math.round(Number(nocHealth.clientRttMs ?? 0))} ms</div>
             </div>
-            <div className="rounded border p-2">
+            <div className="rounded-md border border-border bg-background p-2">
               <div className="text-muted-foreground">Active sessions</div>
               <div className="font-semibold">{Number(nocHealth.activeSessions ?? 0)}</div>
             </div>
@@ -158,7 +158,7 @@ const WatchlistCard: React.FC<Props> = ({
               {nocHealth.generatedAt ? `Updated ${new Date(nocHealth.generatedAt).toLocaleTimeString()}` : "No sample yet"}
             </div>
           </div>
-          <div className="mt-3 rounded border p-2">
+          <div className="mt-3 rounded-md border border-border bg-background p-2">
             <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Latency trend ({nocHealthTrend.length} samples)</span>
               <span>{degradedHealthSamples} degraded</span>
@@ -182,12 +182,12 @@ const WatchlistCard: React.FC<Props> = ({
         {!topNasBySessions.length ? (
           <div className="text-sm text-muted-foreground">No NAS session data available.</div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {topNasBySessions.map((nas) => (
               <Link
                 key={`${nas.nasIp}-${nas.nasLabel}`}
                 href={`/online-users?search=${encodeURIComponent(nas.nasIp)}`}
-                className="block rounded-lg border border-border p-2.5 transition-colors hover:bg-muted/60"
+                className="block rounded-md border border-border p-2.5 transition-colors hover:border-primary/30 hover:bg-primary/5"
                 title="Open live sessions filtered by this NAS"
               >
                 <div className="flex items-center justify-between">

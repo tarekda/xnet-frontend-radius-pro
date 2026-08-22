@@ -21,10 +21,10 @@ import {
 import { useSidebar } from './Sidebar.context';
 import { useIsMobile } from '../../../hooks/use-mobile';
 import { Button } from '../button';
-import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { can, canAny } from '@/lib/permissions';
+import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from '@/lib/permissions';
 import { getAppVersionInfo } from '@/lib/version';
 import { apiClient } from '@/api/client';
 import { Input } from "@/components/ui/input";
@@ -77,7 +77,7 @@ const Sidebar: React.FC = () => {
 
   // Internal helper components
   const SidebarHeader = () => (
-    <div className="flex items-center p-4 border-b border-sidebar-border flex-shrink-0">
+    <div className="flex h-16 flex-shrink-0 items-center border-b border-sidebar-border px-3">
       {/* Show toggle button only on desktop */}
       {isMobile === false && (
         <button
@@ -86,8 +86,7 @@ const Sidebar: React.FC = () => {
             toggleCollapse();
           }}
           className={cn(
-            "text-sidebar-foreground/70 hover:text-sidebar-foreground focus:outline-none transition-all duration-300",
-            "p-2 rounded-lg hover:bg-sidebar-accent",
+            "rounded-lg p-2 text-sidebar-foreground/65 transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/40",
             isCollapsed ? '' : 'rotate-180'
           )}
           aria-label="Toggle Sidebar"
@@ -97,12 +96,11 @@ const Sidebar: React.FC = () => {
       )}
       <span
         className={cn(
-          "ml-3 text-lg font-semibold whitespace-nowrap transition-opacity duration-200",
-          "bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent",
+          "ml-3 whitespace-nowrap text-[15px] font-bold tracking-tight text-sidebar-foreground transition-opacity duration-200",
           !isMobile && isCollapsed ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'
         )}
       >
-        Xnet Billing
+        XNet Radius
       </span>
     </div>
   );
@@ -215,35 +213,52 @@ const Sidebar: React.FC = () => {
       return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit");
     }, [pathname]);
 
-    const isRadiusSettingsRoute = useMemo(() => {
+    const isSystemRoute = useMemo(() => {
       const p = pathname || "";
-      return p.startsWith("/nas") || p.startsWith("/settings");
+      return p.startsWith("/nas") || p.startsWith("/settings") || p.startsWith("/integrations");
     }, [pathname]);
 
     const isAdminRoute = useMemo(() => {
       const p = pathname || "";
-      return p.startsWith("/analytics") || p.startsWith("/alerts") || p.startsWith("/expenses") || p.startsWith("/auth-users") || p.startsWith("/backups") || p.startsWith("/access") || p.startsWith("/settings/security");
+      return p.startsWith("/analytics") || p.startsWith("/alerts") || p.startsWith("/expenses") || p.startsWith("/auth-users") || p.startsWith("/backups") || p.startsWith("/access");
+    }, [pathname]);
+
+    const isBillingRoute = useMemo(() => {
+      const p = pathname || "";
+      return (
+        p.startsWith("/invoices") ||
+        p.startsWith("/invoice-upload") ||
+        p.startsWith("/external-invoices") ||
+        p.startsWith("/whatsapp-hub") ||
+        p.startsWith("/vouchers") ||
+        p.startsWith("/collections") ||
+        p.startsWith("/cable-vision") ||
+        p.startsWith("/admin/company-wallet")
+      );
     }, [pathname]);
 
     const [isUsersGroupOpen, setIsUsersGroupOpen] = useState<boolean>(isUsersRoute);
-    const [isRadiusSettingsGroupOpen, setIsRadiusSettingsGroupOpen] = useState<boolean>(isRadiusSettingsRoute);
+    const [isSystemGroupOpen, setIsSystemGroupOpen] = useState<boolean>(isSystemRoute);
     const [isAdminGroupOpen, setIsAdminGroupOpen] = useState<boolean>(isAdminRoute);
+    const [isBillingGroupOpen, setIsBillingGroupOpen] = useState<boolean>(isBillingRoute);
 
     // Auto-expand the relevant group when navigating into it.
     useEffect(() => {
       if (isUsersRoute) setIsUsersGroupOpen(true);
     }, [isUsersRoute]);
     useEffect(() => {
-      if (isRadiusSettingsRoute) setIsRadiusSettingsGroupOpen(true);
-    }, [isRadiusSettingsRoute]);
+      if (isSystemRoute) setIsSystemGroupOpen(true);
+    }, [isSystemRoute]);
     useEffect(() => {
       if (isAdminRoute) setIsAdminGroupOpen(true);
     }, [isAdminRoute]);
+    useEffect(() => {
+      if (isBillingRoute) setIsBillingGroupOpen(true);
+    }, [isBillingRoute]);
 
     const mainItems = [
       { to: '/', label: 'Home', icon: FaHome, navPerm: "ui.sidebar.home.show" },
       { to: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt, navPerm: "ui.sidebar.dashboard.show" },
-      { to: '/settings/security', label: 'Security (MFA)', icon: FaUserShield, navPerm: "ui.sidebar.home.show" },
       { to: '/about', label: 'About & Help', icon: CircleHelp, navPerm: "ui.sidebar.home.show" },
     ];
 
@@ -255,6 +270,7 @@ const Sidebar: React.FC = () => {
       { to: '/access', label: 'Roles & Access', icon: FaUserShield, perm: 'admin.access.manage', navPerm: "ui.sidebar.admin.access.show" },
       { to: '/backups', label: 'Backups', icon: Folder, perm: 'admin.access.manage', navPerm: "ui.sidebar.admin.backups.show", feature: "backups" },
       { to: '/admin/resellers', label: 'Resellers', icon: FaUsers, perm: 'admin.resellers.manage', navPerm: "ui.sidebar.admin.resellers.show" },
+      { to: '/admin/company-wallet', label: 'Company wallet', icon: Landmark, perms: ['billing.companyWallet.view', 'ui.sidebar.admin.companyWallet.show', 'admin.resellers.manage', 'admin.access.manage'] },
     ] as const;
 
     const usersItems = [
@@ -265,9 +281,16 @@ const Sidebar: React.FC = () => {
       { to: '/audit', label: 'Audit Log', icon: History, perms: ['users.view'], navPerm: "ui.sidebar.users.list.show" },
     ] as const;
 
-    const radiusSettingsItems = [
+    const systemItems = [
       { to: '/settings', label: 'Settings', icon: FaCogs, perm: 'radius.settings.view', navPerm: "ui.sidebar.radius.settings.show" },
+      {
+        to: '/integrations',
+        label: 'System Health',
+        icon: HeartPulse,
+        perms: ['users.online.view', 'reseller.users.view', 'radius.nas.view', 'admin.analytics.view', 'admin.access.manage'],
+      },
       { to: '/nas', label: 'NAS', icon: FaServer, perm: 'radius.nas.view', navPerm: "ui.sidebar.radius.nas.show" },
+      { to: '/settings/security', label: 'Security (MFA)', icon: FaUserShield, navPerm: "ui.sidebar.home.show" },
     ] as const;
 
     const billingItems = [
@@ -278,16 +301,13 @@ const Sidebar: React.FC = () => {
       { label: 'External Invoices', to: '/external-invoices', icon: FileText, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Whish payments', to: '/external-invoices/whish-payments', icon: Smartphone, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Wallet ledger', to: '/external-invoices/wallet-ledger', icon: Wallet, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'Company wallet', to: '/admin/company-wallet', icon: Landmark, perms: COMPANY_WALLET_VIEW_PERMS },
+      { label: 'Prepaid Vouchers', to: '/vouchers', icon: Ticket, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
+      { label: 'WhatsApp Hub', to: '/whatsapp-hub', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       { label: 'WhatsApp name matches', to: '/external-invoices/whatsapp-matches', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Payment due', to: '/external-invoices/payment-due', icon: CalendarClock, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Dunning Center', to: '/external-invoices/dunning', icon: AlertCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Reconciliation', to: '/external-invoices/reconciliation', icon: Search, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
-      {
-        label: 'System Health',
-        to: '/integrations',
-        icon: HeartPulse,
-        perms: ['users.online.view', 'reseller.users.view', 'radius.nas.view', 'admin.analytics.view', 'admin.access.manage', 'billing.externalInvoices.view'],
-      },
       { label: 'Collections', to: '/collections', icon: DollarSign, perm: 'billing.collections.view', navPerm: "ui.sidebar.billing.collections.show", feature: "collections" },
       {
         label: 'Cable Vision',
@@ -312,7 +332,7 @@ const Sidebar: React.FC = () => {
 
     const adminItemsFiltered = adminItems
       .filter((i) => !(i as any).feature || isFeatureEnabled(String((i as any).feature)))
-      .filter((i) => can(user, i.perm))
+      .filter((i) => ("perms" in i ? canAny(user, [...(i as any).perms]) : can(user, (i as any).perm)))
       .filter((i) => !("navPerm" in i) || can(user, (i as any).navPerm))
       .filter((i) => matches(i.label))
       .map(({ to, label, icon }) => ({
@@ -341,8 +361,8 @@ const Sidebar: React.FC = () => {
           to === "/online-users" || to === "/users/list" ? ("info" as const) : undefined,
       }));
 
-    const radiusSettingsItemsFiltered = radiusSettingsItems
-      .filter((i) => can(user, i.perm))
+    const systemItemsFiltered = systemItems
+      .filter((i) => ("perms" in i ? canAny(user, [...(i as any).perms]) : !("perm" in i) || can(user, (i as any).perm)))
       .filter((i) => !("navPerm" in i) || can(user, (i as any).navPerm))
       .filter((i) => matches(i.label))
       .map(({ to, label, icon }) => ({ to, label, icon }));
@@ -355,7 +375,7 @@ const Sidebar: React.FC = () => {
       .map(({ to, label, icon }) => ({ to, label, icon }));
 
     const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-      <div className={cn("px-4 pt-3 pb-1 text-xs font-semibold tracking-wide text-sidebar-foreground/60", !isMobile && isCollapsed && "hidden")}>
+      <div className={cn("px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45", !isMobile && isCollapsed && "hidden")}>
         {children}
       </div>
     );
@@ -369,36 +389,41 @@ const Sidebar: React.FC = () => {
     }) => (
       (() => {
         const Icon = props.icon;
-        const badgeClass =
-          props.badgeVariant === "danger"
-            ? "bg-destructive/15 text-destructive"
-            : "bg-sidebar-primary/15 text-sidebar-primary";
         const isActive =
-          pathname === props.to || (props.to !== "/" && pathname.startsWith(props.to + "/"));
+          props.to === "/settings"
+            ? pathname === "/settings"
+            : pathname === props.to || (props.to !== "/" && pathname.startsWith(props.to + "/"));
+        const badgeClass = isActive
+          ? props.badgeVariant === "danger"
+            ? "bg-white/20 text-sidebar-primary-foreground"
+            : "bg-white/15 text-sidebar-primary-foreground"
+          : props.badgeVariant === "danger"
+            ? "bg-destructive/15 text-destructive"
+            : "bg-sidebar-accent text-sidebar-accent-foreground";
         return (
       <Link
         key={props.to}
         href={props.to}
         className={cn(
-          "flex items-center px-4 py-3 space-x-3 transition-colors duration-200",
-          "hover:bg-sidebar-accent rounded-lg mx-2",
-          "group relative",
-          isActive ? "bg-sidebar-primary/10 text-sidebar-primary" : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+          "group relative mx-2 flex min-h-10 items-center space-x-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+          isActive
+            ? "bg-gradient-to-r from-sidebar-primary to-indigo-600 text-white shadow-md shadow-sidebar-primary/25 scale-[1.01]"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground hover:translate-x-0.5"
         )}
         onClick={() => isMobile && setMobileMenuOpen(false)}
       >
         <div className="relative flex-shrink-0">
           <Icon
-            size={20}
+            size={18}
             className={cn(
-              "transition-transform duration-200",
-              "group-hover:scale-110"
+              "transition-transform duration-200 group-hover:scale-110",
+              isActive && "text-white"
             )}
           />
           {!isMobile && isCollapsed && typeof props.badgeCount === "number" && props.badgeCount > 0 ? (
             <span
               className={cn(
-                "absolute -top-1 -right-1 h-2 w-2 rounded-full",
+                "absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-sidebar",
                 props.badgeVariant === "danger" ? "bg-destructive" : "bg-sidebar-primary"
               )}
             />
@@ -406,7 +431,7 @@ const Sidebar: React.FC = () => {
         </div>
         <span
           className={cn(
-            "flex-1 min-w-0 whitespace-nowrap transition-opacity duration-200",
+            "flex-1 min-w-0 whitespace-nowrap transition-opacity duration-200 font-semibold",
             !isMobile && isCollapsed ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'
           )}
         >
@@ -414,12 +439,12 @@ const Sidebar: React.FC = () => {
         </span>
 
         {!isMobile && !isCollapsed && typeof props.badgeCount === "number" && props.badgeCount > 0 ? (
-          <span className={cn("ml-auto rounded-full text-xs px-2 py-0.5 font-semibold", badgeClass)}>
+          <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold shadow-2xs", badgeClass)}>
             {props.badgeCount > 999 ? "999+" : props.badgeCount}
           </span>
         ) : null}
         {!isMobile && isCollapsed && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground border border-border rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-md">
+          <div className="absolute left-full ml-2 px-2.5 py-1 bg-popover text-popover-foreground border border-border rounded-lg text-xs font-medium whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-lg z-50">
             {props.label}
           </div>
         )}
@@ -436,18 +461,21 @@ const Sidebar: React.FC = () => {
       items: Array<{ to: string; label: string; icon: any; badgeCount?: number; badgeVariant?: "info" | "danger" }>;
     }) => {
       const Icon = props.icon;
-      const Chevron = props.isOpen ? FaChevronDown : FaChevronRight;
+      const hasActiveChild = props.items.some(
+        (it) => it.to === "/settings" ? pathname === "/settings" : pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/"))
+      );
+      const totalGroupBadges = props.items.reduce((acc, it) => acc + (it.badgeCount || 0), 0);
 
       return (
-        <div className="mx-2">
+        <div className="mx-2 mb-1">
           <button
             type="button"
             className={cn(
-              "w-full flex items-center px-4 py-3 space-x-3 transition-colors duration-200",
-              "hover:bg-sidebar-accent rounded-lg",
-              "text-sidebar-foreground/80 hover:text-sidebar-foreground",
-              "group relative",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+              "group relative flex min-h-10 w-full items-center space-x-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+              hasActiveChild
+                ? "bg-sidebar-accent/60 text-sidebar-foreground font-semibold border border-sidebar-border/60 shadow-xs"
+                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground hover:translate-x-0.5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
             )}
             aria-expanded={props.isOpen}
             onClick={(e) => {
@@ -455,46 +483,77 @@ const Sidebar: React.FC = () => {
               props.onToggle();
             }}
           >
-            <Icon size={20} className={cn("flex-shrink-0 transition-transform duration-200", "group-hover:scale-110")} />
+            <div className="relative flex items-center justify-center flex-shrink-0">
+              <Icon
+                size={18}
+                className={cn(
+                  "transition-transform duration-200 group-hover:scale-110",
+                  hasActiveChild ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+                )}
+              />
+              {!props.isOpen && totalGroupBadges > 0 && !isCollapsed && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-sidebar-primary ring-2 ring-sidebar" />
+              )}
+            </div>
+
             <span
               className={cn(
-                "flex-1 min-w-0 whitespace-nowrap transition-opacity duration-200 text-left",
-                !isMobile && isCollapsed ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'
+                "flex-1 min-w-0 whitespace-nowrap transition-opacity duration-200 text-left font-medium",
+                !isMobile && isCollapsed ? "opacity-0 pointer-events-none select-none" : "opacity-100"
               )}
             >
               {props.label}
             </span>
-            <Chevron
-              size={14}
+
+            {/* Total badge pill when group is collapsed */}
+            {!props.isOpen && !isCollapsed && totalGroupBadges > 0 ? (
+              <span className="rounded-full bg-sidebar-accent border border-sidebar-border px-1.5 py-0.2 text-[10px] font-bold text-sidebar-foreground/80">
+                {totalGroupBadges > 99 ? "99+" : totalGroupBadges}
+              </span>
+            ) : null}
+
+            {/* Smooth animated rotating chevron */}
+            <FaChevronRight
+              size={12}
               className={cn(
-                "flex-shrink-0 opacity-80",
-                !isMobile && isCollapsed ? 'hidden' : 'block'
+                "flex-shrink-0 text-sidebar-foreground/50 transition-transform duration-300 ease-out",
+                props.isOpen && "rotate-90 text-sidebar-foreground/80",
+                !isMobile && isCollapsed ? "hidden" : "block"
               )}
             />
 
             {!isMobile && isCollapsed && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground border border-border rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-md">
-                {props.label}
+              <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-popover text-popover-foreground border border-border rounded-lg text-xs font-medium whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-xl z-50">
+                <div className="font-semibold">{props.label}</div>
+                <div className="text-[10px] text-muted-foreground">{props.items.length} items</div>
               </div>
             )}
           </button>
 
-          {props.isOpen && (
-            <div className={cn("mt-1 space-y-1", !isMobile && isCollapsed ? 'hidden' : 'block')}>
-              {props.items.map(({ to, label, icon, badgeCount, badgeVariant }) => (
-                <div key={to} className="ml-3">
-                  {NavItem({ to, label, icon, badgeCount, badgeVariant })}
-                </div>
-              ))}
+          {/* Ultra smooth CSS grid accordion expansion animation */}
+          <div
+            className={cn(
+              "grid transition-all duration-300 ease-in-out",
+              props.isOpen && (!isCollapsed || isMobile) ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0"
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="relative ml-3 pl-2 space-y-0.5 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-px before:bg-sidebar-border/70">
+                {props.items.map(({ to, label, icon, badgeCount, badgeVariant }) => (
+                  <div key={to} className="transition-all duration-200">
+                    {NavItem({ to, label, icon, badgeCount, badgeVariant })}
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       );
     };
 
     return (
       <nav
-        className="flex-1 min-h-0 overflow-y-scroll overflow-x-hidden py-4 space-y-1"
+        className="min-h-0 flex-1 space-y-0.5 overflow-y-scroll overflow-x-hidden py-3"
         // Keep scrollbar space stable to avoid layout jank while animating width
         style={{ scrollbarGutter: "stable" } as React.CSSProperties}
       >
@@ -502,9 +561,9 @@ const Sidebar: React.FC = () => {
         {!isMobile ? (
           <div className={cn("px-2 pb-3", isCollapsed && "px-0")}>
             {!isCollapsed ? (
-              <div className="mx-2 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-3">
+              <div className="mx-2 rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">
                     {initials}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -515,7 +574,7 @@ const Sidebar: React.FC = () => {
               </div>
             ) : (
               <div className="relative group flex items-center justify-center py-2">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">
                   {initials}
                 </div>
                 <div className="absolute left-full ml-2 px-3 py-2 bg-popover text-popover-foreground border border-border rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 shadow-md">
@@ -557,7 +616,7 @@ const Sidebar: React.FC = () => {
           <React.Fragment key={to}>{NavItem({ to, label, icon: Icon })}</React.Fragment>
         ))}
 
-        {canAny(user, adminItems.map((i) => i.perm) as unknown as string[]) && adminItemsFiltered.length > 0
+        {canAny(user, adminItems.flatMap((i) => ("perms" in i ? (i as any).perms : [(i as any).perm])) as unknown as string[]) && adminItemsFiltered.length > 0
           ? NavGroup({
               label: "Admin",
               icon: FaUserShield,
@@ -577,13 +636,13 @@ const Sidebar: React.FC = () => {
             })
           : null}
 
-        {canAny(user, radiusSettingsItems.map((i) => i.perm) as unknown as string[]) && radiusSettingsItemsFiltered.length > 0
+        {systemItemsFiltered.length > 0
           ? NavGroup({
-              label: "Radius Settings",
+              label: "System",
               icon: FaCogs,
-              isOpen: q.length > 0 ? true : isRadiusSettingsGroupOpen,
-              onToggle: () => setIsRadiusSettingsGroupOpen((v) => !v),
-              items: radiusSettingsItemsFiltered,
+              isOpen: q.length > 0 ? true : isSystemGroupOpen,
+              onToggle: () => setIsSystemGroupOpen((v) => !v),
+              items: systemItemsFiltered,
             })
           : null}
 
@@ -592,19 +651,14 @@ const Sidebar: React.FC = () => {
           billingItems.flatMap((i) => ("perms" in i ? (i as any).perms : [(i as any).perm])) as unknown as string[]
         ) && billingItemsFiltered.length > 0 ? (
           <>
-            <div className="my-2 border-t border-sidebar-border mx-3" />
-
-            {SectionLabel({
-              children: (
-                <span className="inline-flex items-center gap-2">
-                  <Folder className="h-3.5 w-3.5" /> Billing
-                </span>
-              ),
+            <div className="my-1 border-t border-sidebar-border/60 mx-3" />
+            {NavGroup({
+              label: "Billing",
+              icon: Receipt,
+              isOpen: q.length > 0 ? true : isBillingGroupOpen,
+              onToggle: () => setIsBillingGroupOpen((v) => !v),
+              items: billingItemsFiltered,
             })}
-
-            {billingItemsFiltered.map(({ to, label, icon: Icon }) => (
-                <React.Fragment key={to}>{NavItem({ to, label, icon: Icon })}</React.Fragment>
-              ))}
           </>
         ) : null}
 
@@ -631,7 +685,7 @@ const Sidebar: React.FC = () => {
     ].filter(Boolean).join(" ");
 
     return (
-      <div className="p-4 mt-auto border-t border-sidebar-border flex-shrink-0">
+      <div className="mt-auto flex-shrink-0 border-t border-sidebar-border p-3">
         <div className="space-y-2">
           {!isCollapsed ? (
             <>
@@ -733,9 +787,9 @@ const Sidebar: React.FC = () => {
           "min-h-0 overflow-hidden overflow-x-hidden",
           // Mobile styles
           isMobile && "fixed z-40 h-screen",
-          isMobile && (isMobileMenuOpen ? 'left-0 w-64 shadow-2xl' : '-left-full'),
+          isMobile && (isMobileMenuOpen ? 'left-0 w-[17rem] shadow-2xl' : '-left-full'),
           // Desktop styles
-          !isMobile && (isCollapsed ? 'w-20' : 'w-64')
+          !isMobile && (isCollapsed ? 'w-[4.5rem]' : 'w-[17rem]')
         )}
       >
         {SidebarHeader()}

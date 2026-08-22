@@ -577,9 +577,8 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
   }, [setCurrentPage, updateSearchParams]);
 
   return (
-    <div className="w-full space-y-6 py-6 px-4 sm:px-0 animate-in fade-in-50">
+    <div className="w-full space-y-5 animate-in fade-in-50">
       <PageHeader
-        variant="gradient"
         title={isReconciliationMode ? t("invoices.title_reconciliation") : t("invoices.title")}
         subtitle={isReconciliationMode ? t("invoices.subtitle_reconciliation") : t("invoices.subtitle")}
         icon={isReconciliationMode ? Scale : FileText}
@@ -589,21 +588,21 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
               label={isRefreshing ? "Refreshing..." : "Refresh"}
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+              className="border-border bg-card text-foreground shadow-none hover:bg-muted"
               icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />}
             />
             <IconActionButton
               label={isExportingAll ? "Exporting..." : "Export all"}
               onClick={handleExportAll}
               disabled={isExportingAll || isStatsLoading}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+              className="border-border bg-card text-foreground shadow-none hover:bg-muted"
               icon={isExportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             />
             {canUploadInvoice ? (
               <IconActionButton
                 label="Upload"
                 to="/invoice-upload"
-                className="border-white/25 bg-white text-slate-900 shadow-sm hover:bg-white/90"
+                className="border-primary/20 bg-primary text-primary-foreground shadow-none hover:bg-primary/90"
                 icon={<Plus className="h-4 w-4" />}
               />
             ) : null}
@@ -611,28 +610,28 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         )}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+      <div className="flex flex-wrap gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-1.5">
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
           <Link href="/external-invoices/dunning">
             <AlertCircle className="mr-2 h-4 w-4" />
             Dunning center
           </Link>
         </Button>
-        <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
           <Link href="/external-invoices/payment-due">
             <Calendar className="mr-2 h-4 w-4" />
             Payment due
           </Link>
         </Button>
         {!isReconciliationMode ? (
-          <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+          <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
             <Link href="/external-invoices/reconciliation">
               <Scale className="mr-2 h-4 w-4" />
               Reconciliation
             </Link>
           </Button>
         ) : (
-          <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+          <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
             <Link href="/external-invoices">
               <FileText className="mr-2 h-4 w-4" />
               Standard view

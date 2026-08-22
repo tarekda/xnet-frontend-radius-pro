@@ -16,10 +16,10 @@ const SortableHeader = ({ column, label }: { column: any; label: string }) => (
     <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="hover:bg-muted/70 dark:hover:bg-muted/45"
+        className="h-8 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-transparent hover:text-foreground"
     >
         {label}
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-60" />
     </Button>
 );
 
@@ -54,7 +54,7 @@ export function buildInvoiceColumns({ onViewInvoice, onSetPaid }: ColumnHandlers
             header: ({ column }) => <SortableHeader column={column} label="Username" />,
             cell: ({ row }) => (
                 <div className="flex items-center">
-                    <span className="font-medium text-blue-600 dark:text-blue-400">{row.original.userProfile.username}</span>
+                    <span className="font-medium text-foreground">{row.original.userProfile.username}</span>
                 </div>
             ),
         },
@@ -63,8 +63,8 @@ export function buildInvoiceColumns({ onViewInvoice, onSetPaid }: ColumnHandlers
             header: ({ column }) => <SortableHeader column={column} label="FullName" />,
             cell: ({ row }) => (
                 <div className="flex items-center">
-                    <UserCircle className="h-5 w-5 text-blue-500 dark:text-blue-400 mr-2" />
-                    <span className="font-medium text-blue-600 dark:text-blue-400">{row.original.userDetails?.fullName ?? "-"}</span>
+                    <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{row.original.userDetails?.fullName ?? "-"}</span>
                 </div>
             ),
         },

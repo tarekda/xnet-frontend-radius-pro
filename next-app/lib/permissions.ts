@@ -19,3 +19,20 @@ export function canAll(user: AuthUser | null | undefined, permissions: string[])
   return permissions.every((perm) => p.includes(perm));
 }
 
+/** Anyone who can see billing / pay invoices can open the operator treasury. */
+export const COMPANY_WALLET_VIEW_PERMS = [
+  "billing.companyWallet.view",
+  "ui.sidebar.admin.companyWallet.show",
+  "admin.resellers.manage",
+  "admin.access.manage",
+  "billing.externalInvoices.pay",
+  "billing.externalInvoices.view",
+] as const;
+
+export const COMPANY_WALLET_MANAGE_PERMS = [
+  "billing.companyWallet.manage",
+  "admin.resellers.fund",
+  "admin.access.manage",
+  "billing.externalInvoices.pay",
+] as const;
+

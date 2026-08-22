@@ -58,35 +58,54 @@ export default function SystemHealthStrip() {
 
   const tone =
     healthState === "Healthy"
-      ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
       : healthState === "Warning"
-        ? "border-amber-200/80 bg-amber-50/90 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
-        : "border-red-200/80 bg-red-50/90 text-red-950 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100";
+        ? "border-amber-500/20 bg-amber-500/10 text-amber-950 dark:text-amber-200"
+        : "border-rose-500/20 bg-rose-500/10 text-rose-950 dark:text-rose-200";
+
+  const dotColor =
+    healthState === "Healthy"
+      ? "bg-emerald-500 text-emerald-500"
+      : healthState === "Warning"
+        ? "bg-amber-500 text-amber-500"
+        : "bg-rose-500 text-rose-500";
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-2 py-1.5 pr-1 text-xs sm:px-4 ${tone}`}
+      className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b px-3 py-1.5 text-xs backdrop-blur-md transition-all duration-300 sm:px-6 ${tone}`}
       role="status"
       aria-live="polite"
     >
-      <Link href="/integrations" className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline">
-        <Activity className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {t("health_api")}: {healthState}
-      </Link>
-      <span className="text-muted-foreground">·</span>
-      <span>
-        {t("health_db")} {noc.dbLatencyMs}ms
-      </span>
-      <span>
-        {t("health_srv")} {noc.serverProcessingMs}ms
-      </span>
-      <span>
-        {t("health_rtt")} {noc.clientRttMs}ms
-      </span>
-      {q.isFetching ? <span className="ml-auto opacity-70 sm:ml-0">…</span> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Link
+          href="/integrations"
+          className="inline-flex items-center gap-2 font-semibold transition-opacity hover:opacity-85"
+        >
+          <span className={`relative inline-block h-2 w-2 rounded-full status-dot-pulse ${dotColor}`} />
+          <Activity className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+          <span>{t("health_api")}:</span>
+          <span className="rounded-md bg-background/60 px-1.5 py-0.5 font-bold uppercase tracking-wider text-[10px] shadow-xs">
+            {healthState}
+          </span>
+        </Link>
+        <span className="opacity-40">|</span>
+        <div className="flex items-center gap-2 text-[11px] font-mono opacity-90">
+          <span className="rounded bg-background/40 px-1.5 py-0.5">
+            {t("health_db")} <strong className="font-bold">{noc.dbLatencyMs}ms</strong>
+          </span>
+          <span className="rounded bg-background/40 px-1.5 py-0.5">
+            {t("health_srv")} <strong className="font-bold">{noc.serverProcessingMs}ms</strong>
+          </span>
+          <span className="rounded bg-background/40 px-1.5 py-0.5">
+            {t("health_rtt")} <strong className="font-bold">{noc.clientRttMs}ms</strong>
+          </span>
+        </div>
+        {q.isFetching ? <span className="animate-pulse text-xs opacity-70">fetching…</span> : null}
+      </div>
+
       <button
         type="button"
-        className="ml-auto shrink-0 rounded p-1 opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="ml-auto shrink-0 rounded-lg p-1 opacity-70 transition-all hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => setShowHealthStrip(false)}
         aria-label={t("health_strip_hide")}
         title={t("health_strip_hide")}

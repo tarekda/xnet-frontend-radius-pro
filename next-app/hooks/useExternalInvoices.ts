@@ -79,12 +79,19 @@ const fetchExternalInvoices = async (
 const setInvoiceAsPaid = async (
     invoiceId: number,
     paymentMethod: "cash" | "pos" | "transfer" | "other" | "gateway" | "wallet" = "cash",
-    extras?: { paymentReference?: string; paymentProvider?: string }
+    extras?: {
+      paymentReference?: string;
+      paymentProvider?: string;
+      paidAmount?: number;
+      debitRemainder?: boolean;
+    }
 ): Promise<ApiResponse<ExternalInvoice>> => {
     const response = await apiClient.post(`/invoices/external/pay/${invoiceId}`, {
       paymentMethod,
       paymentReference: extras?.paymentReference,
       paymentProvider: extras?.paymentProvider,
+      paidAmount: extras?.paidAmount,
+      debitRemainder: extras?.debitRemainder || undefined,
     });
     return response.data;
 };
@@ -239,10 +246,20 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
     });
 
     const setInvoiceAsPaidMutation = useMutation({
-        mutationFn: (vars: { invoiceId: number; paymentMethod?: "cash" | "pos" | "transfer" | "other" | "gateway" | "wallet"; paymentReference?: string; paymentProvider?: string; silent?: boolean }) =>
+        mutationFn: (vars: {
+            invoiceId: number;
+            paymentMethod?: "cash" | "pos" | "transfer" | "other" | "gateway" | "wallet";
+            paymentReference?: string;
+            paymentProvider?: string;
+            paidAmount?: number;
+            debitRemainder?: boolean;
+            silent?: boolean;
+        }) =>
             setInvoiceAsPaid(vars.invoiceId, vars.paymentMethod ?? "cash", {
               paymentReference: vars.paymentReference,
               paymentProvider: vars.paymentProvider,
+              paidAmount: vars.paidAmount,
+              debitRemainder: vars.debitRemainder,
             }),
         onSuccess: (_data, vars) => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });

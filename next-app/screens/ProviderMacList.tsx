@@ -101,10 +101,11 @@ export default function ProviderMacListPage() {
   const syncMutation = useMutation({
     mutationFn: () => syncProviderMacAddresses(provider, billingMonth),
     onSuccess: async (result) => {
-      await macQuery.refetch();
+      const uniqueMacs = result.macAddresses?.length ?? result.providerMacs;
+      macQuery.refetch();
       notify.success(
         "MAC addresses synchronized",
-        `${result.matchedSubscribers} subscriber(s) matched; ${result.updatedInvoiceRows} invoice row(s) updated.`
+        `${result.providerMacs} provider user(s) with MAC (${uniqueMacs} unique); ${result.matchedSubscribers} invoice subscriber(s) matched; ${result.updatedInvoiceRows} invoice row(s) updated.`
       );
     },
     onError: (error: any) => {
@@ -166,7 +167,8 @@ export default function ProviderMacListPage() {
         <CardHeader>
           <CardTitle>Select provider import</CardTitle>
           <CardDescription>
-            Membership is based on active external-invoice rows for the selected billing month.
+            For IDM / Terra / MyISP, MAC lists are pulled from active provider users with a MAC.
+            Sync also writes matching values onto this month&apos;s imported invoice rows.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -215,7 +217,10 @@ export default function ProviderMacListPage() {
       {provider && macQuery.data ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Metric label="Subscribers" value={macQuery.data.stats.totalSubscribers} />
+            <Metric
+              label={supportsLiveSync ? "Provider users w/ MAC" : "Subscribers"}
+              value={macQuery.data.stats.totalSubscribers}
+            />
             <Metric label="Assigned MACs" value={macQuery.data.stats.withMac} />
             <Metric label="Unique MACs" value={macQuery.data.stats.uniqueMacs} />
             <Metric label="Missing MAC" value={macQuery.data.stats.missingMac} tone="warning" />

@@ -64,8 +64,8 @@ const NocSnapshotCard: React.FC<Props> = ({
   onSelectRejectBucket,
 }) => {
   return (
-    <Card className="lg:col-span-4 border-border/70 shadow-sm">
-      <CardHeader>
+    <Card className="rounded-lg border-border shadow-none lg:col-span-4">
+      <CardHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between gap-2">
           <div>
             <CardTitle>NOC Snapshot (24h)</CardTitle>
@@ -76,8 +76,8 @@ const NocSnapshotCard: React.FC<Props> = ({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border p-2.5">
+      <CardContent className="p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/20 p-2.5">
           <div className="text-xs text-muted-foreground">Reject alert threshold</div>
           <Input
             type="number"
@@ -89,7 +89,7 @@ const NocSnapshotCard: React.FC<Props> = ({
               if (!Number.isFinite(next)) return;
               onRejectAlertThresholdChange(Math.min(Math.max(Math.round(next), 1), 100));
             }}
-            className="h-8 w-24"
+            className="h-8 w-20 rounded-md bg-background"
           />
           <span className="text-xs text-muted-foreground">%</span>
           {isRejectThresholdBreached ? (
@@ -99,7 +99,7 @@ const NocSnapshotCard: React.FC<Props> = ({
           )}
         </div>
         {showRejectThresholdAlert ? (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-950/35">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
             <div className="text-sm text-red-700 dark:text-red-200">
               Reject rate is <span className="font-semibold">{authRejectRate.toFixed(1)}%</span> (threshold {rejectAlertThreshold}%).
             </div>
@@ -113,18 +113,18 @@ const NocSnapshotCard: React.FC<Props> = ({
             </div>
           </div>
         ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border p-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-md border border-border p-3">
             <div className="text-xs text-muted-foreground">Auth Success Rate</div>
             <div className="mt-1 text-2xl font-semibold text-green-600 dark:text-green-400">{authSuccessRate.toFixed(1)}%</div>
             <div className="mt-1 text-xs text-muted-foreground">{authAccepted} accepted of {authAttempts} attempts</div>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-md border border-border p-3">
             <div className="text-xs text-muted-foreground">Auth Reject Rate</div>
             <div className="mt-1 text-2xl font-semibold text-red-600 dark:text-red-400">{authRejectRate.toFixed(1)}%</div>
             <div className="mt-1 text-xs text-muted-foreground">{authRejected} rejected requests</div>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-md border border-border p-3">
             <div className="text-xs text-muted-foreground">Users in FUP</div>
             <div className="mt-1 text-2xl font-semibold text-amber-600 dark:text-amber-400">
               {quotaDailyCount + quotaMonthlyCount}
@@ -133,13 +133,13 @@ const NocSnapshotCard: React.FC<Props> = ({
               {quotaDailyCount} daily / {quotaMonthlyCount} monthly
             </div>
           </div>
-          <div className="rounded-lg border p-3">
+          <div className="rounded-md border border-border p-3">
             <div className="text-xs text-muted-foreground">NAS Devices</div>
-            <div className="mt-1 text-2xl font-semibold text-blue-600 dark:text-blue-400">{totalNas}</div>
+            <div className="mt-1 text-2xl font-semibold text-primary">{totalNas}</div>
             <div className="mt-1 text-xs text-muted-foreground">Configured NAS entries</div>
           </div>
         </div>
-        <div className="mt-4 rounded-lg border p-3">
+        <div className="mt-3 rounded-md border border-border p-3">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-xs text-muted-foreground">Reject Rate Trend</div>
             <div className="flex items-center gap-2">
@@ -165,15 +165,15 @@ const NocSnapshotCard: React.FC<Props> = ({
             </div>
           </div>
           <div className="mb-2 grid grid-cols-3 gap-2 text-[11px]">
-            <div className="rounded border p-1.5">
+            <div className="rounded-md border border-border bg-muted/20 p-1.5">
               <div className="text-muted-foreground">Attempts</div>
               <div className="font-semibold">{rejectWindowStats.attempts}</div>
             </div>
-            <div className="rounded border p-1.5">
+            <div className="rounded-md border border-border bg-muted/20 p-1.5">
               <div className="text-muted-foreground">Rejected</div>
               <div className="font-semibold">{rejectWindowStats.rejected}</div>
             </div>
-            <div className="rounded border p-1.5">
+            <div className="rounded-md border border-border bg-muted/20 p-1.5">
               <div className="text-muted-foreground">Avg reject</div>
               <div className="font-semibold">{rejectWindowStats.avgRate.toFixed(1)}%</div>
             </div>

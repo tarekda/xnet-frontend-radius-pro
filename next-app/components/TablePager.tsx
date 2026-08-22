@@ -35,7 +35,7 @@ export default function TablePager({
   const to = totalItems === 0 ? 0 : Math.min(safePage * pageSize, totalItems);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
+    <div className="flex flex-col items-center justify-between gap-3 border-t border-border/70 bg-card px-3 py-3 sm:flex-row">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         {onPageSizeChange ? (
           <div className="flex items-center gap-1">
@@ -83,7 +83,7 @@ export default function TablePager({
           <ChevronLeft className="h-4 w-4 sm:mr-2" aria-hidden="true" />
           <span className="hidden sm:inline">Previous</span>
         </Button>
-        <div className="flex items-center gap-1 text-sm font-medium" aria-live="polite">
+        <div className="flex h-8 items-center gap-1 rounded-md bg-muted px-3 text-xs font-semibold" aria-live="polite">
           Page {safePage} of {safeTotalPages}
         </div>
         <Button

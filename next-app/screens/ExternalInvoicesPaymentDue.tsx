@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import EmptyState from "@/components/EmptyState";
 
 function localYmd(d: Date = new Date()): string {
   const y = d.getFullYear();
@@ -73,8 +74,8 @@ function Section({
         ? "border-l-4 border-l-amber-500"
         : "border-l-4 border-l-muted-foreground/40";
   return (
-    <Card className={cn("overflow-hidden", border)}>
-      <div className="border-b bg-muted/30 px-4 py-3">
+    <Card className={cn("overflow-hidden border-border/80 shadow-none", border)}>
+      <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
         <h2 className="font-semibold">{title}</h2>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
@@ -109,7 +110,7 @@ export default function ExternalInvoicesPaymentDuePage() {
   }, [data]);
 
   return (
-    <div className="w-full space-y-6 py-2">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("paymentDue.title")}
         subtitle={t("paymentDue.subtitle")}
@@ -133,14 +134,15 @@ export default function ExternalInvoicesPaymentDuePage() {
           <Skeleton className="h-24 w-full" />
         </div>
       ) : error ? (
-        <Card className="p-6 text-sm text-destructive">Could not load payment due list.</Card>
+        <Card className="border-border/80 p-5 text-sm text-destructive shadow-none">Could not load payment due list.</Card>
       ) : !data?.length ? (
-        <Card className="p-8 text-center text-muted-foreground">
-          No unpaid or pending invoices with a pay due date. Edit an invoice and set <strong>Pay due date</strong>, or include{" "}
-          <strong>payDueDate</strong> / <strong>paydate</strong> on your import sheet.
-        </Card>
+        <EmptyState
+          icon={CalendarClock}
+          title="No payment due dates"
+          description="No unpaid or pending invoices with a pay due date. Edit an invoice and set Pay due date, or include payDueDate / paydate on your import sheet."
+        />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Section title="Overdue" description="Pay due date is before today." tone="danger" rows={grouped.overdue} />
           <Section
             title="Due in the next 7 days"

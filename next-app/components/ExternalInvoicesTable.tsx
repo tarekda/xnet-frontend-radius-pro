@@ -27,6 +27,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import TablePager from "@/components/TablePager";
 import QueryState from "@/components/QueryState";
 import { useExternalInvoiceRealtimeSync } from "@/hooks/useExternalInvoiceRealtimeSync";
+import { getCurrentMonthDateRange } from "@/lib/externalInvoiceDateUtils";
+import BillingMonthSelector from "@/components/BillingMonthSelector";
 
 const initialPage = 1;
 
@@ -94,11 +96,33 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     /* ── URL state ─────────────────────────────────────────── */
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const fromParam = searchParams.get('from') || undefined;
-    const toParam = searchParams.get('to') || undefined;
+    const currentMonthRange = React.useMemo(() => getCurrentMonthDateRange(), []);
+    const isAllTimeExplicit = searchParams.get('all') === 'true' || searchParams.get('from') === 'all';
+    const fromParam = isAllTimeExplicit ? undefined : (searchParams.get('from') || currentMonthRange.from);
+    const toParam = isAllTimeExplicit ? undefined : (searchParams.get('to') || currentMonthRange.to);
     const statusParam = (searchParams.get('status') === 'overdue' ? 'unpaid' : searchParams.get('status')) || undefined;
     const missingParam = (searchParams.get('missing') === 'all' ? undefined : searchParams.get('missing')) || undefined;
     const payDueParam = (searchParams.get('payDue') === 'all' ? undefined : searchParams.get('payDue')) || undefined;
+
+    const handleSelectMonthRange = React.useCallback((from: string, to: string) => {
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("from", from);
+            next.set("to", to);
+            next.delete("all");
+            return next;
+        }, { replace: true } as any);
+    }, [setSearchParams]);
+
+    const handleSelectAllTime = React.useCallback(() => {
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete("from");
+            next.delete("to");
+            next.set("all", "true");
+            return next;
+        }, { replace: true } as any);
+    }, [setSearchParams]);
 
     /* ── fetch everything through the hook ─────────────────── */
     const {
@@ -309,8 +333,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             isEmpty={visibleRows.length === 0}
             onRetry={() => refetch()}
             loading={
-                <div className="rounded-md border min-w-[768px] overflow-hidden">
-                    <div className="flex gap-2 p-3 border-b bg-muted/30">
+                <div className="min-w-[768px] overflow-hidden rounded-lg border border-border/60 bg-card">
+                    <div className="flex gap-2 border-b border-border/60 bg-muted/40 p-3">
                         <Skeleton className="h-4 w-8" />
                         <Skeleton className="h-4 w-16" />
                         <Skeleton className="h-4 w-24" />
@@ -320,7 +344,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                         <Skeleton className="h-4 w-16" />
                     </div>
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                        <div key={i} className="flex gap-2 p-3 border-b last:border-b-0 items-center">
+                        <div key={i} className="flex items-center gap-2 border-b border-border/40 p-3 last:border-b-0">
                             <Skeleton className="h-4 w-6" />
                             <Skeleton className="h-4 w-20" />
                             <Skeleton className="h-4 w-24" />
@@ -338,22 +362,38 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             empty={
                 <div className="p-4">
                     <EmptyState
-                        title={hasActiveFilters ? "No invoices match your filters" : "No invoices found"}
+                        title={
+                            hasActiveFilters || fromParam || toParam
+                                ? "No invoices match your selected month/filters"
+                                : "No invoices found"
+                        }
                         description={
-                            hasActiveFilters
-                                ? "Loosen or clear the active filters to see more results."
+                            hasActiveFilters || fromParam || toParam
+                                ? "Try viewing All Time invoices or switching your billing month filter."
                                 : "Imported invoices will show up here once available."
                         }
                         icon={FileText}
-                        actionLabel={hasActiveFilters && onClearFilters ? "Clear all filters" : undefined}
-                        onAction={hasActiveFilters && onClearFilters ? onClearFilters : undefined}
+                        actionLabel={
+                            fromParam || toParam
+                                ? "View All Time Invoices"
+                                : hasActiveFilters && onClearFilters
+                                ? "Clear all filters"
+                                : undefined
+                        }
+                        onAction={
+                            fromParam || toParam
+                                ? handleSelectAllTime
+                                : hasActiveFilters && onClearFilters
+                                ? onClearFilters
+                                : undefined
+                        }
                     />
                 </div>
             }
             errorTitle="Failed to load invoices"
         >
             {/* desktop table */}
-            <div className="hidden md:block rounded-md border">
+            <div className="hidden overflow-hidden rounded-lg border border-border/60 bg-card shadow-none md:block">
                 <DesktopTable
                     invoices={groupedRows}
                     groupsById={groupsById}
@@ -387,7 +427,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             </div>
 
             {/* mobile list */}
-            <div className="md:hidden">
+            <div className="space-y-3 md:hidden">
                 {groupedRows.map((inv) => {
                     const group = groupsById?.get(inv.id);
                     const payTargetId = group ? group.currentMonthPayable?.id ?? null : inv.id;
@@ -408,8 +448,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                 totalItems={computedTotalItems}
                 pageSize={pageSize}
                 pageSizeOptions={[10, 20, 50, 100, 200, 500]}
-                onPageChange={(p) => setCurrentPage(p)}
-                onPageSizeChange={(n) => {
+                onPageChange={(p: number) => setCurrentPage(p)}
+                onPageSizeChange={(n: number) => {
                     onPageSizeChange?.(n);
                     setCurrentPage(1);
                 }}

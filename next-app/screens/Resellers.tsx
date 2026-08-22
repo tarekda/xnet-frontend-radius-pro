@@ -11,7 +11,9 @@ import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
 import { RefreshCw } from "lucide-react";
-import { createReseller, createResellerLogin, fetchResellerLedger, fetchResellers, fundReseller, type ResellerDto, type ResellerLoginDto } from "@/api/resellers";
+import Link from "next/link";
+import { createReseller, createResellerLogin, debitReseller, fetchResellerLedger, fetchResellers, fundReseller, type ResellerDto, type ResellerLoginDto } from "@/api/resellers";
+import { fetchCompanyWalletBalance } from "@/api/companyWallet";
 import TableRowActions from "@/components/TableRowActions";
 import { useTranslation } from "react-i18next";
 
@@ -23,6 +25,7 @@ export default function ResellersPage() {
 
   const [rows, setRows] = useState<ResellerDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [companyBalance, setCompanyBalance] = useState<number | null>(null);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -31,6 +34,7 @@ export default function ResellersPage() {
   const [fundTarget, setFundTarget] = useState<ResellerDto | null>(null);
   const [fundAmount, setFundAmount] = useState("");
   const [fundSaving, setFundSaving] = useState(false);
+  const [walletMode, setWalletMode] = useState<"credit" | "debit">("credit");
 
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginReseller, setLoginReseller] = useState<ResellerDto | null>(null);
@@ -45,6 +49,11 @@ export default function ResellersPage() {
     try {
       const list = await fetchResellers();
       setRows(list);
+      try {
+        setCompanyBalance(await fetchCompanyWalletBalance());
+      } catch {
+        setCompanyBalance(null);
+      }
     } catch (e: any) {
       notify.error("Load failed", e?.message || "Failed to load resellers");
     } finally {
@@ -69,10 +78,11 @@ export default function ResellersPage() {
     }
   };
 
-  const openFundDialog = (r: ResellerDto) => {
+  const openFundDialog = (r: ResellerDto, mode: "credit" | "debit" = "credit") => {
     if (!canFund) return;
     setFundTarget(r);
     setFundAmount("");
+    setWalletMode(mode);
     setFundOpen(true);
   };
 
@@ -85,14 +95,26 @@ export default function ResellersPage() {
     }
     setFundSaving(true);
     try {
-      await fundReseller(fundTarget.id, { amount: amt });
-      const ledger = await fetchResellerLedger(fundTarget.id);
-      notify.success("Funded", `New balance: ${ledger.balance.toFixed(2)}`);
+      if (walletMode === "debit") {
+        const result = await debitReseller(fundTarget.id, { amount: amt });
+        notify.success("Debited", `New balance: ${Number(result.balance).toFixed(2)}`);
+      } else {
+        const result = await fundReseller(fundTarget.id, { amount: amt });
+        const balance =
+          result && typeof result === "object" && "balance" in result
+            ? Number((result as { balance: number }).balance)
+            : (await fetchResellerLedger(fundTarget.id)).balance;
+        notify.success("Funded", `New balance: ${balance.toFixed(2)}`);
+      }
       setFundOpen(false);
       setFundTarget(null);
       setFundAmount("");
+      await load();
     } catch (e: any) {
-      notify.error("Fund failed", e?.message || "Failed to fund reseller");
+      notify.error(
+        walletMode === "debit" ? "Debit failed" : "Fund failed",
+        e?.response?.data?.message || e?.message || "Failed to update reseller wallet"
+      );
     } finally {
       setFundSaving(false);
     }
@@ -145,6 +167,20 @@ export default function ResellersPage() {
     <div className="w-full space-y-6 py-6">
       <PageHeader title={t("resellers.title")} subtitle={t("resellers.subtitle")} />
 
+      {companyBalance != null ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <div className="text-sm text-muted-foreground">Company wallet</div>
+              <div className="text-2xl font-semibold">{companyBalance.toFixed(2)}</div>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/admin/company-wallet">Open ledger</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Create reseller</CardTitle>
@@ -176,12 +212,13 @@ export default function ResellersPage() {
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No resellers.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No resellers.</TableCell></TableRow>
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.id}>
@@ -189,12 +226,16 @@ export default function ResellersPage() {
                     <TableCell className="font-mono">{r.code}</TableCell>
                     <TableCell>{r.name}</TableCell>
                     <TableCell>{r.isActive ? "active" : "inactive"}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {Number(r.balance ?? 0).toFixed(2)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end">
                         <TableRowActions
                           actions={[
                             { label: "Create login", onClick: () => openCreateLogin(r) },
-                            { label: "Fund", onClick: () => openFundDialog(r), disabled: !canFund },
+                            { label: "Fund", onClick: () => openFundDialog(r, "credit"), disabled: !canFund },
+                            { label: "Debit", onClick: () => openFundDialog(r, "debit"), disabled: !canFund },
                           ]}
                         />
                       </div>
@@ -220,14 +261,18 @@ export default function ResellersPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Fund reseller wallet</DialogTitle>
+            <DialogTitle>{walletMode === "debit" ? "Debit reseller wallet" : "Fund reseller wallet"}</DialogTitle>
             <DialogDescription>
               {fundTarget ? (
                 <>
-                  Add credit to reseller <span className="font-mono">{fundTarget.code}</span>. This action is recorded in the reseller ledger.
+                  {walletMode === "debit" ? "Remove credit from" : "Add credit to"} reseller{" "}
+                  <span className="font-mono">{fundTarget.code}</span>.
+                  {walletMode === "credit"
+                    ? " This debits the company wallet."
+                    : " This returns funds to the company wallet."}
                 </>
               ) : (
-                "Add credit to this reseller."
+                walletMode === "debit" ? "Remove credit from this reseller." : "Add credit to this reseller."
               )}
             </DialogDescription>
           </DialogHeader>
@@ -256,7 +301,7 @@ export default function ResellersPage() {
               onClick={onFund}
               disabled={fundSaving || !fundTarget || !Number.isFinite(Number(fundAmount)) || Number(fundAmount) <= 0}
             >
-              {fundSaving ? "Adding credit..." : "Add credit"}
+              {fundSaving ? (walletMode === "debit" ? "Debiting..." : "Adding credit...") : walletMode === "debit" ? "Debit" : "Add credit"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -31,8 +31,8 @@ const PlatformHealthCard: React.FC<Props> = ({
   fupUsersCount,
 }) => {
   return (
-    <Card className="w-full min-w-0 md:col-span-4 border-border/70 shadow-sm">
-      <CardHeader>
+    <Card className="w-full min-w-0 rounded-lg border-border shadow-none md:col-span-4">
+      <CardHeader className="border-b border-border p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Platform Health</CardTitle>
@@ -48,12 +48,12 @@ const PlatformHealthCard: React.FC<Props> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="space-y-5">
+      <CardContent className="space-y-4 p-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-violet-600" />
+                <Shield className="h-4 w-4 text-primary" />
                 <span className="font-medium">Auth success rate (24h)</span>
               </div>
               <span className="font-semibold tabular-nums">{authSuccessRate.toFixed(1)}%</span>
@@ -72,7 +72,7 @@ const PlatformHealthCard: React.FC<Props> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-blue-600" />
+                <Server className="h-4 w-4 text-primary" />
                 <span className="font-medium">Database latency</span>
               </div>
               <span className="font-semibold tabular-nums">{Math.round(nocHealth.dbLatencyMs)} ms</span>
@@ -88,7 +88,7 @@ const PlatformHealthCard: React.FC<Props> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-emerald-600" />
+                <Activity className="h-4 w-4 text-primary" />
                 <span className="font-medium">Client round-trip</span>
               </div>
               <span className="font-semibold tabular-nums">{Math.round(nocHealth.clientRttMs)} ms</span>
@@ -102,16 +102,16 @@ const PlatformHealthCard: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border bg-muted/30 p-3">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="text-xs text-muted-foreground">Active sessions</div>
             <div className="mt-1 text-xl font-bold tabular-nums">{Number(nocHealth.activeSessions ?? 0)}</div>
           </div>
-          <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="text-xs text-muted-foreground">NAS devices</div>
             <div className="mt-1 text-xl font-bold tabular-nums">{totalNas}</div>
           </div>
-          <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="text-xs text-muted-foreground">Users in FUP</div>
             <div className="mt-1 text-xl font-bold tabular-nums text-amber-600">{fupUsersCount}</div>
           </div>

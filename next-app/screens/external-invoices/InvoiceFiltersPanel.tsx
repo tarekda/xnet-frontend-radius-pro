@@ -11,6 +11,7 @@ import { notify } from "@/lib/notify";
 import { MESSAGES } from "@/constants/messages";
 import { useSearchParams } from "@/navigation/urlSearchParams";
 import type { ReconciliationFlag } from "@/lib/externalInvoiceInsights";
+import BillingMonthSelector from "@/components/BillingMonthSelector";
 
 type FilterOption = { value: string; label: string };
 
@@ -62,11 +63,33 @@ export const InvoiceFiltersPanel = ({
   onRemoveParams,
   lastRefreshedAt,
 }: Props) => {
+  const [, setSearchParams] = useSearchParams();
   const [searchParams] = useSearchParams();
   const statusFilterValue = searchParams.get("status") || "all";
   const ageFilterValue = searchParams.get("age") || "all";
   const missingFilterValue = searchParams.get("missing") || "all";
   const payDueFilterValue = searchParams.get("payDue") || "all";
+
+  const handleSelectMonthRange = (from: string, to: string) => {
+    onRemoveParams(["all"]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("from", from);
+      next.set("to", to);
+      next.delete("all");
+      return next;
+    }, { replace: true } as any);
+  };
+
+  const handleSelectAllTime = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("from");
+      next.delete("to");
+      next.set("all", "true");
+      return next;
+    }, { replace: true } as any);
+  };
 
   const payDueFilterLabel = useMemo(() => {
     switch (payDueFilterValue) {
@@ -104,8 +127,15 @@ export const InvoiceFiltersPanel = ({
   }, []);
 
   return (
-    <Card className="overflow-hidden border-border/70 shadow-sm">
+    <Card className="overflow-hidden border-border/70 shadow-sm bg-card/90 backdrop-blur-sm">
       <CardContent className="space-y-4 p-4 sm:p-5">
+        <BillingMonthSelector
+          currentFrom={searchParams.get("all") === "true" ? undefined : (searchParams.get("from") || undefined)}
+          currentTo={searchParams.get("all") === "true" ? undefined : (searchParams.get("to") || undefined)}
+          onSelectMonthRange={handleSelectMonthRange}
+          onSelectAllTime={handleSelectAllTime}
+        />
+
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div ref={searchBoxRef} className="relative w-full flex-1">
             <SearchBar

@@ -20,6 +20,7 @@ import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import EmptyState from "@/components/EmptyState";
+import TableSkeleton from "@/components/ui/TableSkeleton";
 import StatusPill from "@/components/StatusPill";
 import TableToolbar from "@/components/TableToolbar";
 import TablePager from "@/components/TablePager";
@@ -52,16 +53,16 @@ interface UsersTableProps {
     recentRejectCounts?: Record<string, number>;
 }
 const sortHeaderButtonClass =
-    "h-9 -ml-1 font-semibold text-foreground/90 hover:bg-muted/70 dark:text-foreground/95 dark:hover:bg-muted/45";
+    "h-7 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/70 hover:text-foreground";
 
 const getProfileBadge = (profileName: string) => {
     const colorMap: { [key: string]: string } = {
         Basic:
             "bg-muted text-foreground hover:bg-muted/80 dark:bg-muted/50 dark:hover:bg-muted/70",
         Premium:
-            "bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-950/45 dark:text-purple-200 dark:hover:bg-purple-950/60",
+            "border-primary/20 bg-primary/8 text-primary hover:bg-primary/12",
         Business:
-            "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-950/45 dark:text-blue-200 dark:hover:bg-blue-950/60",
+            "border-primary/20 bg-primary/8 text-primary hover:bg-primary/12",
         VIP:
             "bg-yellow-100 text-yellow-900 hover:bg-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-200 dark:hover:bg-yellow-950/55",
         default:
@@ -69,7 +70,7 @@ const getProfileBadge = (profileName: string) => {
     };
 
     const color = colorMap[profileName] || colorMap.default;
-    return <Badge className={`${color} transition-colors duration-200`}>{profileName}</Badge>;
+    return <Badge variant="outline" className={`${color} h-5 rounded px-1.5 text-[10px] font-medium transition-colors`}>{profileName}</Badge>;
 };
 
 const UserRow: React.FC<{
@@ -100,37 +101,29 @@ const UserRow: React.FC<{
         <>
             <TableRow 
                 className={cn(
-                    "transition-colors duration-200",
-                    // Base color alternating rows
-                    index % 2 === 0 ? "bg-card" : "bg-muted/35",
-                    // Hover state
-                    "hover:bg-muted/60 dark:hover:bg-muted/45",
+                    "border-border/50 transition-colors",
+                    index % 2 === 0 ? "bg-card" : "bg-muted/15",
+                    "hover:bg-primary/[0.04]",
                     // Expanded state
-                    isExpanded && "border-l-2 border-l-primary bg-muted/55 dark:bg-muted/40",
-                    // Status-based highlighting
-                    user.accountStatus.toLowerCase() === "suspended" &&
-                      "bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/45",
-                    user.accountStatus.toLowerCase() === "inactive" &&
-                      "bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/25 dark:hover:bg-yellow-950/40",
-                    // Online status subtle highlight
-                    user.isOnline && "border-l-2 border-l-blue-500",
-                    !user.isOnline && "border-l-2 border-l-red-600"
+                    isExpanded && "bg-primary/[0.06]",
+                    user.isOnline && "border-l-2 border-l-primary/60",
+                    !user.isOnline && "border-l-2 border-l-border"
                 )}
             >
-                <TableCell className="w-[44px]">
+                <TableCell className="w-[38px] px-2 py-2">
                     <Checkbox
                         checked={Boolean(isSelected)}
                         onCheckedChange={(v) => onToggleSelected?.(user.id, Boolean(v))}
                         aria-label="Select user"
                     />
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-2 py-2">
                     <div className="flex items-center gap-2">
                         <Button
                             variant="ghost"
                             size="sm"
                             className={cn(
-                                "h-8 w-8 p-0",
+                                "h-7 w-7 p-0",
                                 isExpanded && "bg-primary/10 hover:bg-primary/20",
                                 !isExpanded && "hover:bg-muted dark:hover:bg-muted/50"
                             )}
@@ -142,22 +135,22 @@ const UserRow: React.FC<{
                                 <ChevronDown className="h-4 w-4" />
                             )}
                         </Button>
-                        <span className="font-mono text-sm">{user.id}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{user.id}</span>
                     </div>
                 </TableCell>
                 
-                <TableCell>
+                <TableCell className="px-2 py-2">
                     <div className="flex flex-col">
                         <button
                             type="button"
-                            className="text-left font-semibold text-primary hover:text-primary/80"
+                            className="text-left text-sm font-semibold text-foreground hover:text-primary"
                             onClick={() => router.push(`/users/${encodeURIComponent(user.username)}`)}
                             title="View user"
                         >
                             {user.username}
                         </button>
                         {user.userDetails?.fullName && (
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                                 {user.userDetails.fullName}
                             </span>
                         )}
@@ -178,7 +171,7 @@ const UserRow: React.FC<{
                     </div>
                 </TableCell>
 
-                <TableCell>
+                <TableCell className="px-2 py-2">
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -201,13 +194,13 @@ const UserRow: React.FC<{
                     </TooltipProvider>
                 </TableCell>
 
-                <TableCell>
-                    <span className="text-sm text-muted-foreground">
+                <TableCell className="px-2 py-2">
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
                         {user.lastTimeActive ? new Date(user.lastTimeActive).toLocaleString() : "—"}
                     </span>
                 </TableCell>
 
-                <TableCell>
+                <TableCell className="px-2 py-2">
                     <div className="flex items-center gap-2">
                         <TooltipProvider>
                             <Tooltip>
@@ -223,7 +216,7 @@ const UserRow: React.FC<{
                     </div>
                 </TableCell>
 
-                <TableCell>
+                <TableCell className="px-2 py-2">
                     <MonthlyCycleCell
                         monthlyUsage={user.monthlyUsage}
                         monthlyQuota={user.profile?.monthlyQuota}
@@ -237,24 +230,22 @@ const UserRow: React.FC<{
                     />
                 </TableCell>
 
-                <TableCell>
-                    <Badge variant="outline" className={cn(
-                        "transition-colors duration-200",
-                        user.accountStatus.toLowerCase() === 'active' && "border-green-500 text-green-500 hover:bg-green-50",
-                        user.accountStatus.toLowerCase() === 'suspended' && "border-red-500 text-red-500 hover:bg-red-50",
-                        user.accountStatus.toLowerCase() === 'inactive' && "border-yellow-500 text-yellow-500 hover:bg-yellow-50"
-                    )}>
-                        {user.accountStatus}
-                    </Badge>
+                <TableCell className="px-2 py-2">
+                    <StatusPill
+                        label={user.accountStatus}
+                        tone={user.accountStatus.toLowerCase() === "active" ? "success" : user.accountStatus.toLowerCase() === "suspended" ? "danger" : "warning"}
+                        dot
+                        className="h-5 rounded px-1.5 text-[10px]"
+                    />
                 </TableCell>
 
-                <TableCell>
-                    <span className="font-mono text-sm">
+                <TableCell className="px-2 py-2">
+                    <span className="font-mono text-xs text-muted-foreground">
                         {user.macAddress?.macAddress || 'N/A'}
                     </span>
                 </TableCell>
 
-                <TableCell align="right" className="text-right">
+                <TableCell align="right" className="px-2 py-2 text-right">
                     <TableRowActions
                         actions={[
                             {
@@ -313,12 +304,12 @@ const UserRow: React.FC<{
             </TableRow>
 
             {isExpanded && (
-                <TableRow className="border-y border-border bg-muted/40 dark:bg-muted/30">
+                <TableRow className="border-y border-border/60 bg-muted/20">
                     <TableCell colSpan={10}>
-                        <div className="space-y-4 p-4">
+                        <div className="space-y-3 p-3">
                             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                                <div className="space-y-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                                    <h4 className="font-semibold text-primary">Profile Details</h4>
+                                <div className="space-y-2 rounded-md border border-border/60 bg-card p-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Profile Details</h4>
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">
                                             Daily Quota: {user.profile.dailyQuota}
@@ -345,8 +336,8 @@ const UserRow: React.FC<{
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                                    <h4 className="font-semibold text-primary">Contact Information</h4>
+                                <div className="space-y-2 rounded-md border border-border/60 bg-card p-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">Contact Information</h4>
                                     <div className="space-y-1">
                                         {user.userDetails?.email && (
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -369,8 +360,8 @@ const UserRow: React.FC<{
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-                                    <h4 className="font-semibold text-primary">System Details</h4>
+                                <div className="space-y-2 rounded-md border border-border/60 bg-card p-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">System Details</h4>
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">
                                             Profile ID: {user.profileId}
@@ -536,18 +527,19 @@ const UsersTable: React.FC<UsersTableProps> = ({
         },
     });
 
-    // IMPORTANT:
-    // The headers were toggling TanStack sorting state, but the table body was rendering `users` directly.
-    // Use the sorted row model as the source of truth for the displayed rows.
     const displayUsers = table.getSortedRowModel().rows.map((r) => r.original);
+
+    if (isLoading) {
+        return <TableSkeleton columns={6} rows={8} showToolbar={true} />;
+    }
 
     return (
         <div>
-            <div className="overflow-hidden rounded-md border border-border/60 bg-card/30 shadow-sm dark:border-border/60 dark:bg-card/40">
+            <div className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-none">
                 <TableToolbar label={totalUsers ? `${totalUsers} users` : "No users"} />
 
                 <div className="min-w-[768px] hidden md:block">
-                    <div className="max-h-[70vh] overflow-x-auto">
+                    <div className="max-h-[70vh] overflow-auto">
                         {displayUsers.length === 0 ? (
                             <div className="p-4">
                                 <EmptyState
@@ -557,13 +549,13 @@ const UsersTable: React.FC<UsersTableProps> = ({
                             </div>
                         ) : (
                         <Table>
-                            <TableHeader className="sticky top-0 z-10 border-b border-border bg-card/95 shadow-sm backdrop-blur-sm dark:border-border/55 dark:bg-muted/40 dark:backdrop-blur-md">
+                            <TableHeader className="sticky top-0 z-10 border-b border-border/60 bg-muted/90 backdrop-blur">
                                 <TableRow className="border-b border-border/35 hover:bg-transparent dark:border-border/50">
                                     {table.getHeaderGroups().map((headerGroup) => (
                                         headerGroup.headers.map((header) => (
                                             <TableHead
                                                 key={header.id}
-                                                className="px-3 py-3 text-left align-middle font-semibold text-foreground/90 dark:text-foreground/95"
+                                                className="h-9 px-2 py-1.5 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
                                                 aria-sort={ariaSortFor(header)}
                                             >
                                                 {header.isPlaceholder
@@ -575,7 +567,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                             </TableHead>
                                         ))
                                     ))}
-                                    <TableHead className="px-3 py-3 text-right align-middle font-semibold text-foreground/90 dark:text-foreground/95">
+                                    <TableHead className="h-9 px-2 py-1.5 text-right align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                         Actions
                                     </TableHead>
                                 </TableRow>
@@ -603,7 +595,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 </div>
             </div>
 
-            <div className="mt-4 space-y-4 md:hidden">
+            <div className="mt-3 space-y-3 md:hidden">
                 {displayUsers.length === 0 ? (
                     <EmptyState
                         title="No users found"

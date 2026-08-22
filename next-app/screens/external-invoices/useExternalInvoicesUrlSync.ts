@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { SetURLSearchParams } from "@/navigation/urlSearchParams";
 import type { DateRange } from "react-day-picker";
+import { getCurrentMonthDateRange } from "@/lib/externalInvoiceDateUtils";
 
 type UseExternalInvoicesUrlSyncParams = {
   defaultPageSize: number;
@@ -50,17 +51,23 @@ export function useExternalInvoicesUrlSync({
     setSearchInput(q);
     setPageSize(ps);
 
-    // Restore from/to/status from localStorage if missing in URL.
+    // Restore from/to/status from localStorage or default to current billing month.
     const urlFrom = searchParams.get("from");
     const urlTo = searchParams.get("to");
     const urlStatus = searchParams.get("status");
-    const lsFrom = localStorage.getItem("externalInvoices.from") || undefined;
-    const lsTo = localStorage.getItem("externalInvoices.to") || undefined;
-    const lsStatus = localStorage.getItem("externalInvoices.status") || undefined;
-    if ((!urlFrom && lsFrom) || (!urlTo && lsTo) || (!urlStatus && lsStatus)) {
+    const isAllTime = searchParams.get("all") === "true" || urlFrom === "all";
+
+    if (!isAllTime && (!urlFrom || !urlTo)) {
+      const lsFrom = localStorage.getItem("externalInvoices.from") || undefined;
+      const lsTo = localStorage.getItem("externalInvoices.to") || undefined;
+      const currentMonth = getCurrentMonthDateRange();
+      const targetFrom = urlFrom || lsFrom || currentMonth.from;
+      const targetTo = urlTo || lsTo || currentMonth.to;
+      const lsStatus = localStorage.getItem("externalInvoices.status") || undefined;
+
       const next = new URLSearchParams(searchParams);
-      if (!urlFrom && lsFrom) next.set("from", lsFrom);
-      if (!urlTo && lsTo) next.set("to", lsTo);
+      if (!urlFrom && targetFrom) next.set("from", targetFrom);
+      if (!urlTo && targetTo) next.set("to", targetTo);
       if (!urlStatus && lsStatus) next.set("status", lsStatus);
       setSearchParams(next, { replace: true } as any);
     }

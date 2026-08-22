@@ -80,7 +80,7 @@ export default function SecuritySettingsScreen() {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-5">
       <PageHeader title="Security" subtitle="Two-factor authentication (TOTP)" icon={Shield} />
       {status?.mfaRequired && (
         <Alert type="error" message="Your role requires MFA. Enroll before continuing." />
@@ -88,7 +88,7 @@ export default function SecuritySettingsScreen() {
       {message && <Alert type="success" message={message} />}
       {error && <Alert type="error" message={error} />}
 
-      <Card>
+      <Card className="border-border/80 shadow-none">
         <CardHeader>
           <CardTitle>Authenticator app</CardTitle>
           <CardDescription>

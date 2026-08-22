@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Bell,
@@ -15,6 +14,7 @@ import {
 import {
   useAlertRules,
   useAlerts,
+  useAlertHistory,
   useAlertSettings,
   useCreateAlertRule,
   useUpdateAlertRule,
@@ -27,18 +27,22 @@ import { AlertRule, ALERT_METRICS } from '@/types/alerts';
 import AlertStatsCards from './AlertStatsCards';
 import AlertRulesTab from './AlertRulesTab';
 import ActiveAlertsTab from './ActiveAlertsTab';
+import AlertHistoryTab from './AlertHistoryTab';
 import QuotaExceededTab from './QuotaExceededTab';
 import AlertRuleFormDialog, { emptyAlertRuleForm, type AlertRuleFormData } from './AlertRuleFormDialog';
 import AlertSettingsDialog from './AlertSettingsDialog';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
 
 const Alerts: React.FC = () => {
   const { t } = useTranslation("screens");
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('rules');
 
   // Data hooks
   const { data: alertRules, isLoading: rulesLoading, error: rulesError, refetch: refetchRules } = useAlertRules();
   const { data: alerts, isLoading: alertsLoading, error: alertsError, refetch: refetchAlerts } = useAlerts();
+  const { data: history, isLoading: historyLoading, error: historyError, refetch: refetchHistory } = useAlertHistory(activeTab === 'history');
   const { data: settings, isLoading: settingsLoading, refetch: refetchSettings } = useAlertSettings();
 
   // Mutation hooks
@@ -115,7 +119,7 @@ const Alerts: React.FC = () => {
   };
 
   return (
-    <div className="w-full space-y-6 p-6">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("alerts.title")}
         subtitle={t("alerts.subtitle")}
@@ -127,6 +131,7 @@ const Alerts: React.FC = () => {
               onClick={() => {
                 refetchRules?.();
                 refetchAlerts?.();
+                refetchHistory?.();
                 refetchSettings?.();
               }}
               icon={<RefreshCw className="h-4 w-4" />}
@@ -192,7 +197,12 @@ const Alerts: React.FC = () => {
             isLoading={alertsLoading}
             error={alertsError}
             onRetry={() => refetchAlerts?.()}
-            onAcknowledge={(id) => acknowledgeAlert.mutate({ id, acknowledgedBy: 'current-user@example.com' })}
+            onAcknowledge={(id) =>
+              acknowledgeAlert.mutate({
+                id,
+                acknowledgedBy: user?.username || user?.email || "unknown",
+              })
+            }
             acknowledgePending={acknowledgeAlert.isPending}
             onResolve={(id) => resolveAlert.mutate(id)}
             resolvePending={resolveAlert.isPending}
@@ -204,15 +214,12 @@ const Alerts: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Alert History</CardTitle>
-              <CardDescription>Historical view of all alerts and their resolution</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Alert history feature coming soon...</p>
-            </CardContent>
-          </Card>
+          <AlertHistoryTab
+            alerts={history}
+            isLoading={historyLoading}
+            error={historyError}
+            onRetry={() => refetchHistory?.()}
+          />
         </TabsContent>
       </Tabs>
 

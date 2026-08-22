@@ -495,9 +495,8 @@ const UsersPage: React.FC = () => {
             emptyTitle="No users yet"
             emptyDescription="Create your first user to get started."
         >
-        <div className="w-full min-w-0 space-y-6 py-6">
+        <div className="w-full min-w-0 space-y-5">
             <PageHeader
-                variant="gradient"
                 title={t("users.title")}
                 subtitle={t("users.subtitle")}
                 icon={UsersIcon}
@@ -507,27 +506,27 @@ const UsersPage: React.FC = () => {
                             label={isRefreshing ? "Refreshing..." : "Refresh"}
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+                            className="border-border bg-card text-foreground shadow-none hover:bg-muted"
                             icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
                         />
                         <IconActionButton
                             label="Export Excel"
                             onClick={() => dispatch({ type: "SET_EXPORT_OPEN", payload: true })}
-                            className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+                            className="border-border bg-card text-foreground shadow-none hover:bg-muted"
                             icon={<Download className="h-4 w-4" />}
                         />
                         <IconActionButton
                             label={!canManageUsers ? manageUsersReason : "Import CSV"}
                             onClick={() => dispatch({ type: "SET_IMPORT_OPEN", payload: true })}
                             disabled={!canManageUsers}
-                            className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+                            className="border-border bg-card text-foreground shadow-none hover:bg-muted"
                             icon={<Upload className="h-4 w-4" />}
                         />
                         <IconActionButton
                             label={!canManageUsers ? manageUsersReason : "New User"}
                             onClick={handleAddUser}
                             disabled={!canManageUsers}
-                            className="border-white/25 bg-white text-slate-900 shadow-sm hover:bg-white/90"
+                            className="border-primary/20 bg-primary text-primary-foreground shadow-none hover:bg-primary/90"
                             icon={<Plus className="h-4 w-4" />}
                         />
                     </div>
@@ -535,22 +534,22 @@ const UsersPage: React.FC = () => {
             />
 
             {/* Quick links to related screens */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-1.5">
                 {canSeeLiveSessions ? (
-                    <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+                    <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
                         <Link href="/online-users">
                             <Activity className="mr-2 h-4 w-4" />
                             Live sessions
                         </Link>
                     </Button>
                 ) : null}
-                <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+                <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
                     <Link href="/nas">
                         <Server className="mr-2 h-4 w-4" />
                         NAS devices
                     </Link>
                 </Button>
-                <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+                <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
                     <Link href="/profiles/list">
                         <Layers className="mr-2 h-4 w-4" />
                         Profiles
@@ -603,7 +602,7 @@ const UsersPage: React.FC = () => {
             {filteredUsers.length === 0 &&
                 !isLoading &&
                 hasActiveFilters(searchQuery, displayAccountFilter, statusFilter, advancedFilters) && (
-                <Card className="border bg-card/60">
+                <Card className="border-border/60 bg-card shadow-none">
                     <CardContent className="flex flex-col items-center justify-between gap-3 p-4 sm:flex-row">
                         <p className="text-sm text-muted-foreground">
                             No users match your current filters. Clear filters to see all users.

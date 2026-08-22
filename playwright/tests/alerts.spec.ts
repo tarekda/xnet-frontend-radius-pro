@@ -102,4 +102,12 @@ test.describe("alerts (mocked API)", () => {
     await page.getByRole("tab", { name: /active alerts/i }).click();
     await expect(page.getByText(/no alerts found/i)).toBeVisible();
   });
+
+  test("alert history tab shows empty state from the API", async ({ page }) => {
+    await signInWithMocks(page);
+    await page.goto("/alerts");
+
+    await page.getByRole("tab", { name: /alert history/i }).click();
+    await expect(page.getByText(/no resolved alerts yet/i)).toBeVisible();
+  });
 });

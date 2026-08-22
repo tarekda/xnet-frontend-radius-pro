@@ -119,4 +119,10 @@ describe("groupExternalInvoices", () => {
     expect(group!.primary.id).toBe(june.id);
     expect(group!.currentMonthPayable).toBeNull();
   });
+
+  it("uses remainingDue for outstanding when a line is partially paid", () => {
+    const partial = inv({ billingMonth: THIS_MONTH, amount: 50, amountPaid: 20, remainingDue: 30, status: "pending" });
+    const [group] = groupExternalInvoices([partial], NOW);
+    expect(group!.outstandingTotal).toBe(30);
+  });
 });

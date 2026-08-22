@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, CheckCircle, Eye, XCircle, DollarSign, AlertCircle } from "lucide-react";
+import { Check, Eye, DollarSign, AlertCircle } from "lucide-react";
 import { ExternalInvoice } from "@/types/api";
+import StatusPill from "@/components/StatusPill";
 
 
 type Props = {
@@ -27,12 +28,12 @@ const ExternalInvoiceCard: React.FC<Props> = ({ invoice, onSetPaid, onViewDetail
 
   return (
     <Card
-      className={`mb-4 transition-colors ${onViewDetails ? "cursor-pointer hover:bg-accent/30" : ""}`}
+      className={`overflow-hidden border-border/60 shadow-none transition-colors ${onViewDetails ? "cursor-pointer hover:border-primary/30 hover:bg-primary/[0.025]" : ""}`}
       onClick={onViewDetails ? () => onViewDetails() : undefined}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="border-b border-border/50 bg-muted/15 p-4 pb-3">
         <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-semibold text-blue-600">
+          <span className="font-mono text-sm font-semibold text-primary">
             Invoice #{invoice.id}
           </span>
           <div className="flex items-center gap-2">
@@ -42,31 +43,25 @@ const ExternalInvoiceCard: React.FC<Props> = ({ invoice, onSetPaid, onViewDetail
                 Overdue
               </Badge>
             )}
-            <span
-              className={`flex items-center text-sm ${
-                isPaid ? "text-green-600" : "text-amber-600"
-              }`}
-            >
-              {isPaid ? (
-                <CheckCircle className="h-4 w-4 mr-1" />
-              ) : (
-                <XCircle className="h-4 w-4 mr-1" />
-              )}
-              {invoice.status}
-            </span>
+            <StatusPill
+              label={invoice.status}
+              tone={isPaid ? "success" : isOverdue ? "danger" : "warning"}
+              dot
+              className="capitalize"
+            />
           </div>
         </CardTitle>
-        <CardDescription>{invoice.username}</CardDescription>
+        <CardDescription className="text-xs">@{invoice.username}</CardDescription>
       </CardHeader>
 
-      <CardContent className="pb-2">
-        <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+      <CardContent className="p-4 pb-3">
+        <div className="mb-3 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <span className="font-semibold">Full Name:</span>{" "}
+            <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">Customer</span>
             {invoice.fullName}
           </div>
           <div>
-            <span className="font-semibold">Billing:</span>{" "}
+            <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">Billing month</span>
             {new Date(invoice.billingMonth).toLocaleDateString("en-US", {
               month: "short",
               year: "numeric",
@@ -78,13 +73,13 @@ const ExternalInvoiceCard: React.FC<Props> = ({ invoice, onSetPaid, onViewDetail
             <span className="font-semibold text-foreground">Address:</span> {invoice.address}
           </div>
         ) : null}
-        <div className="text-lg font-bold flex items-center">
+        <div className="flex items-center border-t border-border/50 pt-3 text-xl font-semibold tabular-nums">
           <DollarSign className="h-4 w-4 mr-1" />
           {invoice.amount.toFixed(2)}
         </div>
       </CardContent>
 
-      <CardFooter className="flex flex-wrap gap-2 pt-2">
+      <CardFooter className="flex flex-wrap gap-2 border-t border-border/50 bg-muted/10 p-3">
         {onViewDetails && (
           <Button
             variant="outline"

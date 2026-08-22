@@ -338,15 +338,14 @@ export default function OnlineUsersPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full space-y-6 px-4 py-6 sm:px-0 animate-in fade-in-50">
+      <div className="w-full space-y-5 animate-in fade-in-50">
         <PageHeader
-          variant="gradient"
           title={t("sessions.title")}
           subtitle={t("sessions.subtitle_loading")}
           icon={Users}
           actions={
             <div className="flex gap-2">
-              <Skeleton className="h-10 w-28 bg-white/20" />
+              <Skeleton className="h-10 w-28" />
             </div>
           }
         />
@@ -391,21 +390,20 @@ export default function OnlineUsersPage() {
   const isDataStale = secondsSinceRefresh > 60;
 
   return (
-    <div className="w-full space-y-6 px-4 py-6 sm:px-0 animate-in fade-in-50">
+    <div className="w-full space-y-5 animate-in fade-in-50">
       <PageHeader
-        variant="gradient"
         title={t("sessions.title")}
         subtitle={t("sessions.subtitle")}
         icon={Activity}
         actions={(
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Badge
-              className="h-7 border-white/20 bg-white/15 text-[11px] text-white"
+              className="h-6 rounded border-border bg-muted/40 text-[10px] text-foreground"
               variant={isDataStale ? "destructive" : "secondary"}
             >
               {isDataStale ? `Stale ${secondsSinceRefresh}s` : `Fresh ${secondsSinceRefresh}s`}
             </Badge>
-            <Badge className="h-7 border-white/25 bg-white/10 text-[11px] text-white/90" variant="outline">
+            <Badge className="h-6 rounded border-border bg-card text-[10px] text-muted-foreground" variant="outline">
               {metricsQuery.isFetching ? "Auto refresh…" : `Auto in ${autoRefreshIn}s`}
             </Badge>
             {sessionStats.monthlyExceeded > 0 ? (
@@ -417,27 +415,27 @@ export default function OnlineUsersPage() {
               label={isRefreshing ? "Refreshing…" : "Refresh"}
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+              className="border-border bg-card text-foreground shadow-none hover:bg-muted"
               icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />}
             />
           </div>
         )}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+      <div className="flex flex-wrap gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-1.5">
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
           <Link href="/users/list">
             <Users className="mr-2 h-4 w-4" />
             Users list
           </Link>
         </Button>
-        <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
           <Link href="/users/list?status=online">
             <Wifi className="mr-2 h-4 w-4" />
             Online filter
           </Link>
         </Button>
-        <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
           <Link href="/nas">
             <Server className="mr-2 h-4 w-4" />
             NAS devices
@@ -445,8 +443,8 @@ export default function OnlineUsersPage() {
         </Button>
       </div>
 
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardContent className="space-y-4 p-4 sm:p-5">
+      <Card className="overflow-hidden border-border/60 shadow-none">
+        <CardContent className="space-y-3 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
               <div className="flex shrink-0 items-center gap-2">
@@ -463,7 +461,7 @@ export default function OnlineUsersPage() {
                   ].map((item) => (
                     <span
                       key={item.key}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs"
+                      className="inline-flex items-center gap-1.5 rounded border border-border/60 bg-muted/30 px-2 py-1 text-[11px]"
                     >
                       <item.icon className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <span className="text-muted-foreground">{item.label}</span>
@@ -575,8 +573,8 @@ export default function OnlineUsersPage() {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardContent className="p-4 sm:p-5">
+      <Card className="overflow-hidden border-border/60 shadow-none">
+        <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
             <div ref={searchBoxRef} className="order-1 w-full md:w-[70%]">
               <SearchBar

@@ -16,17 +16,16 @@ import {
     getSortedRowModel,
 } from "@tanstack/react-table";
 import { useInvoices } from '@/hooks/useInvoices';
-import { Button } from "@/components/ui/button";
 import { FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ariaSortFor } from '@/lib/tableA11y';
-import Loader from '@/components/ui/loader';
 import { DateRange } from 'react-day-picker';
 import { notify } from '@/lib/notify';
 import { MESSAGES } from '@/constants/messages';
 import TablePager from '@/components/TablePager';
 import TableToolbar from "@/components/TableToolbar";
 import QueryState from "@/components/QueryState";
+import EmptyState from "@/components/EmptyState";
 import SavedViews from "@/components/SavedViews";
 import type { Invoice } from './types';
 import InvoiceSummaryCards from './InvoiceSummaryCards';
@@ -40,13 +39,13 @@ const NoInvoicesMessage: React.FC<{ onGenerateInvoice: () => void; isGenerating:
     onGenerateInvoice,
     isGenerating
 }) => (
-    <div className="text-center py-10">
-        <h3 className="text-lg font-semibold mb-2 text-foreground">No Invoices Available</h3>
-        <p className="text-muted-foreground mb-4">There are currently no invoices to display.</p>
-        <Button onClick={onGenerateInvoice} disabled={isGenerating}>
-            {isGenerating ? "Generating..." : "Generate Invoices"}
-        </Button>
-    </div>
+    <EmptyState
+        icon={FileText}
+        title="No invoices available"
+        description="There are currently no invoices to display."
+        actionLabel={isGenerating ? "Generating..." : "Generate invoices"}
+        onAction={onGenerateInvoice}
+    />
 );
 
 const InvoicesComponent: React.FC = () => {
@@ -232,7 +231,7 @@ const InvoicesComponent: React.FC = () => {
     const totalSum = data?.data?.data.reduce((sum, invoice) => sum + invoice.amount, 0) ?? 0;
 
     return (
-        <div className="w-full py-6 pt-2 space-y-4">
+        <div className="w-full space-y-5">
             <PageHeader
                 title={t("generatedInvoices.title")}
                 subtitle={t("generatedInvoices.subtitle")}
@@ -243,11 +242,6 @@ const InvoicesComponent: React.FC = () => {
                 error={error}
                 isEmpty={!data?.data?.data?.length}
                 onRetry={() => refetch()}
-                loading={
-                    <div className="flex justify-center items-center py-20">
-                        <Loader />
-                    </div>
-                }
                 empty={
                     <NoInvoicesMessage
                         onGenerateInvoice={handleGenerateInvoice}
@@ -260,7 +254,7 @@ const InvoicesComponent: React.FC = () => {
                     <InvoiceSummaryCards invoices={data.data.data} totalSum={totalSum} />
                 ) : null}
 
-                <div className="py-4">
+                <div>
                     <InvoicesFiltersBar
                         globalFilter={globalFilter}
                         onGlobalFilterChange={setGlobalFilter}
@@ -286,11 +280,11 @@ const InvoicesComponent: React.FC = () => {
                     />
                 ) : null}
 
-                <div className="rounded-md border shadow-sm overflow-hidden">
+                <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shop-shadow)]">
                     <TableToolbar
                         label={`Invoices: ${(data?.data?.total ?? 0).toLocaleString()} • Page ${currentPage} / ${(data?.data?.totalPages ?? 1)}`}
                         right={
-                            <div className="hidden md:flex items-center gap-2">
+                            <div className="hidden items-center gap-2 md:flex">
                                 <SavedViews
                                     storageKey="invoices.views"
                                     keys={savedViewsKeys}
@@ -302,13 +296,13 @@ const InvoicesComponent: React.FC = () => {
                             </div>
                         }
                     />
-                    <div className="min-w-[768px] hidden md:block">
+                    <div className="hidden min-w-[768px] md:block">
                         <Table className="w-full">
-                            <TableHeader className="sticky top-0 z-10 border-b bg-card/95 backdrop-blur-sm">
+                            <TableHeader className="sticky top-0 z-10 border-b border-border bg-card/95">
                                 {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id} className="bg-muted/50 dark:bg-muted/40">
+                                    <TableRow key={headerGroup.id}>
                                         {headerGroup.headers.map((header) => (
-                                            <TableHead key={header.id} className="font-bold text-muted-foreground py-3" aria-sort={ariaSortFor(header)}>
+                                            <TableHead key={header.id} aria-sort={ariaSortFor(header)}>
                                                 {header.isPlaceholder
                                                     ? null
                                                     : flexRender(
@@ -328,13 +322,13 @@ const InvoicesComponent: React.FC = () => {
                                             data-state={row.getIsSelected() && "selected"}
                                             className={cn(
                                                 "transition-colors",
-                                                index % 2 === 0 ? "bg-card" : "bg-muted/40",
-                                                "hover:bg-accent/55 dark:hover:bg-accent/25",
-                                                row.getIsSelected() && "bg-primary/50"
+                                                index % 2 === 0 ? "bg-card" : "bg-muted/35",
+                                                "hover:bg-accent/45 dark:hover:bg-accent/30",
+                                                row.getIsSelected() && "bg-primary/15"
                                             )}
                                         >
                                             {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id} className="py-3">
+                                                <TableCell key={cell.id}>
                                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                 </TableCell>
                                             ))}
@@ -350,7 +344,7 @@ const InvoicesComponent: React.FC = () => {
                             </TableBody>
                         </Table>
                     </div>
-                    <div className="md:hidden">
+                    <div className="space-y-3 p-3 md:hidden">
                         {data?.data.data.map((invoice) => (
                             <InvoiceCard
                                 key={invoice.id}

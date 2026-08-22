@@ -69,19 +69,19 @@ const TopBarActions: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative flex shrink-0 items-center gap-1 sm:gap-2" ref={parentRef}>
+    <div className="relative flex shrink-0 items-center gap-2" ref={parentRef}>
       <HeaderAlertWidget />
 
       <div className="relative">
         <button
           type="button"
           onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-          className="relative rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/50 bg-secondary/30 text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-secondary/70 hover:text-foreground hover:scale-105 active:scale-95"
           aria-label="Notifications"
         >
-          <FaBell className="h-5 w-5" />
+          <FaBell className="h-4 w-4 transition-transform duration-200 hover:rotate-12" />
           {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 min-w-[1.125rem] rounded-full bg-destructive px-1 py-px text-center text-[10px] font-medium leading-tight text-destructive-foreground shadow-sm">
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground shadow-sm animate-pulse">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -103,7 +103,7 @@ const TopBarActions: React.FC = () => {
       <DarkModeToggle className="hidden sm:inline-flex" />
 
       <div
-        className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-sm ring-2 ring-background ring-offset-2 ring-offset-background transition hover:shadow-md sm:h-10 sm:w-10"
+        className="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-gradient-to-tr from-primary via-indigo-600 to-purple-600 text-white font-bold text-xs shadow-sm ring-2 ring-primary/20 transition-all duration-200 hover:scale-105 hover:shadow-md hover:ring-primary/40 active:scale-95"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         role="button"
         tabIndex={0}
@@ -115,7 +115,7 @@ const TopBarActions: React.FC = () => {
         }}
         aria-label="Open account menu"
       >
-        <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white sm:text-sm">
+        <span className="select-none tracking-wider">
           {getUserInitials()}
         </span>
       </div>

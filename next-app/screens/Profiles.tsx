@@ -38,6 +38,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import SearchBar from "@/components/SearchBar";
 import QueryState from "@/components/QueryState";
 
@@ -81,10 +82,8 @@ const ProfileCard: React.FC<{
   const hasNightWindow = Boolean(profile.nightStart && profile.nightEnd);
 
   return (
-    <Card className="group relative overflow-hidden border-border/60 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-70" />
-
-      <CardHeader className="pb-3">
+    <Card className="group overflow-hidden border-border/80 shadow-none transition-[border-color] hover:border-primary/30">
+      <CardHeader className="border-b border-border/60 p-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <CardTitle className="truncate text-lg text-card-foreground">{profile.profileName}</CardTitle>
@@ -130,7 +129,7 @@ const ProfileCard: React.FC<{
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border bg-card/85 p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <Download className="h-4 w-4 text-primary" />
               Download
             </div>
             <div className="mt-1 font-mono text-sm text-foreground">{formatSpeed(profile.speedDown)}</div>
@@ -151,7 +150,7 @@ const ProfileCard: React.FC<{
           </div>
           <div className="rounded-lg border bg-card/85 p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <Users className="h-4 w-4 text-primary" />
               Max sessions
             </div>
             <div className="mt-1 font-mono text-sm text-foreground">{profile.maxSessions ?? "—"}</div>
@@ -479,9 +478,8 @@ const ProfilesComponent: React.FC = () => {
   const deleteTargetUsage = deleteTarget?.id != null ? usageMap.get(deleteTarget.id) : undefined;
 
   return (
-    <div className="w-full min-w-0 space-y-6 py-6">
+    <div className="w-full min-w-0 space-y-5">
       <PageHeader
-        variant="gradient"
         title={t("profiles.title")}
         subtitle={t("profiles.subtitle")}
         icon={Network}
@@ -491,7 +489,6 @@ const ProfilesComponent: React.FC = () => {
               label={isRefreshing ? "Refreshing..." : "Refresh"}
               onClick={() => void handleRefresh()}
               disabled={isRefreshing}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
               icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />}
             />
             <IconActionButton
@@ -500,7 +497,7 @@ const ProfilesComponent: React.FC = () => {
                 setEditingProfile(undefined);
                 setIsModalOpen(true);
               }}
-              className="border-white/25 bg-white text-slate-900 shadow-sm hover:bg-white/90"
+              variant="default"
               icon={<Plus className="h-4 w-4" />}
             />
           </div>
@@ -514,10 +511,10 @@ const ProfilesComponent: React.FC = () => {
         isEmpty={!isLoading && !error && allProfiles.length === 0}
         onRetry={() => refetch()}
         loading={
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
               {[1, 2, 3, 4].map((i) => (
-                <Card key={i} className="border bg-card/60">
+                <Card key={i} className="border-border/80 shadow-none">
                   <CardContent className="p-4">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="mt-2 h-8 w-20" />
@@ -526,11 +523,11 @@ const ProfilesComponent: React.FC = () => {
                 </Card>
               ))}
             </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="overflow-hidden border bg-card/85 shadow-sm">
-                  <Skeleton className="h-32 w-full" />
-                  <div className="space-y-4 p-4">
+                <Card key={i} className="overflow-hidden border-border/80 shadow-none">
+                  <Skeleton className="h-24 w-full" />
+                  <div className="space-y-3 p-4">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-4 w-1/2" />
                     <Skeleton className="h-4 w-2/3" />
@@ -545,52 +542,36 @@ const ProfilesComponent: React.FC = () => {
         emptyDescription="Create your first profile plan."
       >
         {/* KPI cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Profiles"
             value={<CountUpNumber value={totals.totalProfiles} />}
             sublabel="Configured speed plans"
-            icon={
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Layers className="h-5 w-5 text-primary" />
-              </div>
-            }
+            icon={<Layers className="h-4 w-4" />}
           />
           <StatCard
             label="Assigned users"
             value={<CountUpNumber value={totals.assignedUsers} />}
             sublabel={`${totals.activeUsers.toLocaleString()} active accounts`}
-            icon={
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10">
-                <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-            }
+            icon={<Users className="h-4 w-4" />}
           />
           <StatCard
             label="Revenue potential"
             value={<CountUpNumber value={totals.revenue} />}
             sublabel="Price × assigned users, per month"
-            icon={
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                <CircleDollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            }
+            icon={<CircleDollarSign className="h-4 w-4" />}
           />
           <StatCard
             label="Fastest plan"
             value={formatSpeed(totals.fastest?.speedDown)}
             sublabel={totals.fastest ? totals.fastest.profileName : "No plans yet"}
-            icon={
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
-                <Gauge className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              </div>
-            }
+            icon={<Gauge className="h-4 w-4" />}
           />
         </div>
 
         {/* Search & sort */}
-        <Card>
-          <CardContent className="p-4">
+        <Card className="border-border/80 shadow-none">
+          <CardContent className="p-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="order-1 w-full md:w-[70%]">
                 <SearchBar
@@ -626,7 +607,7 @@ const ProfilesComponent: React.FC = () => {
         </Card>
 
         {/* Profile cards */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {visibleProfiles.map(profile => (
             <ProfileCard
               key={profile.id}
@@ -639,31 +620,16 @@ const ProfilesComponent: React.FC = () => {
           ))}
         </div>
         {visibleProfiles.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <div className="mb-4 inline-block rounded-full bg-muted p-3">
-                <Search className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground">No profiles found</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {searchTerm ? 'Try adjusting your search' : 'Create your first profile'}
-              </p>
-              {searchTerm ? (
-                <div className="mt-4">
-                  <Button variant="outline" onClick={() => setSearchTerm("")}>
-                    Clear search
-                  </Button>
-                </div>
-              ) : (
-                <div className="mt-4">
-                  <Button onClick={() => setIsModalOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Profile
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Search}
+            title="No profiles found"
+            description={searchTerm ? "Try adjusting your search" : "Create your first profile"}
+            actionLabel={searchTerm ? "Clear search" : "Add Profile"}
+            onAction={() => {
+              if (searchTerm) setSearchTerm("");
+              else setIsModalOpen(true);
+            }}
+          />
         ) : null}
       </QueryState>
 

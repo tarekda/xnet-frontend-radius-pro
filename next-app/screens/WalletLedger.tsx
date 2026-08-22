@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Plus, Wallet } from "lucide-react";
+import { ArrowLeft, Loader2, Minus, Plus, Wallet } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,8 @@ function refLabel(e: LedgerEntry) {
   if (t === "whish_claim") return `Whish top-up #${e.referenceId}`;
   if (t === "external_invoice") return `Invoice #${String(e.referenceId || "").split(":")[0]}`;
   if (t === "admin_credit") return "Staff credit";
+  if (t === "admin_debit") return "Staff debit";
+  if (t === "unpay_refund") return `Unpay refund #${String(e.referenceId || "").split(":")[0]}`;
   return t || "—";
 }
 
@@ -105,6 +107,10 @@ export default function WalletLedgerPage() {
   const [creditUsername, setCreditUsername] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
   const [creditNote, setCreditNote] = useState("");
+  const [debitOpen, setDebitOpen] = useState(false);
+  const [debitUsername, setDebitUsername] = useState("");
+  const [debitAmount, setDebitAmount] = useState("");
+  const [debitNote, setDebitNote] = useState("");
 
   const query = useQuery({
     queryKey: ["subscriberWalletLedger", appliedUser, entryType, page],
@@ -149,6 +155,42 @@ export default function WalletLedgerPage() {
     },
   });
 
+  const debitMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post("/invoices/subscriber-wallet/debit", {
+        username: debitUsername.trim(),
+        amount: Number(debitAmount),
+        note: debitNote.trim() || undefined,
+      });
+      return data as { data?: { balance?: number } };
+    },
+    onSuccess: (result) => {
+      const debitedUser = debitUsername.trim();
+      const balance = result?.data?.balance;
+      notify.success(
+        "Wallet debited",
+        balance != null
+          ? `${debitedUser} now has a balance of ${formatMoney(balance)}.`
+          : `Debit was recorded for ${debitedUser}.`
+      );
+      setUsername(debitedUser);
+      setAppliedUser(debitedUser);
+      setEntryType("all");
+      setPage(1);
+      setDebitOpen(false);
+      setDebitUsername("");
+      setDebitAmount("");
+      setDebitNote("");
+      queryClient.invalidateQueries({ queryKey: ["subscriberWalletLedger"] });
+    },
+    onError: (error: any) => {
+      notify.error(
+        "Debit failed",
+        error?.response?.data?.message || error?.message || "Could not debit the subscriber wallet"
+      );
+    },
+  });
+
   const openCreditDialog = () => {
     setCreditUsername(appliedUser || username.trim());
     setCreditAmount("");
@@ -156,10 +198,22 @@ export default function WalletLedgerPage() {
     setCreditOpen(true);
   };
 
+  const openDebitDialog = () => {
+    setDebitUsername(appliedUser || username.trim());
+    setDebitAmount("");
+    setDebitNote("");
+    setDebitOpen(true);
+  };
+
   const validCredit =
     creditUsername.trim().length > 0 &&
     Number.isFinite(Number(creditAmount)) &&
     Number(creditAmount) > 0;
+
+  const validDebit =
+    debitUsername.trim().length > 0 &&
+    Number.isFinite(Number(debitAmount)) &&
+    Number(debitAmount) > 0;
 
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -179,10 +233,16 @@ export default function WalletLedgerPage() {
           icon={Wallet}
         />
         {canCredit ? (
-          <Button onClick={openCreditDialog}>
-            <Plus className="h-4 w-4" />
-            Credit wallet
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openDebitDialog}>
+              <Minus className="h-4 w-4" />
+              Debit wallet
+            </Button>
+            <Button onClick={openCreditDialog}>
+              <Plus className="h-4 w-4" />
+              Credit wallet
+            </Button>
+          </div>
         ) : null}
       </div>
 
@@ -407,6 +467,71 @@ export default function WalletLedgerPage() {
             <Button onClick={() => creditMutation.mutate()} disabled={!validCredit || creditMutation.isPending}>
               {creditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {creditMutation.isPending ? "Crediting..." : "Add credit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={debitOpen}
+        onOpenChange={(open) => {
+          if (debitMutation.isPending) return;
+          setDebitOpen(open);
+          if (!open) {
+            setDebitUsername("");
+            setDebitAmount("");
+            setDebitNote("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Debit subscriber wallet</DialogTitle>
+            <DialogDescription>
+              Remove credit from a subscriber wallet. The subscriber must have enough available balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="debit-username">RADIUS username</Label>
+              <Input
+                id="debit-username"
+                autoFocus
+                value={debitUsername}
+                onChange={(e) => setDebitUsername(e.target.value)}
+                placeholder="e.g. john.doe"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="debit-amount">Amount (USD)</Label>
+              <Input
+                id="debit-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={debitAmount}
+                onChange={(e) => setDebitAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="debit-note">Reason</Label>
+              <Input
+                id="debit-note"
+                value={debitNote}
+                onChange={(e) => setDebitNote(e.target.value)}
+                placeholder="For example: correction / clawback"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDebitOpen(false)} disabled={debitMutation.isPending}>
+              Cancel
+            </Button>
+            <Button onClick={() => debitMutation.mutate()} disabled={!validDebit || debitMutation.isPending}>
+              {debitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Minus className="h-4 w-4" />}
+              {debitMutation.isPending ? "Debiting..." : "Debit wallet"}
             </Button>
           </DialogFooter>
         </DialogContent>

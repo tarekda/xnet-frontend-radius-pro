@@ -16,7 +16,7 @@ export default function FiltersBar({ left, right, className }: Props) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+        "flex flex-col gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-[var(--shop-shadow)] md:flex-row md:items-center md:justify-between",
         // Normalize input sizing inside filter bars (buttons vary: icon-only vs text)
         "[&_input]:h-9 [&_input]:text-sm",
         className

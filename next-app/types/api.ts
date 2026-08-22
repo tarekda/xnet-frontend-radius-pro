@@ -74,6 +74,12 @@ export type ExternalInvoice = {
     /** Invoice amount in chosen currency (e.g. USD) — typically equals totalAmount */
     amount: number;
 
+    /** Cumulative collected amount; remaining due is billed minus this. */
+    amountPaid?: number | null;
+
+    /** Billed amount minus amountPaid (API computed). */
+    remainingDue?: number | null;
+
     /** Tax breakdown (optional; amount usually = totalAmount) */
     subtotalAmount?: number | null;
     taxRate?: number | null;

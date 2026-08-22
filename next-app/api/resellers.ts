@@ -7,6 +7,7 @@ export type ResellerDto = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  balance?: number;
 };
 
 export type ResellerLedgerEntryDto = {
@@ -55,7 +56,12 @@ export async function createResellerLogin(
 
 export async function fundReseller(resellerId: number, input: { amount: number; note?: string; currency?: string }) {
   const { data } = await apiClient.post(`/admin/resellers/${resellerId}/fund`, input);
-  return data?.data as ResellerLedgerEntryDto;
+  return data?.data as ResellerLedgerEntryDto | { entry: ResellerLedgerEntryDto; balance: number };
+}
+
+export async function debitReseller(resellerId: number, input: { amount: number; note?: string; currency?: string }) {
+  const { data } = await apiClient.post(`/admin/resellers/${resellerId}/debit`, input);
+  return data?.data as { entry: ResellerLedgerEntryDto; balance: number };
 }
 
 export async function fetchResellerLedger(resellerId: number): Promise<{ balance: number; entries: ResellerLedgerEntryDto[] }> {

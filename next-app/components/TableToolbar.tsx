@@ -54,11 +54,11 @@ export default function TableToolbar({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 border-b border-border bg-card/90 px-3 py-2 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between dark:bg-card/95",
+        "flex flex-col gap-2 border-b border-border/80 bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between",
         className
       )}
     >
-      <div className="min-w-0 text-sm text-muted-foreground break-words">{label}</div>
+      <div className="min-w-0 break-words text-xs font-medium text-muted-foreground">{label}</div>
       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
         {right}
         <IconActionButton

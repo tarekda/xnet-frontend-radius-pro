@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -41,6 +42,7 @@ import {
   Check,
   QrCode,
   ArrowRight,
+  Ticket,
 } from "lucide-react";
 
 const API_BASE =
@@ -160,6 +162,85 @@ function SubscriberPortalContent() {
   const [whishReference, setWhishReference] = useState("");
   const [reportAmount, setReportAmount] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [voucherPin, setVoucherPin] = useState("");
+  const [redeemingVoucher, setRedeemingVoucher] = useState(false);
+  const [isBuyVoucherOpen, setIsBuyVoucherOpen] = useState(false);
+  const [voucherPlans, setVoucherPlans] = useState<Array<{
+    id: number;
+    profileName: string;
+    price: number;
+    durationDays: number;
+    monthlyQuotaGB?: number | null;
+    speedDownMbps?: number | null;
+    speedUpMbps?: number | null;
+  }>>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [buyingVoucher, setBuyingVoucher] = useState(false);
+
+  const openBuyVoucherModal = async () => {
+    setIsBuyVoucherOpen(true);
+    if (!headers) return;
+    try {
+      const res = await fetch(`${API_BASE}/subscriber/voucher-plans`, { headers });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setVoucherPlans(json.data || []);
+        if (json.data && json.data.length > 0 && !selectedPlanId) {
+          setSelectedPlanId(json.data[0].id);
+        }
+      }
+    } catch {
+      // Ignore fetch error
+    }
+  };
+
+  const handleBuyVoucher = async () => {
+    if (!selectedPlanId || !headers) return;
+    setBuyingVoucher(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${API_BASE}/subscriber/buy-voucher`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ profileId: selectedPlanId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "Failed to purchase voucher");
+      setIsBuyVoucherOpen(false);
+      setNotice(json.message || "Voucher purchased and line renewed!");
+      if (token) void load(token);
+    } catch (err: any) {
+      setError(err?.message || "Failed to purchase voucher");
+    } finally {
+      setBuyingVoucher(false);
+    }
+  };
+
+  const redeemVoucher = async (e: FormEvent) => {
+    e.preventDefault();
+    const pin = voucherPin.trim();
+    if (!pin || !headers) return;
+    setRedeemingVoucher(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${API_BASE}/subscriber/redeem-voucher`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ pinCode: pin }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "Voucher redemption failed");
+      setVoucherPin("");
+      setNotice(json.message || "Voucher redeemed successfully! Your account has been renewed.");
+      if (token) void load(token);
+    } catch (err: any) {
+      setError(err?.message || "Failed to redeem voucher PIN");
+    } finally {
+      setRedeemingVoucher(false);
+    }
+  };
 
   useEffect(() => {
     const t = sessionStorage.getItem(storageKey("accessToken"));
@@ -640,9 +721,60 @@ function SubscriberPortalContent() {
                   Open invoices total {formatMoney(unpaidTotal, currency)}
                 </p>
               ) : null}
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  onClick={openBuyVoucherModal}
+                  className="gap-1.5 bg-primary text-primary-foreground font-semibold shadow-xs"
+                >
+                  <Ticket className="h-4 w-4" />
+                  Buy Voucher / Plan
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </section>
+
+        {/* Redeem Scratch Card / Voucher Card */}
+        <Card className="border-border/60 shadow-sm bg-gradient-to-r from-primary/5 via-background to-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Ticket className="h-5 w-5 text-primary" />
+              Redeem Scratch Card / Voucher
+            </CardTitle>
+            <CardDescription>
+              Have a prepaid voucher or scratch card? Enter the 12-digit PIN code to top up your account instantly.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={redeemVoucher} className="flex flex-col sm:flex-row gap-2 max-w-xl">
+              <Input
+                value={voucherPin}
+                onChange={(e) => setVoucherPin(e.target.value.toUpperCase())}
+                placeholder="Voucher PIN (e.g. XNET-8921-9012)"
+                className="font-mono text-sm tracking-wider font-semibold uppercase bg-background"
+                disabled={redeemingVoucher}
+              />
+              <Button
+                type="submit"
+                disabled={redeemingVoucher || !voucherPin.trim()}
+                className="gap-2 shrink-0 bg-primary font-semibold"
+              >
+                {redeemingVoucher ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Apply Voucher
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {walletLedger.length > 0 ? (
           <Card className="border-border/60 shadow-sm">
@@ -1188,6 +1320,102 @@ function SubscriberPortalContent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal: Buy Voucher / Plan from Wallet */}
+      <Dialog open={isBuyVoucherOpen} onOpenChange={setIsBuyVoucherOpen}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="h-5 w-5 text-primary" />
+              Buy Voucher Plan from Wallet Balance
+            </DialogTitle>
+            <DialogDescription>
+              Select a plan profile to purchase and activate immediately using your wallet balance.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center justify-between">
+              <div className="text-xs text-muted-foreground font-medium">Your Wallet Balance</div>
+              <div className="text-lg font-bold text-primary">
+                {formatMoney(Number(me?.walletBalance ?? 0), currency)}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Select Target Plan</Label>
+              {voucherPlans.length === 0 ? (
+                <div className="text-xs text-muted-foreground p-3 border rounded-lg text-center">
+                  Loading available plans...
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                  {voucherPlans.map((plan) => {
+                    const isSelected = plan.id === selectedPlanId;
+                    const canAfford = Number(me?.walletBalance ?? 0) >= plan.price;
+                    return (
+                      <div
+                        key={plan.id}
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className={`cursor-pointer p-3 rounded-lg border flex items-center justify-between transition-all ${
+                          isSelected
+                            ? "bg-primary/10 border-primary/50 shadow-xs ring-1 ring-primary/40"
+                            : "bg-card hover:bg-muted/40 border-border/70"
+                        }`}
+                      >
+                        <div>
+                          <div className="font-semibold text-sm">{plan.profileName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {plan.durationDays} Days
+                            {plan.monthlyQuotaGB ? ` · ${plan.monthlyQuotaGB} GB Quota` : " · Unlimited"}
+                            {plan.speedDownMbps ? ` · ${plan.speedDownMbps} Mbps Speed` : ""}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-sm text-foreground">${plan.price.toFixed(2)}</div>
+                          {!canAfford ? (
+                            <span className="text-[10px] text-destructive font-semibold">Low Balance</span>
+                          ) : (
+                            <span className="text-[10px] text-emerald-600 font-semibold">Available</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsBuyVoucherOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBuyVoucher}
+              disabled={
+                buyingVoucher ||
+                !selectedPlanId ||
+                Number(me?.walletBalance ?? 0) <
+                  (voucherPlans.find((p) => p.id === selectedPlanId)?.price ?? 99999)
+              }
+              className="gap-2 bg-primary font-semibold text-primary-foreground"
+            >
+              {buyingVoucher ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Purchasing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Buy & Activate
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

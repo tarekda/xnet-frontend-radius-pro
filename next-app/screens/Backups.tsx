@@ -15,6 +15,8 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 
+import { useDownloadQueue, formatBytes } from "@/context/DownloadQueueContext";
+
 type BackupKind = "db" | "mikrotik-export";
 type BackupMeta = {
   id: string;
@@ -28,42 +30,13 @@ type BackupMeta = {
   error?: string;
 };
 
-function formatBytes(bytes: number) {
-  if (!Number.isFinite(bytes) || bytes < 0) return "—";
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let b = bytes;
-  let i = 0;
-  while (b >= 1024 && i < units.length - 1) {
-    b /= 1024;
-    i++;
-  }
-  return `${b.toFixed(i === 0 ? 0 : 2)} ${units[i]}`;
-}
-
-async function downloadBlob(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  try {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } finally {
-    // Some browsers can produce 0-byte downloads if we revoke immediately.
-    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }
-}
-
 const Backups: React.FC = () => {
   const { t } = useTranslation("screens");
   const { user } = useAuth();
   const canManage = useMemo(() => can(user, "admin.access.manage"), [user]);
+  const { enqueueDownload, items: queueItems } = useDownloadQueue();
 
   const [mikrotikHost, setMikrotikHost] = useState<string>("");
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const backupsQuery = useQuery({
     queryKey: ["backups"],
@@ -101,24 +74,6 @@ const Backups: React.FC = () => {
       notify.success("Backup created", "MikroTik export backup completed.");
     },
     onError: (e: any) => notify.error("Backup failed", e?.message || "MikroTik backup failed"),
-  });
-
-  const downloadMutation = useMutation({
-    onMutate: async (b: BackupMeta) => {
-      setDownloadingId(b.id);
-      notify.info("Download started", "Downloading backup… this can take a while for large files.");
-      return { id: b.id };
-    },
-    mutationFn: async (b: BackupMeta) => {
-      const resp = await apiClient.get(`/backups/${encodeURIComponent(b.id)}/download`, { responseType: "blob" });
-      const blob = resp.data as Blob;
-      if (blob && typeof (blob as any).size === "number" && blob.size === 0) {
-        throw new Error("Downloaded file is empty (0 bytes). Check MikroTik export credentials/permissions.");
-      }
-      await downloadBlob(b.filename, blob);
-    },
-    onError: (e: any) => notify.error("Download failed", e?.message || "Failed to download backup"),
-    onSettled: () => setDownloadingId(null),
   });
 
   const backups = backupsQuery.data ?? [];
@@ -227,19 +182,37 @@ const Backups: React.FC = () => {
                       {b.status === "failed" && b.error ? ` • ${b.error}` : ""}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => downloadMutation.mutate(b)}
-                    disabled={
-                      (downloadMutation.isPending && downloadingId === b.id) ||
-                      b.status === "running" ||
-                      b.status === "failed"
-                    }
-                    className="shrink-0"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {downloadMutation.isPending && downloadingId === b.id ? "Downloading…" : "Download"}
-                  </Button>
+                  {(() => {
+                    const queueItem = queueItems.find((q) => q.backupId === b.id && (q.status === "downloading" || q.status === "queued"));
+                    const isQueueActive = Boolean(queueItem);
+
+                    return (
+                      <Button
+                        variant={isQueueActive ? "secondary" : "outline"}
+                        onClick={() =>
+                          enqueueDownload({
+                            backupId: b.id,
+                            filename: b.filename,
+                            kind: b.kind,
+                            sizeBytes: b.sizeBytes,
+                          })
+                        }
+                        disabled={
+                          isQueueActive ||
+                          b.status === "running" ||
+                          b.status === "failed"
+                        }
+                        className="shrink-0"
+                      >
+                        <Download className={`h-4 w-4 mr-2 ${isQueueActive ? "animate-bounce" : ""}`} />
+                        {isQueueActive
+                          ? queueItem?.status === "downloading"
+                            ? `Downloading (${queueItem.progress}%)`
+                            : "Queued…"
+                          : "Download"}
+                      </Button>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

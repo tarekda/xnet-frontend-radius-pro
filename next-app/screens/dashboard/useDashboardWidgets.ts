@@ -8,6 +8,7 @@ import {
   Bell,
   Receipt,
   DollarSign,
+  Landmark,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboardPersona, sortDashboardWidgets } from "@/lib/dashboardPersona";
@@ -22,7 +23,10 @@ type WidgetInputs = {
   canSeeCollections: boolean;
   canSeeQuotaExceeded: boolean;
   canSeeAlerts: boolean;
+  canSeeCompanyWallet: boolean;
   resellerBalance: number | null;
+  companyWalletBalance: number | null;
+  companyWalletLoading: boolean;
   resellerUserCount: number | null;
   totalOnlineUsers: number;
   totalActiveUsers: number;
@@ -56,7 +60,10 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
     canSeeCollections,
     canSeeQuotaExceeded,
     canSeeAlerts,
+    canSeeCompanyWallet,
     resellerBalance,
+    companyWalletBalance,
+    companyWalletLoading,
     resellerUserCount,
     totalOnlineUsers,
     totalActiveUsers,
@@ -80,6 +87,19 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
 
   const dashboardWidgets = useMemo(() => {
     const items: DashboardWidgetItem[] = [];
+
+    if (canSeeCompanyWallet) {
+      items.push({
+        key: "company-wallet",
+        title: "Company wallet",
+        value: companyWalletLoading || companyWalletBalance === null ? "…" : companyWalletBalance.toFixed(2),
+        subtitle: "Operator treasury",
+        to: "/admin/company-wallet",
+        icon: Landmark,
+        accentClass: "text-emerald-600 dark:text-emerald-400",
+        glowClass: "bg-emerald-500",
+      });
+    }
 
     if (isReseller) {
       items.push({
@@ -211,12 +231,15 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
     authMetricsLoading,
     canSeeAlerts,
     canSeeCollections,
+    canSeeCompanyWallet,
     canSeeExpenses,
     canSeeInvoiceCounts,
     canSeeOnline,
     canSeeQuotaExceeded,
     canSeeTotals,
     collectedMetricsLoading,
+    companyWalletBalance,
+    companyWalletLoading,
     expensesLoading,
     fupUsersCount,
     isReseller,

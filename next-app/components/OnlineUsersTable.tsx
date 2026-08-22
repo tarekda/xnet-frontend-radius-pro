@@ -317,7 +317,7 @@ const borderToneClasses: Record<SessionBorderTone, { stripe: string; accent: str
     },
 };
 
-const sessionRowShell = "bg-white dark:bg-card border-border/70 dark:border-border/60";
+const sessionRowShell = "bg-card border-border/60";
 
 const SessionStatusStripe = ({ user }: { user: OnlineUser }) => (
     <div
@@ -330,7 +330,7 @@ const SessionStatusStripe = ({ user }: { user: OnlineUser }) => (
 );
 
 const getSessionRowClasses = () =>
-    cn(sessionRowShell, "relative overflow-hidden border shadow-sm hover:shadow-md");
+    cn(sessionRowShell, "relative overflow-hidden border shadow-none hover:bg-primary/[0.03]");
 
 const getSessionFirstCellClasses = () =>
     cn(sessionRowShell, "relative rounded-l-lg border-y border-l border-r-0");
@@ -339,7 +339,7 @@ const getSessionMiddleCellClasses = () =>
     cn(sessionRowShell, "border-y border-x-0");
 
 const getSessionLastCellClasses = () =>
-    cn(sessionRowShell, "rounded-r-lg border-y border-l-0 border-r shadow-sm");
+    cn(sessionRowShell, "rounded-r-md border-y border-l-0 border-r");
 
 const getSessionAccentClass = (u: OnlineUser) => borderToneClasses[getSessionBorderTone(u)].accent;
 
@@ -365,7 +365,7 @@ const UsageBar: React.FC<{ used: string; total: string; type: 'daily' | 'monthly
                 <TooltipTrigger asChild>
                     <div
                         className={cn(
-                            "space-y-1.5 rounded-md border px-2 py-1.5",
+                            "space-y-1 rounded border px-2 py-1.5",
                             tone === "critical" &&
                                 "border-red-200/80 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/40",
                             tone === "high" &&
@@ -376,18 +376,18 @@ const UsageBar: React.FC<{ used: string; total: string; type: 'daily' | 'monthly
                                 "border-emerald-200/80 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/30"
                         )}
                     >
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">
-                                {type === 'daily' ? 'Daily' : 'Monthly'} Usage
+                        <div className="flex items-center justify-between text-[10px]">
+                            <span className="uppercase tracking-wide text-muted-foreground">
+                                {type === 'daily' ? 'Daily' : 'Monthly'}
                             </span>
-                            <span className="font-medium">
+                            <span className="font-medium tabular-nums">
                                 {formatBytes(used)} / {formatBytes(total)}
                             </span>
                         </div>
                         <Progress
                             value={value}
                             className={cn(
-                                "h-2",
+                                "h-1.5",
                                 tone === "critical" && "bg-red-100 dark:bg-red-950/60",
                                 tone === "high" && "bg-orange-100 dark:bg-orange-950/50",
                                 tone === "warning" && "bg-amber-100 dark:bg-amber-950/50",
@@ -402,7 +402,7 @@ const UsageBar: React.FC<{ used: string; total: string; type: 'daily' | 'monthly
                         />
                         <div
                             className={cn(
-                                "text-xs text-right",
+                                "text-[10px] text-right",
                                 tone === "critical" && "text-red-700 dark:text-red-300",
                                 tone === "high" && "text-orange-700 dark:text-orange-300",
                                 tone === "warning" && "text-amber-700 dark:text-amber-300",
@@ -464,11 +464,11 @@ const MobileCard: React.FC<{
         )}
     >
         <SessionStatusStripe user={user} />
-        <CardHeader className="pb-2 pt-3 pl-4">
+        <CardHeader className="border-b border-border/50 bg-muted/15 pb-2 pl-4 pt-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
                     <div className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold",
                         getSessionAccentClass(user)
                     )}>
                         {getUserInitials(user.session_username)}
@@ -491,17 +491,17 @@ const MobileCard: React.FC<{
                 </div>
             </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 p-4">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">MAC Address</div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">MAC address</div>
                     <div className="flex items-center text-sm">
                         <Wifi className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                         {user.session_mac_address}
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Last update</div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Last update</div>
                     <div className="flex items-center text-sm">
                         <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                         <span title={user.session_last_update || ""}>{formatAgo(user.session_last_update)}</span>
@@ -516,7 +516,7 @@ const MobileCard: React.FC<{
             />
             <MonthlyCycleCell {...monthlyCycleFieldsFromOnlineUser(user)} />
         </CardContent>
-        <CardFooter className="pt-2">
+        <CardFooter className="border-t border-border/50 bg-muted/10 p-3">
             <div className="flex w-full justify-end">
                 <TableRowActions
                     actions={[
@@ -568,7 +568,7 @@ const TableRows = function TableRows({
                         <SessionStatusStripe user={u} />
                         <div className="relative flex items-center gap-2 min-w-0 pl-1">
                             <div className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold",
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold",
                                 getSessionAccentClass(u)
                             )}>
                                 {getUserInitials(u.session_username)}
@@ -668,12 +668,12 @@ const DesktopTable: React.FC<{
     manageReason: string;
     disconnectReason: string;
 }> = React.memo(({ users, onAction, canManageRadiusUsers, canResetDailyQuota, canResetMonthlyQuota, canDisconnect, manageReason, disconnectReason }) => (
-    <Card className="overflow-hidden border border-border/50 bg-muted/30 p-1.5 dark:border-border/60 dark:bg-muted/15">
+    <Card className="overflow-hidden border border-border/60 bg-card p-1 shadow-none">
         <div className="max-h-[70vh] overflow-auto rounded-md">
-        <Table className="border-separate border-spacing-x-0 border-spacing-y-1.5 text-xs">
+        <Table className="border-separate border-spacing-x-0 border-spacing-y-1 text-xs">
             <TableHeader className="sticky top-0 z-10">
-                <TableRow className="border-none bg-muted/80 shadow-sm hover:bg-transparent dark:bg-muted/40">
-                    <TableHead className="rounded-l-md bg-transparent px-2 py-2 text-[11px] font-semibold min-w-[140px]">User</TableHead>
+                <TableRow className="border-none bg-muted/70 shadow-none hover:bg-muted/70">
+                    <TableHead className="rounded-l-md bg-transparent px-2 py-2 text-[10px] font-semibold uppercase tracking-wide min-w-[140px]">User</TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[6.5rem]">MAC</TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[4.5rem]">Profile</TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[4.5rem]">Status</TableHead>
@@ -1076,7 +1076,7 @@ const OnlineUsersTable: React.FC<Props> = ({
         >
             <TableToolbar
                 label={`${displayRows.length} of ${data?.totalUsers ?? 0} sessions`}
-                className="mb-2 rounded-md border"
+                className="mb-2 rounded-lg border border-border/60 bg-card"
                 right={
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
@@ -1154,7 +1154,7 @@ const OnlineUsersTable: React.FC<Props> = ({
             </div>
 
             {/* Mobile */}
-            <div className="md:hidden space-y-4">
+            <div className="space-y-3 md:hidden">
                 {displayRows.map((u) => (
                     <MobileCard
                         key={u.session_username}

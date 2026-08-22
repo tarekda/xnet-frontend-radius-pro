@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "@/navigation/urlSearchParams";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Copy, Download, ExternalLink, Filter, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Copy, Download, ExternalLink, Filter, Loader2, RefreshCw, Server, Users } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import TableRowActions, { type TableRowAction } from "@/components/TableRowActio
 import SavedViews from "@/components/SavedViews";
 import type { SavedViewState } from "@/lib/savedViews";
 import FilterPills from "@/components/FilterPills";
+import StatCard from "@/components/StatCard";
 
 type AuthFailureRow = {
   id: number;
@@ -382,7 +383,7 @@ export default function AuthFailuresPage() {
   };
 
   return (
-    <div className="w-full space-y-6 py-6">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("authFailures.title")}
         subtitle={t("authFailures.subtitle")}
@@ -411,8 +412,8 @@ export default function AuthFailuresPage() {
         )}
       />
 
-      <Card>
-        <CardContent className="p-4">
+      <Card className="border-border/80 shadow-none">
+        <CardContent className="p-3">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Quick ranges</span>
             <Button variant="outline" size="sm" onClick={() => applyQuickRange("1h")}>Last Hour</Button>
@@ -457,14 +458,14 @@ export default function AuthFailuresPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Failures</div><div className="text-2xl font-semibold">{stats.total}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Affected Users</div><div className="text-2xl font-semibold">{stats.uniqueUsers}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Affected NAS</div><div className="text-2xl font-semibold">{stats.uniqueNas}</div></CardContent></Card>
+      <div className="grid gap-2.5 md:grid-cols-3">
+        <StatCard label="Failures" value={stats.total} icon={<AlertTriangle className="h-4 w-4" />} />
+        <StatCard label="Affected Users" value={stats.uniqueUsers} icon={<Users className="h-4 w-4" />} />
+        <StatCard label="Affected NAS" value={stats.uniqueNas} icon={<Server className="h-4 w-4" />} />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <Card>
+        <Card className="border-border/80 shadow-none">
           <CardContent className="p-4">
             <div className="mb-2 text-sm font-medium">Top Offenders - Users</div>
             {topUsers.length === 0 ? (
@@ -481,7 +482,7 @@ export default function AuthFailuresPage() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/80 shadow-none">
           <CardContent className="p-4">
             <div className="mb-2 text-sm font-medium">Top Offenders - NAS</div>
             {topNas.length === 0 ? (
@@ -500,7 +501,7 @@ export default function AuthFailuresPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden border-border/80 shadow-none">
         <CardContent className="p-0">
           {authFailuresQuery.isLoading ? (
             <div className="space-y-2 p-4">
@@ -509,8 +510,8 @@ export default function AuthFailuresPage() {
           ) : (
             <div className="max-h-[560px] overflow-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/80 backdrop-blur">
-                  <tr className="text-left">
+                <thead className="sticky top-0 bg-muted/55">
+                  <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     <th className="px-3 py-2">Time</th>
                     <th className="px-3 py-2">User</th>
                     <th className="px-3 py-2">Status</th>

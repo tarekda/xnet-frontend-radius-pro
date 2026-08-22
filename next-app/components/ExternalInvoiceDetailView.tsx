@@ -22,6 +22,7 @@ import { useExternalInvoices } from "@/hooks/useExternalInvoices";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
@@ -30,6 +31,7 @@ import { notify } from "@/lib/notify";
 import { fetchExternalInvoiceHistory, fetchExternalInvoicePaymentLines, setExternalInvoiceWorkflow, voidExternalCreditNote } from "@/api/invoices";
 import { apiClient } from "@/api/client";
 import ExternalInvoiceAddDebitDialog from "@/components/ExternalInvoiceAddDebitDialog";
+import SendWhatsAppDialog from "@/components/SendWhatsAppDialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import { parsePromiseDateFromLastAction } from "@/lib/externalInvoiceInsights";
@@ -39,6 +41,16 @@ type Props = {
   onClose: () => void;
   onSave: (updated: ExternalInvoice) => void;
 };
+
+function remainingOf(inv: ExternalInvoice): number {
+  if (inv.remainingDue != null && Number.isFinite(Number(inv.remainingDue))) {
+    return Math.max(0, Number(inv.remainingDue));
+  }
+  const due = Number(inv.totalAmount ?? inv.amount ?? 0);
+  const paid = Number(inv.amountPaid ?? 0);
+  if (String(inv.status).toLowerCase() === "paid") return 0;
+  return Math.max(0, Math.round((due - paid) * 100) / 100);
+}
 
 const ExternalInvoiceDetailView: React.FC<Props> = ({
   invoice,
@@ -53,8 +65,11 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [isAddDebitOpen, setIsAddDebitOpen] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "pos" | "transfer" | "other" | "gateway" | "wallet">("cash");
   const [paymentReference, setPaymentReference] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [debitRemainder, setDebitRemainder] = useState(false);
   const [whishClaims, setWhishClaims] = useState<any[]>([]);
   const [matchedClaims, setMatchedClaims] = useState<any[]>([]);
   const [matchLoading, setMatchLoading] = useState(false);
@@ -155,6 +170,11 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     void loadWhishClaims();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice.id]);
+
+  useEffect(() => {
+    setPayAmount(remainingOf(invoice).toFixed(2));
+    setDebitRemainder(false);
+  }, [invoice.id, invoice.remainingDue, invoice.amountPaid, invoice.amount, invoice.totalAmount, invoice.status]);
 
   useEffect(() => {
     const ref = paymentReference.trim();
@@ -303,10 +323,28 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     setIsEditing(false);
   };
 
+  const remainingDue = remainingOf(editedInvoice);
+  const requestedPay = Number(payAmount);
+  const isPartialPay =
+    Number.isFinite(requestedPay) && requestedPay > 0 && requestedPay + 0.009 < remainingDue;
+
   const markPaidLocal = () => {
     if (!canPay) return;
-    const prev = { status: editedInvoice.status, paidAt: (editedInvoice as any).paidAt } as any;
-    setEditedInvoice((prevInv: any) => ({ ...prevInv, status: "paid", paidAt: new Date().toISOString() }));
+    const prev = {
+      status: editedInvoice.status,
+      paidAt: (editedInvoice as any).paidAt,
+      amountPaid: editedInvoice.amountPaid,
+      remainingDue: editedInvoice.remainingDue,
+    } as any;
+    const applyAmount = Number.isFinite(requestedPay) && requestedPay > 0 ? requestedPay : remainingDue;
+    const willRemain = Math.max(0, remainingDue - applyAmount);
+    setEditedInvoice((prevInv: any) => ({
+      ...prevInv,
+      status: willRemain < 0.01 || debitRemainder ? "paid" : "pending",
+      paidAt: willRemain < 0.01 || debitRemainder ? new Date().toISOString() : prevInv.paidAt,
+      amountPaid: Number(prevInv.amountPaid ?? 0) + applyAmount,
+      remainingDue: debitRemainder ? 0 : willRemain,
+    }));
     const ref = paymentReference.trim();
     setInvoiceAsPaidMutation.mutate(
       {
@@ -319,13 +357,20 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
             : ref || paymentMethod === "gateway"
               ? "whish"
               : undefined,
+        paidAmount: applyAmount,
+        debitRemainder: debitRemainder && willRemain >= 0.01,
         silent: true,
       },
       {
-      onSuccess: () => {
+      onSuccess: (res) => {
         refetch();
+        const next = (res as any)?.data;
+        if (next) setEditedInvoice((prevInv) => ({ ...prevInv, ...next }));
         toast({
-          title: `Invoice #${editedInvoice.id} marked as paid`,
+          title:
+            willRemain >= 0.01 && !debitRemainder
+              ? `Recorded ${applyAmount.toFixed(2)} on invoice #${editedInvoice.id}`
+              : `Invoice #${editedInvoice.id} marked as paid`,
           action: (
             <ToastAction altText="Undo" onClick={() => updateInvoiceMutation.mutate({ invoiceId: editedInvoice.id, invoiceData: prev }, { onSuccess: () => refetch() })}>
               Undo
@@ -423,19 +468,30 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 Receipt
               </Button>
             ) : null}
-            {!isCreditNote && !isVoided && (editedInvoice.status !== "paid" ? (
-              canPay ? (
-                <Button variant="outline" size="sm" onClick={markPaidLocal}>
-                  Mark Paid
-                </Button>
-              ) : null
-            ) : (
-              canUnpay ? (
-                <Button variant="outline" size="sm" onClick={markUnpaidLocal}>
-                  Mark Unpaid
-                </Button>
-              ) : null
-            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              onClick={() => setIsWhatsAppOpen(true)}
+              title="Send WhatsApp notice or receipt"
+            >
+              <MessageCircle className="mr-1 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              WhatsApp
+            </Button>
+            {!isCreditNote && !isVoided ? (
+              <>
+                {editedInvoice.status !== "paid" && canPay ? (
+                  <Button variant="outline" size="sm" onClick={markPaidLocal}>
+                    {isPartialPay ? "Record payment" : "Mark Paid"}
+                  </Button>
+                ) : null}
+                {(editedInvoice.status === "paid" || Number(editedInvoice.amountPaid ?? 0) > 0.009) && canUnpay ? (
+                  <Button variant="outline" size="sm" onClick={markUnpaidLocal}>
+                    Mark Unpaid
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
             {!isCreditNote && !isVoided ? (
               String(editedInvoice.status).toLowerCase() === "paid" ? (
                 <Button
@@ -659,6 +715,18 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                     </div>
                   </div>
                   <div>
+                    <div className="text-xs text-muted-foreground">Collected</div>
+                    <div className="font-medium">
+                      {Number(editedInvoice.amountPaid ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Remaining</div>
+                    <div className="font-semibold">
+                      {remainingDue.toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
                     <div className="text-xs text-muted-foreground">Document</div>
                     <div className="font-medium capitalize">
                       {(editedInvoice as any).documentType || "invoice"}
@@ -670,7 +738,8 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 </div>
               </div>
 
-              {String((editedInvoice as any).status || "").toLowerCase() === "paid" ? (
+              {String((editedInvoice as any).status || "").toLowerCase() === "paid" ||
+              Number(editedInvoice.amountPaid ?? 0) > 0.009 ? (
                 <div
                   className={`rounded-xl border p-4 space-y-2 ${
                     String((editedInvoice as any).paymentProvider || "").toLowerCase() === "wallet" ||
@@ -733,6 +802,35 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label className="block mb-2">Amount to collect</Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                    placeholder={remainingDue.toFixed(2)}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Remaining due {remainingDue.toFixed(2)}. Leave as remaining to settle in full.
+                  </p>
+                </div>
+                {isPartialPay ? (
+                  <label className="flex items-start gap-2 text-sm">
+                    <Checkbox
+                      checked={debitRemainder}
+                      onCheckedChange={(v) => setDebitRemainder(v === true)}
+                    />
+                    <span>
+                      Create a debit line for the unpaid remainder
+                      <span className="block text-xs text-muted-foreground">
+                        This invoice is marked paid for the collected amount. The leftover becomes a new unpaid line.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
                 <div>
                   <Label className="block mb-2">Whish reference / transaction #</Label>
                   <Input
@@ -802,11 +900,16 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 </div>
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
-                {!isCreditNote && !isVoided && (editedInvoice.status !== "paid" ? (
-                  <Button onClick={markPaidLocal}>Mark Paid</Button>
-                ) : (
+                {!isCreditNote && !isVoided && editedInvoice.status !== "paid" ? (
+                  <Button onClick={markPaidLocal}>
+                    {isPartialPay ? "Record payment" : "Mark Paid"}
+                  </Button>
+                ) : null}
+                {!isCreditNote &&
+                !isVoided &&
+                (editedInvoice.status === "paid" || Number(editedInvoice.amountPaid ?? 0) > 0.009) ? (
                   <Button variant="outline" onClick={markUnpaidLocal}>Mark Unpaid</Button>
-                ))}
+                ) : null}
                 {canPay &&
                 !isCreditNote &&
                 !isVoided &&
@@ -990,6 +1093,17 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
           paymentLinesQuery.refetch();
           refetch();
         }}
+      />
+      <SendWhatsAppDialog
+        open={isWhatsAppOpen}
+        onOpenChange={setIsWhatsAppOpen}
+        recipientPhone={editedInvoice.phoneNumber || ""}
+        recipientName={editedInvoice.fullName || editedInvoice.username || ""}
+        invoiceNumber={String(editedInvoice.id)}
+        invoiceAmount={editedInvoice.amount || 0}
+        currency="USD"
+        dueDate={editedInvoice.payDueDate || ""}
+        defaultTemplate={editedInvoice.status === "paid" ? "payment_receipt" : "payment_reminder"}
       />
     </Dialog>
   );

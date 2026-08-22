@@ -18,8 +18,10 @@ import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { apiClient } from "@/api/client";
 import { notify } from "@/lib/notify";
 import ActionConfirmDialog from "@/components/ActionConfirmDialog";
+import StatusPill from "@/components/StatusPill";
 import UserSessionsPanel from "@/components/UserSessionsPanel";
 import ConnectivityDiagnosisPanel from "@/components/ConnectivityDiagnosisPanel";
+import { AIDiagnosticsCard } from "@/components/AIDiagnosticsCard";
 import { Customer360Summary, CustomerBillingPanel, CustomerWalletPanel } from "@/components/Customer360";
 import { useProfiles } from "@/hooks/useProfiles";
 import { downloadTextFile, toCsv } from "@/lib/csv";
@@ -29,7 +31,7 @@ import { canAny } from "@/lib/permissions";
 import type { User } from "@/types/api";
 import type { DateRange } from "react-day-picker";
 import { monthlyCycleSummary } from "@/lib/quotaCycle";
-import { ArrowLeft, History, Settings, Trash2, Wifi, KeyRound, Activity, Download, RefreshCw, FileText, Wallet } from "lucide-react";
+import { ArrowLeft, History, Settings, Trash2, KeyRound, Activity, Download, RefreshCw, FileText, Wallet } from "lucide-react";
 
 type AuditLogRow = {
   id: number;
@@ -81,7 +83,30 @@ export default function UserDetailPage() {
     enabled: Boolean(username),
   });
 
-  const user = userQuery.data ?? null;
+  const liveSessionQuery = useQuery({
+    queryKey: ["customer360", "liveSession", username],
+    queryFn: async () => {
+      try {
+        const resp = await apiClient.get(`/sessions/live/${encodeURIComponent(username)}`);
+        return resp?.data?.data ?? null;
+      } catch (err: any) {
+        return null;
+      }
+    },
+    enabled: Boolean(username),
+    refetchInterval: 10000,
+    staleTime: 5000,
+  });
+
+  const rawUser = userQuery.data ?? null;
+  const user = useMemo(() => {
+    if (!rawUser) return null;
+    const isLive = Boolean(liveSessionQuery.data);
+    return {
+      ...rawUser,
+      isOnline: isLive || Boolean(rawUser.isOnline),
+    };
+  }, [rawUser, liveSessionQuery.data]);
 
   const profilesQuery = useProfiles();
   const profiles = profilesQuery.data?.data ?? [];
@@ -173,6 +198,7 @@ export default function UserDetailPage() {
     onSuccess: () => {
       notify.success("Success", "Disconnect sent.");
       qc.invalidateQueries({ queryKey: ["onlineUsers"] });
+      qc.invalidateQueries({ queryKey: ["customer360", "liveSession", username] });
     },
     onError: (e: any) => notify.error("Disconnect failed", e?.message ?? "Failed to disconnect user."),
   });
@@ -182,10 +208,10 @@ export default function UserDetailPage() {
     const profileName = user?.profile?.profileName ?? null;
     const mac = user?.macAddress?.macAddress ?? null;
     const status = user?.accountStatus ?? null;
-    const online = Boolean(user?.isOnline);
+    const online = Boolean(liveSessionQuery.data || user?.isOnline);
     const last = user?.lastTimeActive ?? null;
     return { fullName, profileName, mac, status, online, last };
-  }, [user]);
+  }, [user, liveSessionQuery.data]);
 
   const canRenewSubscription = useMemo(() => {
     if (!user) return false;
@@ -277,7 +303,7 @@ export default function UserDetailPage() {
   const cycle = user ? monthlyCycleSummary(user) : null;
 
   return (
-    <div className="w-full py-6 space-y-6">
+    <div className="w-full space-y-5">
       <ActionConfirmDialog
         open={Boolean(confirm)}
         onOpenChange={(open) => {
@@ -317,7 +343,7 @@ export default function UserDetailPage() {
         subtitle={derived.fullName ? derived.fullName : "User details and session history"}
         icon={Settings}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <IconActionButton
               label="Back to Users"
               onClick={() => router.push("/users/list")}
@@ -332,30 +358,24 @@ export default function UserDetailPage() {
         }
       />
 
-      <Card>
-        <CardContent className="p-4 flex flex-wrap gap-3 items-center">
-          <Badge
-            variant="outline"
-            className={
-              derived.online
-                ? "border-blue-500 text-blue-700 dark:text-blue-300"
-                : "border-border text-muted-foreground"
-            }
-          >
-            <Wifi className="h-3.5 w-3.5 mr-1.5" />
-            {derived.online ? "Online" : "Offline"}
-          </Badge>
-          {derived.status ? <Badge variant="secondary">{derived.status}</Badge> : null}
-          {derived.profileName ? <Badge variant="outline">Profile: {derived.profileName}</Badge> : null}
-          {derived.mac ? <Badge variant="outline">MAC: {derived.mac}</Badge> : null}
-          {derived.last ? <span className="text-sm text-muted-foreground">Last active: {new Date(derived.last).toLocaleString()}</span> : null}
+      <Card className="border-border/60 shadow-none">
+        <CardContent className="flex flex-wrap items-center gap-2 p-3">
+          <StatusPill label={derived.online ? "Online" : "Offline"} tone={derived.online ? "info" : "default"} dot pulseDot={derived.online} />
+          {derived.status ? (
+            <StatusPill label={derived.status} tone={derived.status === "active" ? "success" : derived.status === "suspended" ? "danger" : "warning"} dot />
+          ) : null}
+          {derived.profileName ? <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">Profile: {derived.profileName}</Badge> : null}
+          {derived.mac ? <Badge variant="outline" className="font-mono text-xs">MAC: {derived.mac}</Badge> : null}
+          {derived.last ? <span className="ml-auto text-xs text-muted-foreground">Last active {new Date(derived.last).toLocaleString()}</span> : null}
         </CardContent>
       </Card>
+
+      <AIDiagnosticsCard username={username} />
 
       {user ? <Customer360Summary user={user} /> : null}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="h-auto max-w-full justify-start overflow-x-auto">
+        <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-lg border border-border/60 bg-muted/30 p-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           {canSeeBilling ? (
@@ -383,11 +403,11 @@ export default function UserDetailPage() {
             />
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Account</CardTitle>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
+              <CardTitle className="text-base">Account</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Profile</Label>
                 <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
@@ -431,11 +451,11 @@ export default function UserDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly quota cycle</CardTitle>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
+              <CardTitle className="text-base">Monthly quota cycle</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4">
               {cycle ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div>
@@ -496,11 +516,11 @@ export default function UserDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription expiry</CardTitle>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
+              <CardTitle className="text-base">Subscription expiry</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="expiresAt">Access expires</Label>
                 <Input
@@ -554,11 +574,11 @@ export default function UserDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick links</CardTitle>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
+              <CardTitle className="text-base">Quick links</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
+            <CardContent className="flex flex-wrap gap-2 p-4">
               <Button variant="outline" asChild>
                 <Link href={`/users/${encodeURIComponent(username)}/sessions`}>View session history</Link>
               </Button>
@@ -583,8 +603,8 @@ export default function UserDetailPage() {
         ) : null}
 
         <TabsContent value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
               <CardTitle className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2">
                   <Activity className="h-4 w-4" />
@@ -612,7 +632,7 @@ export default function UserDetailPage() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4">
               <div className="flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between pb-4">
                 <div className="flex flex-col md:flex-row gap-2 md:items-center">
                   <Input
@@ -638,9 +658,9 @@ export default function UserDetailPage() {
               ) : auditForUser.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No activity recorded for this user yet.</div>
               ) : (
-                <div className="w-full overflow-auto">
-                  <Table>
-                    <TableHeader>
+                <div className="w-full overflow-auto rounded-lg border border-border/60">
+                  <Table className="text-sm">
+                    <TableHeader className="bg-muted/50">
                       <TableRow>
                         <TableHead className="whitespace-nowrap">Time</TableHead>
                         <TableHead className="whitespace-nowrap">Action</TableHead>
@@ -656,8 +676,8 @@ export default function UserDetailPage() {
                         const action = String(e.message ?? "").replace(/^audit\./, "") || "—";
                         const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : "—";
                         return (
-                          <TableRow key={String(e.id)}>
-                            <TableCell className="whitespace-nowrap">{ts}</TableCell>
+                          <TableRow key={String(e.id)} className="hover:bg-primary/[0.03]">
+                            <TableCell className="whitespace-nowrap py-2">{ts}</TableCell>
                             <TableCell className="whitespace-nowrap">{action}</TableCell>
                             <TableCell className="whitespace-nowrap">{actor}</TableCell>
                             <TableCell className="font-mono text-xs whitespace-nowrap">{requestId}</TableCell>
@@ -676,11 +696,11 @@ export default function UserDetailPage() {
         </TabsContent>
 
         <TabsContent value="actions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Operations</CardTitle>
+          <Card className="border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 p-4">
+              <CardTitle className="text-base">Operations</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
+            <CardContent className="flex flex-wrap gap-2 p-4">
               <Button variant="outline" onClick={() => setConfirm({ kind: "reset-quota" })} disabled={!username}>
                 <KeyRound className="h-4 w-4 mr-2" />
                 Reset daily quota

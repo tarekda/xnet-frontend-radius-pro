@@ -20,10 +20,11 @@ import {
   UserRound,
   Users,
   Wallet,
+  Landmark,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
-import { can, canAny } from "@/lib/permissions";
+import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from "@/lib/permissions";
 import type { ExternalInvoice, User, UsersApiResponse } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const PAGE_ITEMS: Array<
   { label: "RADIUS Invoices", description: "Generated monthly invoices", href: "/invoices", icon: FileText, permissions: ["billing.externalInvoices.view"] },
   { label: "Provider MAC Lists", description: "View and download MAC addresses by invoice provider", href: "/invoice-upload/provider-macs", icon: Network, permissions: ["billing.invoiceUpload.create", "users.view"] },
   { label: "Wallet Ledger", description: "Subscriber wallet credits and debits", href: "/external-invoices/wallet-ledger", icon: Wallet, permissions: ["billing.externalInvoices.view", "billing.externalInvoices.pay"] },
+  { label: "Company Wallet", description: "Operator treasury balance and ledger", href: "/admin/company-wallet", icon: Landmark, permissions: [...COMPANY_WALLET_VIEW_PERMS] },
   { label: "Audit Log", description: "Administrative activity history", href: "/audit", icon: History, permissions: ["users.view"] },
   {
     label: "System Health",
@@ -231,7 +233,7 @@ export default function GlobalCommandPalette() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="top-[10vh] block max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 sm:top-[12vh]">
+        <DialogContent className="top-[10vh] block max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 sm:top-[12vh] bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Global search</DialogTitle>
             <DialogDescription>Search pages, subscribers, and invoices.</DialogDescription>

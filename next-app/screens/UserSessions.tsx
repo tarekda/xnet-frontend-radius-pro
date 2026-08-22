@@ -12,7 +12,7 @@ export default function UserSessionsPage() {
   const username = String(usernameParam ?? "").trim();
 
   return (
-    <div className="w-full py-6 space-y-6">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("userSessions.title")}
         subtitle={username ? t("userSessions.subtitle_for", { username }) : t("userSessions.subtitle")}

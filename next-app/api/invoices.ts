@@ -98,6 +98,7 @@ export type ProviderMacSyncResult = {
   matchedSubscribers: number;
   updatedInvoiceRows: number;
   missingSubscribers: number;
+  macAddresses: string[];
 };
 
 export async function syncProviderMacAddresses(

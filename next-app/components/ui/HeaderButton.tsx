@@ -17,10 +17,10 @@ export function HeaderButton({
     <Button
       variant="ghost"
       onClick={() => col.toggleSorting(col.getIsSorted() === "asc")}
-      className={`w-full justify-start hover:bg-muted/70 dark:hover:bg-muted/45 p-0! ${className ?? ""} `}
+      className={`h-8 w-full justify-start p-0! text-[11px] font-semibold uppercase tracking-wide hover:bg-transparent hover:text-foreground ${className ?? ""} `}
     >
       {children}
-      <ArrowUpDown className="ml-1 h-4 w-4" />
+      <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-60" />
     </Button>
   );
 }

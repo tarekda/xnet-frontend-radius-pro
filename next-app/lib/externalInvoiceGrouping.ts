@@ -50,6 +50,17 @@ function isOpen(inv: ExternalInvoice): boolean {
   return !inv.voidedAt && inv.status !== "paid";
 }
 
+export function lineOutstanding(inv: ExternalInvoice): number {
+  if (inv.voidedAt) return 0;
+  if (inv.remainingDue != null && Number.isFinite(Number(inv.remainingDue))) {
+    return Math.max(0, Number(inv.remainingDue));
+  }
+  if (inv.status === "paid") return 0;
+  const due = Number(inv.totalAmount ?? inv.amount ?? 0);
+  const paid = Number(inv.amountPaid ?? 0);
+  return Math.max(0, Math.round((due - paid) * 100) / 100);
+}
+
 export function classifyLine(inv: ExternalInvoice, nowMonth: string): PaymentLineKind {
   if (!isOpen(inv)) return "paid";
   if (String(inv.debitLabel ?? "").trim()) return "debit";
@@ -99,7 +110,7 @@ export function groupExternalInvoices(
     }));
 
     const openLines = rows.filter(isOpen);
-    const outstandingTotal = openLines.reduce((acc, inv) => acc + Number(inv.amount ?? 0), 0);
+    const outstandingTotal = openLines.reduce((acc, inv) => acc + lineOutstanding(inv), 0);
 
     // Primary row: unpaid primary line of the current month, else newest line.
     const primary =

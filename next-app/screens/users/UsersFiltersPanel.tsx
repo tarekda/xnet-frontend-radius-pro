@@ -58,8 +58,8 @@ export const UsersFiltersPanel = ({
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <Card className="lg:col-span-12">
-        <CardContent className="p-4">
+      <Card className="border-border/80 shadow-none lg:col-span-12">
+        <CardContent className="p-3">
           <div className="flex flex-wrap items-center gap-3">
             <div ref={searchBoxRef} className="order-1 w-full md:w-[70%]">
               <SearchBar

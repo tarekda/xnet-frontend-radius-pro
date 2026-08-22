@@ -27,15 +27,15 @@ const PlanCard: React.FC<{
   const price = profile.price ?? 0;
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+      className={`cursor-pointer border-border/80 shadow-none transition-[border-color,background-color] ${
         selected
-          ? "ring-2 ring-primary border-primary bg-primary/5"
-          : "hover:border-primary/50 border-border"
+          ? "border-primary bg-secondary"
+          : "hover:border-primary/35 hover:bg-muted/30"
       }`}
       onClick={onSelect}
     >
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">{profile.profileName}</CardTitle>
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-sm font-semibold">{profile.profileName}</CardTitle>
         <CardDescription className="flex items-center gap-2">
           {price > 0 && (
             <span className="flex items-center gap-1 font-semibold text-primary">
@@ -45,7 +45,7 @@ const PlanCard: React.FC<{
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 p-4 pt-0">
         <div className="flex items-center gap-2 text-sm">
           <HardDrive className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">Daily:</span>
@@ -88,6 +88,10 @@ export default function AddUserPage() {
       notify.error("Select a plan", "Please choose a plan for the user.");
       return;
     }
+    if (!username.trim() || password.length < 8) {
+      notify.error("Password required", "Username and a password of at least 8 characters are required.");
+      return;
+    }
     createUserMutation.mutate(
       {
         username,
@@ -115,28 +119,29 @@ export default function AddUserPage() {
   };
 
   return (
-    <div className="w-full space-y-6 py-6 sm:py-8 px-2 sm:px-0 animate-in fade-in-50">
+    <div className="w-full space-y-5 animate-in fade-in-50">
       <PageHeader
         title={t("addUser.title")}
         subtitle={t("addUser.subtitle")}
         icon={UserPlus}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => router.push("/users/list")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Users
+          </Button>
+        }
       />
 
-      <div className="flex items-center gap-2 mb-6">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/users/list")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Users
-        </Button>
-      </div>
-
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-8 lg:grid-cols-5">
+        <div className="grid gap-5 lg:grid-cols-5">
           {/* Plan selection - left */}
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-lg font-semibold">Choose a plan</h3>
-            <p className="text-sm text-muted-foreground">
-              Select a plan to assign to this user. Each plan includes daily and monthly quotas.
-            </p>
+          <div className="space-y-3 lg:col-span-2">
+            <div>
+              <h3 className="text-sm font-semibold tracking-tight">Choose a plan</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select a plan to assign to this user. Each plan includes daily and monthly quotas.
+              </p>
+            </div>
             {profilesLoading ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {[1, 2].map((i) => (
@@ -168,12 +173,12 @@ export default function AddUserPage() {
 
           {/* User form - right */}
           <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
+            <Card className="border-border/80 shadow-none">
+              <CardHeader className="border-b border-border/70 p-5">
                 <CardTitle>User details</CardTitle>
                 <CardDescription>Enter the username, password, and optional contact information.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-5 p-5">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
@@ -305,7 +310,7 @@ export default function AddUserPage() {
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 border-t border-border/70 pt-4">
                   <Button type="submit" disabled={createUserMutation.isPending || !selectedProfileId}>
                     {createUserMutation.isPending ? "Creating..." : "Create user"}
                   </Button>

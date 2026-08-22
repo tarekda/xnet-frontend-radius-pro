@@ -18,6 +18,7 @@ const WIDGET_ORDER: Record<DashboardPersona, string[]> = {
     "total-cash-collected",
   ],
   noc: [
+    "company-wallet",
     "live-sessions",
     "active-users",
     "auth-requests",
@@ -30,6 +31,7 @@ const WIDGET_ORDER: Record<DashboardPersona, string[]> = {
     "reseller-users",
   ],
   billing: [
+    "company-wallet",
     "total-invoices-collected",
     "total-cash-collected",
     "expenses-month",

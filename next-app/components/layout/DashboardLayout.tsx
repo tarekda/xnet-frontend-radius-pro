@@ -34,14 +34,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           tabIndex={-1}
           className={cn(
             "min-h-0 min-w-0 flex-1 overflow-y-auto scroll-smooth bg-background",
-            "border-l border-border/70 dark:border-border/50 shadow-[inset_1px_0_0_0] shadow-border/20",
-            "px-4 py-6 sm:px-6 lg:px-8 outline-none",
+            "outline-none",
+            "px-4 pb-8 sm:px-6 lg:px-8",
             density === "compact" && "table-compact"
           )}
         >
           <GlobalCommandPalette />
-          <Breadcrumb />
-          {children}
+          <div className="w-full">
+            <Breadcrumb />
+            <div className="w-full">{children}</div>
+          </div>
         </main>
       </div>
     </div>

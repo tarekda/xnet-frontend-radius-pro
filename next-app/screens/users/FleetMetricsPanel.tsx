@@ -55,7 +55,7 @@ export const FleetMetricsPanel = ({
   );
 
   return (
-    <Card className="overflow-hidden border-border/70 shadow-sm">
+    <Card className="overflow-hidden border-border/80 shadow-none">
       <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
@@ -106,7 +106,7 @@ export const FleetMetricsPanel = ({
                       key={item.key}
                       type="button"
                       onClick={item.onClick}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
                     >
                       <item.icon className="h-3 w-3 shrink-0 text-muted-foreground" />
                       <span className="text-muted-foreground">{item.label}</span>

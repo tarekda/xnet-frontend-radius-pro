@@ -20,30 +20,20 @@ import {
 import useNas from '../hooks/useNas';
 import { Button } from "@/components/ui/button";
 import { Nas } from '../types/api'; // Make sure to define this type
-import { ArrowUpDown, Edit, MoreHorizontal, Plus, RefreshCw, Server } from 'lucide-react';
+import { ArrowUpDown, RefreshCw, Server } from 'lucide-react';
 import PageHeader from "@/components/PageHeader";
 import { ariaSortFor } from "@/lib/tableA11y";
 import { useTranslation } from "react-i18next";
 import IconActionButton from "@/components/IconActionButton";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import TablePager from "@/components/TablePager";
 import TableToolbar from "@/components/TableToolbar";
-import TableRowActions from "@/components/TableRowActions";
 import SearchBar from "@/components/SearchBar";
 import QueryState from "@/components/QueryState";
 import { cn } from "@/lib/utils";
+import StatusPill from "@/components/StatusPill";
 
-const statusPillClass = (status: string) =>
-    status === "active"
-        ? "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300"
-        : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300";
+const statusTone = (status: string) => (status === "active" ? "success" : "danger");
 
 const columns: ColumnDef<Nas>[] = [
     {
@@ -53,9 +43,10 @@ const columns: ColumnDef<Nas>[] = [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="h-8 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-transparent hover:text-foreground"
                 >
                     ID
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-60" />
                 </Button>
             )
         },
@@ -67,9 +58,10 @@ const columns: ColumnDef<Nas>[] = [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="h-8 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-transparent hover:text-foreground"
                 >
                     NAS Name
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-60" />
                 </Button>
             )
         },
@@ -98,16 +90,15 @@ const columns: ColumnDef<Nas>[] = [
                 <Button
                     variant="ghost"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className="h-8 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-transparent hover:text-foreground"
                 >
                     Status
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-60" />
                 </Button>
             )
         },
         cell: ({ row }) => (
-            <span className={cn("px-2 py-1 rounded-full text-xs font-semibold", statusPillClass(row.original.status))}>
-                {row.original.status}
-            </span>
+            <StatusPill label={row.original.status} tone={statusTone(row.original.status)} dot className="capitalize" />
         ),
     },
     {
@@ -126,13 +117,11 @@ const columns: ColumnDef<Nas>[] = [
 
 const NasCard: React.FC<{ nas: Nas }> = ({ nas }) => {
     return (
-        <Card className="mb-4">
-            <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                    <span>{nas.nasname}</span>
-                    <span className={cn("px-2 py-1 rounded-full text-xs font-semibold", statusPillClass(nas.status))}>
-                        {nas.status}
-                    </span>
+        <Card className="overflow-hidden border-border/60 shadow-none">
+            <CardHeader className="border-b border-border/50 bg-muted/15 p-4 pb-3">
+                <CardTitle className="flex items-center justify-between gap-2">
+                    <span className="text-base font-semibold">{nas.nasname}</span>
+                    <StatusPill label={nas.status} tone={statusTone(nas.status)} dot className="capitalize" />
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -146,23 +135,6 @@ const NasCard: React.FC<{ nas: Nas }> = ({ nas }) => {
                     <div className="col-span-2"><span className="font-semibold text-muted-foreground">Description:</span> {nas.description}</div>
                 </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            Actions <MoreHorizontal className="ml-2 h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => console.log("Edit NAS", nas)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                        </DropdownMenuItem>
-                        {/* Add more actions as needed */}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </CardFooter>
         </Card>
     );
 };
@@ -192,13 +164,8 @@ const NasComponent: React.FC = () => {
         refetch();
     };
 
-    const handleAddNas = () => {
-        // Implement add NAS functionality
-        console.log("Add NAS clicked");
-    };
-
     return (
-        <div className="w-full py-5 space-y-4 min-h-[50vh] bg-gradient-to-br from-gray-50/50 via-blue-50/20 to-transparent dark:from-background dark:via-muted/15 dark:to-background">
+        <div className="w-full min-h-[50vh] space-y-5">
             <PageHeader
                 title={t("nas.title")}
                 subtitle={t("nas.subtitle")}
@@ -214,19 +181,11 @@ const NasComponent: React.FC = () => {
                     </div>
                 )}
                 actions={(
-                    <div className="flex gap-2">
-                        <IconActionButton
-                            label="Refresh"
-                            onClick={handleRefresh}
-                            icon={<RefreshCw className="h-4 w-4" />}
-                        />
-                        <IconActionButton
-                            label="Add NAS"
-                            onClick={handleAddNas}
-                            variant="default"
-                            icon={<Plus className="h-4 w-4" />}
-                        />
-                    </div>
+                    <IconActionButton
+                        label="Refresh"
+                        onClick={handleRefresh}
+                        icon={<RefreshCw className="h-4 w-4" />}
+                    />
                 )}
             />
 
@@ -238,7 +197,7 @@ const NasComponent: React.FC = () => {
                 loading={<div className="flex justify-center items-center h-[40vh]">Loading…</div>}
                 errorTitle="Failed to load NAS"
                 emptyTitle="No NAS entries"
-                emptyDescription="Create your first NAS or adjust your search."
+                emptyDescription="No NAS clients are configured yet. NAS records are managed on the RADIUS server."
             >
                 <div className="flex items-center justify-between py-2 md:hidden">
                     <SearchBar
@@ -248,16 +207,16 @@ const NasComponent: React.FC = () => {
                         className="max-w-sm"
                     />
                 </div>
-                <div className="rounded-md border shadow-sm overflow-hidden hidden md:block">
+                <div className="hidden overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shop-shadow)] md:block">
                     <TableToolbar
                         label={`NAS: ${table.getFilteredRowModel().rows.length.toLocaleString()} • Page ${table.getState().pagination.pageIndex + 1} / ${table.getPageCount()}`}
                     />
                     <Table>
                         <TableHeader>
                             {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id} className="bg-muted/50 dark:bg-muted/40">
+                                <TableRow key={headerGroup.id}>
                                     {headerGroup.headers.map((header) => (
-                                        <TableHead key={header.id} className="font-bold text-muted-foreground" aria-sort={ariaSortFor(header)}>
+                                        <TableHead key={header.id} aria-sort={ariaSortFor(header)}>
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
@@ -276,9 +235,8 @@ const NasComponent: React.FC = () => {
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
                                         className={cn(
-                                            index % 2 === 0 ? "bg-card" : "bg-muted/40",
-                                            "transition-colors duration-200 h-2",
-                                            "hover:bg-accent/55 dark:hover:bg-accent/25"
+                                            index % 2 === 0 ? "bg-card" : "bg-muted/35",
+                                            "transition-colors hover:bg-accent/45 dark:hover:bg-accent/30"
                                         )}
                                     >
                                         {row.getVisibleCells().map((cell) => (
@@ -286,18 +244,11 @@ const NasComponent: React.FC = () => {
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </TableCell>
                                         ))}
-                                        <TableCell className="text-right">
-                                            <TableRowActions
-                                                actions={[
-                                                    { label: "Edit", icon: Edit, onClick: () => console.log("Edit NAS", row.original) },
-                                                ]}
-                                            />
-                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={columns.length + 1} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                                         No results.
                                     </TableCell>
                                 </TableRow>
@@ -305,7 +256,7 @@ const NasComponent: React.FC = () => {
                         </TableBody>
                     </Table>
                 </div>
-                <div className='md:hidden'>
+                <div className="space-y-3 md:hidden">
                     {table.getRowModel().rows.map((row) => (
                         <NasCard key={row.id} nas={row.original} />
                     ))}

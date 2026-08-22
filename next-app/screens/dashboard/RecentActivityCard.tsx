@@ -41,8 +41,8 @@ const RecentActivityCard: React.FC<Props> = ({ enabled }) => {
   }, [recentAuditQuery.data]);
 
   return (
-    <Card className="w-full min-w-0 md:col-span-3 border-border/70 shadow-sm">
-      <CardHeader>
+    <Card className="w-full min-w-0 rounded-lg border-border shadow-none md:col-span-3">
+      <CardHeader className="border-b border-border p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Recent Activity</CardTitle>
@@ -53,18 +53,18 @@ const RecentActivityCard: React.FC<Props> = ({ enabled }) => {
             size="sm"
             onClick={() => recentAuditQuery.refetch()}
             disabled={recentAuditQuery.isFetching}
-            className="w-full justify-center border-border bg-background/90 text-foreground shadow-sm hover:bg-accent dark:bg-card/90 sm:w-auto"
+            className="w-full justify-center rounded-md border-border bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary sm:w-auto"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${recentAuditQuery.isFetching ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         {recentAuditQuery.isLoading ? (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+              <div key={i} className="flex items-center gap-3 rounded-md border border-border p-3">
                 <Skeleton className="h-8 w-8 rounded-full" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-[220px]" />
@@ -78,14 +78,14 @@ const RecentActivityCard: React.FC<Props> = ({ enabled }) => {
         ) : recentAudit.length === 0 ? (
           <div className="text-sm text-muted-foreground">No recent activity.</div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             {recentAudit.map((e) => (
               <div
                 key={String(e.id)}
-                className="flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/50"
+                className="flex items-start gap-3 rounded-md border border-border p-2.5 transition-colors hover:border-primary/30 hover:bg-primary/5"
               >
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md border border-primary/15 bg-primary/5">
+                  <UserIcon className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{e.title}</div>

@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -10,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/lib/notify";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/context/AuthContext";
+import { can } from "@/lib/permissions";
 import {
   fetchExternalDunningPreview,
   runExternalDunningCampaign,
@@ -22,6 +23,8 @@ type DunningAction = "remind" | "throttle" | "suspend";
 
 export default function ExternalInvoicesDunningPage() {
   const { t } = useTranslation("screens");
+  const { user } = useAuth();
+  const canRunDunning = can(user, "billing.externalInvoices.dunning");
   const queryClient = useQueryClient();
 
   const [dunningGraceDays, setDunningGraceDays] = useState(7);
@@ -99,7 +102,7 @@ export default function ExternalInvoicesDunningPage() {
   });
 
   return (
-    <div className="w-full space-y-6 py-2 sm:py-2 px-2 sm:px-0 animate-in fade-in-50">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("dunning.title")}
         subtitle={t("dunning.subtitle")}
@@ -115,7 +118,7 @@ export default function ExternalInvoicesDunningPage() {
         )}
       />
 
-      <Card className="p-4 space-y-4">
+      <Card className="space-y-4 border-border/80 p-4 shadow-none">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <div className="text-xs text-muted-foreground mb-1">Grace days</div>
@@ -227,12 +230,20 @@ export default function ExternalInvoicesDunningPage() {
             Select at least one action (remind, throttle, or suspend) to run dunning.
           </div>
         ) : null}
+        {!canRunDunning ? (
+          <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            You can preview candidates. Running dunning (remind, throttle, or suspend) requires the dunning permission.
+          </div>
+        ) : null}
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => dunningPreviewQuery.refetch()}>
             Refresh Preview
           </Button>
-          <Button onClick={() => dunningRunMutation.mutate()} disabled={dunningRunMutation.isPending || dunningPreviewQuery.isLoading || dunningActionFilter.length === 0}>
+          <Button
+            onClick={() => dunningRunMutation.mutate()}
+            disabled={!canRunDunning || dunningRunMutation.isPending || dunningPreviewQuery.isLoading || dunningActionFilter.length === 0}
+          >
             {dunningRunMutation.isPending ? "Running..." : dunningDryRun ? "Run Dry Preview" : "Send Dunning Reminders"}
           </Button>
         </div>

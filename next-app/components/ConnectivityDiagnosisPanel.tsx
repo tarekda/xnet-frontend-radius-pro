@@ -66,14 +66,16 @@ export default function ConnectivityDiagnosisPanel(props: {
   }, [username, props.user, isPending, result, mutate]);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+    <Card className="overflow-hidden border-border/60 shadow-none">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b border-border/50 bg-muted/15 p-4">
         <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2">
-            <Stethoscope className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-base">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Stethoscope className="h-4 w-4" />
+            </span>
             Connectivity Copilot
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="max-w-2xl text-xs leading-relaxed">
             Rule-based diagnosis from RADIUS account state, live session, and recent auth failures. Auto-runs when the user looks at risk.
           </CardDescription>
         </div>
@@ -94,7 +96,7 @@ export default function ConnectivityDiagnosisPanel(props: {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4">
         {isError ? (
           <p className="text-sm text-red-600 dark:text-red-400">
             Could not run diagnosis. Check permissions and try again.
@@ -122,14 +124,14 @@ export default function ConnectivityDiagnosisPanel(props: {
               </span>
             </div>
 
-            <p className="text-sm leading-relaxed">{result.summary}</p>
+            <p className="rounded-md border border-primary/15 bg-primary/[0.035] p-3 text-sm leading-relaxed">{result.summary}</p>
 
             {result.findings.length > 0 ? (
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Findings</div>
-                <ul className="space-y-2">
+              <div className="space-y-2 rounded-md border border-border/60 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Findings</div>
+                <ul className="divide-y divide-border/50">
                   {result.findings.map((f) => (
-                    <li key={f.code} className="flex gap-2 text-sm">
+                    <li key={f.code} className="flex gap-2 py-2 text-sm first:pt-0 last:pb-0">
                       {findingIcon(f.severity)}
                       <div>
                         <div>{f.message}</div>
@@ -144,8 +146,8 @@ export default function ConnectivityDiagnosisPanel(props: {
             ) : null}
 
             {result.recommendedActions.length > 0 ? (
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Suggested next steps</div>
+              <div className="space-y-2 rounded-md border border-border/60 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested next steps</div>
                 <ol className="space-y-2 text-sm">
                   {result.recommendedActions.map((a, idx) => (
                     <li key={a.action} className="flex gap-2">
@@ -170,16 +172,16 @@ export default function ConnectivityDiagnosisPanel(props: {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border/60 text-xs">
-              <div>
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border/60 bg-border/60 text-xs sm:grid-cols-4">
+              <div className="bg-card p-3">
                 <div className="text-muted-foreground">Online</div>
                 <div className="font-medium">{result.context.isOnline ? "Yes" : "No"}</div>
               </div>
-              <div>
+              <div className="bg-card p-3">
                 <div className="text-muted-foreground">Recent rejects</div>
                 <div className="font-medium">{result.context.recentRejectCount}</div>
               </div>
-              <div>
+              <div className="bg-card p-3">
                 <div className="text-muted-foreground">Monthly quota</div>
                 <div className="font-medium">
                   {result.context.isMonthlyExceeded
@@ -189,7 +191,7 @@ export default function ConnectivityDiagnosisPanel(props: {
                       : "—"}
                 </div>
               </div>
-              <div>
+              <div className="bg-card p-3">
                 <div className="text-muted-foreground">Live IP</div>
                 <div className="font-mono font-medium truncate">
                   {result.context.liveSession?.framedIpAddress ?? "—"}

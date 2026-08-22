@@ -24,8 +24,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { useAlerts } from '@/hooks/useAlerts';
 import { useAuth } from '@/context/AuthContext';
-import { can, canAny } from '@/lib/permissions';
+import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from '@/lib/permissions';
 import { apiClient } from '@/api/client';
+import { fetchCompanyWalletBalance } from '@/api/companyWallet';
 import { useOnlineMetrics } from '@/hooks/useOnlineMetrics';
 import { useExpenseMonthlyTotals } from '@/hooks/useExpenses';
 import { useAuthMetrics } from "@/hooks/useAuthMetrics";
@@ -111,6 +112,7 @@ const Dashboard: React.FC = () => {
   const canSeeTotals = can(user, 'dashboard.widget.totalAmount');
   const canSeeInvoiceCounts = can(user, 'dashboard.widget.invoiceCounts');
   const canSeeCollections = can(user, 'billing.collections.view');
+  const canSeeCompanyWallet = !isReseller && canAny(user, [...COMPANY_WALLET_VIEW_PERMS]);
   const canSeeAudit = canAny(user, ['users.view', 'reseller.users.view']);
   const canSeeQuotaExceeded = canAny(user, ['users.view', 'reseller.users.view']);
   const showNocSection = (!isReseller && canSeeOnline) || isReseller;
@@ -276,6 +278,12 @@ const Dashboard: React.FC = () => {
 
   // Reseller dashboard data: balance + scoped counts
   const resellerSummary = useResellerSummary(isReseller);
+  const companyWalletQuery = useQuery({
+    queryKey: ["company-wallet", "balance"],
+    queryFn: fetchCompanyWalletBalance,
+    enabled: canSeeCompanyWallet,
+    refetchInterval: 60000,
+  });
 
   const totalOnlineUsers = isReseller ? (resellerSummary.onlineCount ?? 0) : onlineMetrics.totalOnlineUsers;
   const totalActiveUsers = isReseller ? (resellerSummary.onlineCount ?? 0) : onlineMetrics.totalActiveUsers;
@@ -314,6 +322,9 @@ const Dashboard: React.FC = () => {
     canSeeCollections,
     canSeeQuotaExceeded,
     canSeeAlerts,
+    canSeeCompanyWallet,
+    companyWalletBalance: companyWalletQuery.data ?? null,
+    companyWalletLoading: companyWalletQuery.isLoading,
     resellerBalance: resellerSummary.balance,
     resellerUserCount: resellerSummary.userCount,
     totalOnlineUsers,
@@ -449,40 +460,41 @@ const Dashboard: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full space-y-6 px-4 py-6 sm:px-0 animate-in fade-in-50">
+    <div className="w-full space-y-4 animate-in fade-in-50">
       <PageHeader
-        variant="gradient"
+        variant="card"
         title={t("dashboard.title")}
         subtitle={t("dashboard.subtitle")}
         icon={Activity}
+        className="rounded-lg border-border bg-card p-4 shadow-none sm:p-4"
         actions={(
           <div className="flex w-full flex-wrap justify-end gap-2">
             <IconActionButton
               label={isRefreshing ? "Refreshing..." : "Refresh Data"}
               onClick={handleRefresh}
               disabled={isLoading || isRefreshing}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+              className="border-border bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
               icon={<RefreshCw className={`h-4 w-4 ${isLoading || isRefreshing ? "animate-spin" : ""}`} />}
             />
             {canSeeAnalytics ? (
               <IconActionButton
                 label="View Analytics"
                 to="/analytics"
-                className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+                className="border-border bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
                 icon={<LineChart className="h-4 w-4" />}
               />
             ) : null}
             <IconActionButton
               label="Dashboard settings"
               onClick={() => setIsSettingsOpen(true)}
-              className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+              className="border-border bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
               icon={<Settings className="h-4 w-4" />}
             />
             {canSeeAlerts ? (
               <IconActionButton
                 label="Alerts"
                 to="/alerts"
-                className="border-white/25 bg-white/15 text-white shadow-sm hover:bg-white/25"
+                className="border-border bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
                 icon={<Bell className="h-4 w-4" />}
               />
             ) : null}
@@ -490,9 +502,9 @@ const Dashboard: React.FC = () => {
         )}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
         {showNocSection ? (
-          <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+          <Button variant="outline" size="sm" className="h-8 rounded-md border-border bg-card shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary" asChild>
             <Link href="/online-users">
               <Wifi className="mr-2 h-4 w-4" />
               Live Sessions
@@ -500,7 +512,7 @@ const Dashboard: React.FC = () => {
           </Button>
         ) : null}
         {canAny(user, ["users.view", "reseller.users.view"]) ? (
-          <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+          <Button variant="outline" size="sm" className="h-8 rounded-md border-border bg-card shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary" asChild>
             <Link href="/users/list">
               <Users className="mr-2 h-4 w-4" />
               Users
@@ -508,7 +520,7 @@ const Dashboard: React.FC = () => {
           </Button>
         ) : null}
         {can(user, "radius.profiles.view") ? (
-          <Button variant="secondary" size="sm" className="rounded-full shadow-sm" asChild>
+          <Button variant="outline" size="sm" className="h-8 rounded-md border-border bg-card shadow-none hover:border-primary/30 hover:bg-primary/5 hover:text-primary" asChild>
             <Link href="/profiles/list">
               <Gauge className="mr-2 h-4 w-4" />
               Profiles
@@ -522,7 +534,7 @@ const Dashboard: React.FC = () => {
             </span>
           ) : null}
           {dashboardAutoRefreshSec > 0 ? (
-            <Badge variant="outline">
+            <Badge variant="outline" className="rounded-md border-primary/20 bg-primary/5 text-primary">
               Auto-refresh every {dashboardAutoRefreshSec}s
             </Badge>
           ) : null}
@@ -548,8 +560,18 @@ const Dashboard: React.FC = () => {
             />
           ) : null}
 
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">Operational overview</h2>
+              <p className="text-xs text-muted-foreground">Live account, network, and billing indicators</p>
+            </div>
+            <Badge variant="outline" className="hidden rounded-md border-primary/20 bg-primary/5 text-primary sm:inline-flex">
+              {orderedDashboardWidgets.length} metrics
+            </Badge>
+          </div>
+
           {/* KPI widgets */}
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {orderedDashboardWidgets.map((widget) => (
               <DashboardMiniWidget
                 key={widget.key}
@@ -570,7 +592,12 @@ const Dashboard: React.FC = () => {
 
           {/* NOC Snapshot */}
           {showNocSection ? (
-            <div className="grid gap-4 lg:grid-cols-7">
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">Network operations</h2>
+                <p className="text-xs text-muted-foreground">Authentication quality, live sessions, and infrastructure health</p>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-7">
               <NocSnapshotCard
                 authHealthLabel={authHealthLabel}
                 authHealthBadgeClass={authHealthBadgeClass}
@@ -615,7 +642,8 @@ const Dashboard: React.FC = () => {
                 onRefreshSnapshot={() => nocSnapshotQuery.refetch()}
                 snapshotFetching={nocSnapshotQuery.isFetching}
               />
-            </div>
+              </div>
+            </section>
           ) : null}
 
           {/* Reject-rate drilldown dialog */}
@@ -625,7 +653,12 @@ const Dashboard: React.FC = () => {
           />
 
           {/* System Stats and Activity */}
-          <div className="grid w-full min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-7">
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">System activity</h2>
+              <p className="text-xs text-muted-foreground">Health signals, recent changes, and usage trends</p>
+            </div>
+            <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 lg:grid-cols-7">
             {/* Platform health — real API / auth metrics */}
             {showNocSection ? (
               <PlatformHealthCard
@@ -641,12 +674,12 @@ const Dashboard: React.FC = () => {
                 fupUsersCount={fupUsersCount}
               />
             ) : (
-              <Card className="w-full min-w-0 md:col-span-4 border-border/70 shadow-sm">
-                <CardHeader>
+              <Card className="w-full min-w-0 rounded-lg border-border shadow-none md:col-span-4">
+                <CardHeader className="p-4">
                   <CardTitle>Overview</CardTitle>
                   <CardDescription>Key metrics from your assigned widgets above</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 pt-0">
                   <p className="text-sm text-muted-foreground">
                     Use the KPI cards above for quick access to sessions, users, billing, and alerts.
                   </p>
@@ -671,7 +704,8 @@ const Dashboard: React.FC = () => {
             <div className="col-span-full w-full min-w-0 lg:col-span-1">
               {canSeeAlerts ? <AlertNotification maxAlerts={5} /> : null}
             </div>
-          </div>
+            </div>
+          </section>
         </>
       )}
 

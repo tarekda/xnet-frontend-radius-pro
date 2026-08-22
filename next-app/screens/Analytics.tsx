@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from "react-i18next";
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
+import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -135,7 +136,7 @@ const Analytics: React.FC = () => {
   );
 
   return (
-    <div className="w-full space-y-6 p-6">
+    <div className="w-full space-y-5">
       <PageHeader
         title={t("analytics.title")}
         subtitle={t("analytics.subtitle")}
@@ -170,120 +171,77 @@ const Analytics: React.FC = () => {
       />
 
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <>
-              <div className="text-2xl font-bold text-blue-600">
-                {currentActiveUsers.toLocaleString()}
+      <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Active Users"
+          value={currentActiveUsers.toLocaleString()}
+          icon={<Users className="h-4 w-4" />}
+          footer={(
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              {activeUsersGrowth >= 0 ? (
+                <TrendingUp className={`h-3 w-3 ${getGrowthColor(activeUsersGrowth)}`} />
+              ) : (
+                <TrendingDown className={`h-3 w-3 ${getGrowthColor(activeUsersGrowth)}`} />
+              )}
+              <span className={getGrowthColor(activeUsersGrowth)}>
+                {activeUsersGrowth > 0 ? "+" : ""}{activeUsersGrowth.toFixed(1)}% vs previous sample
+              </span>
+            </p>
+          )}
+        />
+
+        <StatCard
+          label="Bandwidth (Rx / Tx)"
+          value={bandwidthQuery.isLoading ? "..." : `${currentBandwidth.rx.toFixed(1)} / ${currentBandwidth.tx.toFixed(1)}`}
+          sublabel={bandwidthQuery.isLoading ? "Loading..." : "Mbps Rx / Tx"}
+          icon={<Wifi className="h-4 w-4" />}
+          footer={
+            bandwidthQuery.isLoading ? null : (
+              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  {rxGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} />}
+                  <span className={getGrowthColor(rxGrowth)}>{rxGrowth > 0 ? "+" : ""}{rxGrowth.toFixed(1)}% Rx</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {txGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} />}
+                  <span className={getGrowthColor(txGrowth)}>{txGrowth > 0 ? "+" : ""}{txGrowth.toFixed(1)}% Tx</span>
+                </div>
               </div>
-              <p className={`text-xs text-muted-foreground flex items-center gap-1`}>
-                {activeUsersGrowth >= 0 ? (
-                  <TrendingUp className={`h-3 w-3 ${getGrowthColor(activeUsersGrowth)}`} />
-                ) : (
-                  <TrendingDown className={`h-3 w-3 ${getGrowthColor(activeUsersGrowth)}`} />
-                )}
-                <span className={getGrowthColor(activeUsersGrowth)}>
-                  {activeUsersGrowth > 0 ? '+' : ''}{activeUsersGrowth.toFixed(1)}% vs previous sample
+            )
+          }
+        />
+
+        <StatCard
+          label="Auth Success Rate"
+          value={metricsLoading ? "..." : `${metrics?.authSuccessRate || 0}%`}
+          icon={<Shield className="h-4 w-4" />}
+          footer={
+            metricsLoading ? null : (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingUp className={`h-3 w-3 ${getGrowthColor(metrics?.authRateGrowth || 0)}`} />
+                <span className={getGrowthColor(metrics?.authRateGrowth || 0)}>
+                  {metrics?.authRateGrowth && metrics.authRateGrowth > 0 ? "+" : ""}{metrics?.authRateGrowth || 0}% from last hour
                 </span>
               </p>
-            </>
-          </CardContent>
-        </Card>
+            )
+          }
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bandwidth (Rx / Tx)</CardTitle>
-            <Wifi className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            {bandwidthQuery.isLoading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading...</span>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <div className="text-lg font-bold text-blue-600">
-                    Rx: {currentBandwidth.rx.toFixed(1)} Mbps
-                  </div>
-                  <div className="text-lg font-bold text-green-600">
-                    Tx: {currentBandwidth.tx.toFixed(1)} Mbps
-                  </div>
-                </div>
-                <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    {rxGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} />}
-                    <span className={getGrowthColor(rxGrowth)}>{rxGrowth > 0 ? '+' : ''}{rxGrowth.toFixed(1)}% Rx</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {txGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} />}
-                    <span className={getGrowthColor(txGrowth)}>{txGrowth > 0 ? '+' : ''}{txGrowth.toFixed(1)}% Tx</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Auth Success Rate</CardTitle>
-            <Shield className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            {metricsLoading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading...</span>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-purple-600">
-                  {metrics?.authSuccessRate || 0}%
-                </div>
-                <p className={`text-xs text-muted-foreground flex items-center gap-1`}>
-                  <TrendingUp className={`h-3 w-3 ${getGrowthColor(metrics?.authRateGrowth || 0)}`} />
-                  <span className={getGrowthColor(metrics?.authRateGrowth || 0)}>
-                    {metrics?.authRateGrowth && metrics.authRateGrowth > 0 ? '+' : ''}{metrics?.authRateGrowth || 0}% from last hour
-                  </span>
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Attempts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            {metricsLoading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading...</span>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-red-600">
-                  {metrics?.failedAttempts || 0}
-                </div>
-                <p className={`text-xs text-muted-foreground flex items-center gap-1`}>
-                  <TrendingDown className={`h-3 w-3 ${getGrowthColor(metrics?.failedAttemptsGrowth || 0)}`} />
-                  <span className={getGrowthColor(metrics?.failedAttemptsGrowth || 0)}>
-                    {metrics?.failedAttemptsGrowth && metrics.failedAttemptsGrowth > 0 ? '+' : ''}{metrics?.failedAttemptsGrowth || 0}% from last hour
-                  </span>
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <StatCard
+          label="Failed Attempts"
+          value={metricsLoading ? "..." : (metrics?.failedAttempts || 0)}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          footer={
+            metricsLoading ? null : (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingDown className={`h-3 w-3 ${getGrowthColor(metrics?.failedAttemptsGrowth || 0)}`} />
+                <span className={getGrowthColor(metrics?.failedAttemptsGrowth || 0)}>
+                  {metrics?.failedAttemptsGrowth && metrics.failedAttemptsGrowth > 0 ? "+" : ""}{metrics?.failedAttemptsGrowth || 0}% from last hour
+                </span>
+              </p>
+            )
+          }
+        />
       </div>
 
       {/* Charts Section */}
@@ -309,7 +267,7 @@ const Analytics: React.FC = () => {
 
         <TabsContent value="usage" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>User Activity Over Time</CardTitle>
                 <CardDescription>Real-time user count and activity patterns</CardDescription>
@@ -339,7 +297,7 @@ const Analytics: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>Bandwidth (Rx / Tx)</CardTitle>
                 <CardDescription>Network bandwidth rates over time</CardDescription>
@@ -381,7 +339,7 @@ const Analytics: React.FC = () => {
 
         <TabsContent value="auth" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>Authentication Success Rate</CardTitle>
                 <CardDescription>Distribution of authentication attempts</CardDescription>
@@ -418,7 +376,7 @@ const Analytics: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>Authentication Trends</CardTitle>
                 <CardDescription>Success vs failed authentication over time</CardDescription>
@@ -450,7 +408,7 @@ const Analytics: React.FC = () => {
 
         <TabsContent value="geographic" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>Distribution by NAS</CardTitle>
                 <CardDescription>Accepted auths by NAS IP (last 7 days)</CardDescription>
@@ -487,7 +445,7 @@ const Analytics: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/80 shadow-none">
               <CardHeader>
                 <CardTitle>Top NAS by Users</CardTitle>
                 <CardDescription>Distinct users with accepted auth per NAS</CardDescription>
@@ -516,7 +474,7 @@ const Analytics: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="peak" className="space-y-4">
-          <Card>
+          <Card className="border-border/80 shadow-none">
             <CardHeader>
               <CardTitle>Peak Usage Hours</CardTitle>
               <CardDescription>System usage patterns throughout the day</CardDescription>

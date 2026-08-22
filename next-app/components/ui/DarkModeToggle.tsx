@@ -32,10 +32,8 @@ const DarkModeToggle: React.FC<Props> = ({ className, compact }) => {
       variant="outline"
       size="sm"
       className={cn(
-        "h-9 shrink-0 gap-2 border-border/90 bg-background/90 px-3 text-muted-foreground shadow-sm",
-        "backdrop-blur-sm transition-colors",
-        "hover:bg-accent hover:text-accent-foreground",
-        "dark:border-border/60 dark:bg-card/80 dark:hover:bg-accent",
+        "h-9 shrink-0 gap-2 border-border bg-card px-3 text-muted-foreground shadow-xs",
+        "hover:border-primary/25 hover:bg-accent/70 hover:text-accent-foreground",
         compact ? "w-9 px-0" : undefined,
         className
       )}

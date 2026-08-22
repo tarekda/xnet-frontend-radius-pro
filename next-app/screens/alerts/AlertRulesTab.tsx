@@ -104,7 +104,7 @@ const AlertRulesTab: React.FC<Props> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Metric:</span>
-                  <p className="text-muted-foreground">{rule.metric.label}</p>
+                  <p className="text-muted-foreground">{rule.metric?.label ?? rule.metric?.type}</p>
                 </div>
                 <div>
                   <span className="font-medium">Condition:</span>
@@ -115,7 +115,7 @@ const AlertRulesTab: React.FC<Props> = ({
                 <div>
                   <span className="font-medium">Threshold:</span>
                   <p className="text-muted-foreground">
-                    {rule.threshold} {rule.metric.unit}
+                    {rule.threshold} {rule.metric?.unit ?? ""}
                   </p>
                 </div>
                 <div>

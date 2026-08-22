@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import useLogin from "@/hooks/useLogin";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,6 @@ import { useSearchParams } from "@/navigation/urlSearchParams";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, Lock, User, Shield } from "lucide-react";
 import Alert from "@/components/ui/Alert";
-import PageHeader from "@/components/PageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
@@ -74,32 +73,41 @@ const Login: React.FC = () => {
 
   return (
     <div className="shop-app-shell flex min-h-full items-center justify-center overflow-y-auto p-4">
-      <div className="w-full max-w-md space-y-4">
-        <PageHeader title={t("login.title")} subtitle={t("login.subtitle")} icon={Lock} />
+      <div className="w-full max-w-[420px] space-y-6">
+        <div className="text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
+            XN
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight">{t("login.title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("login.subtitle")}</p>
+        </div>
 
-        <Card className="w-full border border-border/60 shadow-lg dark:border-border/50 dark:shadow-[var(--shop-shadow,0_4px_24px_rgba(0,0,0,0.35))]">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4">
-              <div className="rounded-full bg-primary/15 p-3 dark:bg-primary/25">
-                {mfaToken ? <Shield className="h-6 w-6 text-primary" /> : <Lock className="h-6 w-6 text-primary" />}
+        <Card className="border-border/80 shadow-[var(--shop-shadow)]">
+          <CardHeader className="space-y-2 border-b border-border/70 p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary">
+                {mfaToken ? <Shield className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+              </div>
+              <div>
+                <CardTitle className="text-base">
+                  {mfaToken ? "Two-factor authentication" : "Welcome back"}
+                </CardTitle>
+                <CardDescription>
+                  {mfaToken
+                    ? "Enter the 6-digit code from your authenticator app"
+                    : "Enter your credentials to access your account"}
+                </CardDescription>
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold text-center">
-              {mfaToken ? "Two-factor authentication" : "Welcome back"}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {mfaToken
-                ? "Enter the 6-digit code from your authenticator app"
-                : "Enter your credentials to access your account"}
-            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5">
             <form onSubmit={handleSubmit} className="space-y-4">
               {!mfaToken ? (
                 <>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="username">Username</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="username"
                         type="text"
@@ -111,9 +119,10 @@ const Login: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="password"
                         type="password"
@@ -125,32 +134,33 @@ const Login: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="rememberMe"
-                        checked={rememberMe}
-                        onCheckedChange={(v) => setRememberMe(Boolean(v))}
-                      />
-                      <Label htmlFor="rememberMe" className="text-sm text-muted-foreground">
-                        Remember me
-                      </Label>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="rememberMe"
+                      checked={rememberMe}
+                      onCheckedChange={(v) => setRememberMe(Boolean(v))}
+                    />
+                    <Label htmlFor="rememberMe" className="text-sm text-muted-foreground">
+                      Remember me
+                    </Label>
                   </div>
                 </>
               ) : (
-                <div className="space-y-2">
-                  <Input
-                    id="mfaCode"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder="000000"
-                    maxLength={8}
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value)}
-                    required
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="mfaCode">Authenticator code</Label>
+                    <Input
+                      id="mfaCode"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="000000"
+                      maxLength={8}
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value)}
+                      required
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
@@ -165,7 +175,7 @@ const Login: React.FC = () => {
                 </div>
               )}
               {error && <Alert type="error" message={error} />}
-              <Button className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading} type="submit">
+              <Button className="w-full" disabled={isLoading} type="submit">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -179,7 +189,6 @@ const Login: React.FC = () => {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4" />
         </Card>
       </div>
     </div>

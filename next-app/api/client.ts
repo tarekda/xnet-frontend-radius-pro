@@ -115,6 +115,17 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    if (typeof window !== "undefined" && status === 403) {
+      const code = error.response?.data?.code;
+      if (code === "MFA_ENROLLMENT_REQUIRED") {
+        const path = window.location.pathname;
+        if (path !== "/settings/security" && path !== "/change-password") {
+          window.location.replace("/settings/security");
+        }
+        return Promise.reject(error);
+      }
+    }
+
     if (typeof window !== "undefined" && status === 401) {
       const url = String(original?.url || error.config?.url || "");
       // Failed login credentials are 401 — don't wipe session / bounce the login page.

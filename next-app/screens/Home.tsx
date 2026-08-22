@@ -32,6 +32,7 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import IconActionButton from "@/components/IconActionButton";
 import { CountUpNumber } from "@/components/viz";
+import { AIDailyOpsBriefWidget } from "@/components/AIDailyOpsBriefWidget";
 
 type AuditLogRow = {
   id: number;
@@ -414,6 +415,8 @@ const Home: React.FC = () => {
           </div>
         )}
       />
+
+      <AIDailyOpsBriefWidget />
 
       {/* Live KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

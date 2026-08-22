@@ -93,10 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [authState.isAuthenticated, authState.user]);
 
-  // Ensure we always have up-to-date permissions in localStorage/user state
+  // Keep permissions in sync with the server (new role grants after migrations).
   useEffect(() => {
-    const hasPerms = Array.isArray(authState.user?.permissions) && authState.user!.permissions!.length > 0;
-    if (!authState.accessToken || hasPerms === true) return;
+    if (!authState.accessToken) return;
 
     let cancelled = false;
     (async () => {
@@ -104,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resp = await apiClient.get("/auth/profile");
         const u = resp?.data?.data as AuthUser | undefined;
         if (!u || cancelled) return;
-        // preserve existing role/fields if backend returns partial
         const merged: AuthUser = { ...(authState.user ?? ({} as any)), ...u };
         const store = authState.storage === "session" ? sessionStorage : localStorage;
         store.setItem("user", JSON.stringify(merged));

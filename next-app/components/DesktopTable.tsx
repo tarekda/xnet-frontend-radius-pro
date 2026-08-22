@@ -304,7 +304,7 @@ const DesktopTable: React.FC<Props> = ({
           const key = (row.original.provider ?? "").toLowerCase() as keyof typeof providerStyles;
           const { color, bg } = providerStyles[key] ?? providerStyles.default;
           return (
-            <span className={`${color} ${bg} px-2 py-1 rounded-full text-xs font-medium`}>
+            <span className={`${color} ${bg} rounded-md px-2 py-0.5 text-xs font-medium`}>
               {row.original.provider}
             </span>
           );
@@ -335,18 +335,35 @@ const DesktopTable: React.FC<Props> = ({
           }
           const method = String(inv.paymentMethod || "").toLowerCase();
           const provider = String(inv.paymentProvider || "").toLowerCase();
+          const collectedBy = String(inv.collectedBy || "").toLowerCase();
+          const isWhatsApp =
+            provider === "whatsapp-inbound" ||
+            provider === "whatsapp" ||
+            collectedBy === "whatsapp-inbound" ||
+            String(inv.lastAction || "").includes("WhatsApp");
           const isWallet = method === "wallet" || provider === "wallet";
-          const label = isWallet
-            ? "Own wallet"
-            : provider === "whish"
-              ? "Whish"
-              : inv.paymentMethod || inv.paymentProvider || "—";
+
           const ref = inv.paymentReference ? String(inv.paymentReference) : "";
           return (
             <div className="flex flex-col gap-0.5 min-w-[120px]">
-              <span className={`text-xs font-medium ${isWallet ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                {label}
-              </span>
+              {isWhatsApp ? (
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <MessageCircle className="h-3 w-3" />
+                  WhatsApp
+                </span>
+              ) : isWallet ? (
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  Own wallet
+                </span>
+              ) : provider === "whish" ? (
+                <span className="text-xs font-medium text-sky-600 dark:text-sky-400">
+                  Whish
+                </span>
+              ) : (
+                <span className="text-xs font-medium">
+                  {inv.paymentMethod || inv.paymentProvider || "—"}
+                </span>
+              )}
               {ref ? (
                 <span className="font-mono text-[11px] text-muted-foreground break-all" title={ref}>
                   {ref}
@@ -429,9 +446,17 @@ const DesktopTable: React.FC<Props> = ({
             );
           }
           return (
-            <div className="flex items-center font-semibold">
-              <DollarSign className="h-4 w-4 text-green-500 mr-1" />
-              {row.original.amount.toFixed(2)}
+            <div className="flex flex-col">
+              <div className="flex items-center font-semibold">
+                <DollarSign className="h-4 w-4 text-green-500 mr-1" />
+                {row.original.amount.toFixed(2)}
+              </div>
+              {Number(row.original.remainingDue ?? 0) > 0.009 &&
+              Number(row.original.amountPaid ?? 0) > 0.009 ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {Number(row.original.remainingDue).toFixed(2)} remaining
+                </span>
+              ) : null}
             </div>
           );
         },
@@ -458,7 +483,9 @@ const DesktopTable: React.FC<Props> = ({
               ) : status === "pending" ? (
                 <Badge variant="outline" className="bg-yellow-500 hover:bg-yellow-600 border-yellow-500">
                   <Clock className="h-3 w-3 mr-1 text-white" />
-                  <span className="text-white">Pending</span>
+                  <span className="text-white">
+                    {Number(row.original.amountPaid ?? 0) > 0.009 ? "Partial" : "Pending"}
+                  </span>
                 </Badge>
               ) : (
                 <Badge variant="destructive">
@@ -529,7 +556,7 @@ const DesktopTable: React.FC<Props> = ({
               {showOverdueChip ? (
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium",
                     overdueDays > 60
                       ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
                       : overdueDays > 30
@@ -544,7 +571,7 @@ const DesktopTable: React.FC<Props> = ({
               {promiseChip ? (
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium",
                     promiseChip.broken
                       ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
                       : "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
@@ -556,7 +583,7 @@ const DesktopTable: React.FC<Props> = ({
               ) : null}
               {remindedAt ? (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                  className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                   title={remindedAt.toLocaleString()}
                 >
                   <BellRing className="h-2.5 w-2.5" />
@@ -701,7 +728,7 @@ const DesktopTable: React.FC<Props> = ({
 
   return (
     <>
-      <div className="min-w-[768px]">
+      <div className="min-w-[768px] overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shop-shadow)]">
         <TableToolbar
           label={`Invoices: ${totalItems.toLocaleString()} • Page ${currentPage} / ${totalPages}`}
           className="border-b"
@@ -756,7 +783,7 @@ const DesktopTable: React.FC<Props> = ({
           }
         />
 
-        <div className="overflow-auto max-h-[70vh]">
+        <div className="max-h-[70vh] overflow-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10 border-b border-border bg-card/95 shadow-sm backdrop-blur-sm dark:bg-card/90">
             {table.getHeaderGroups().map((hg) => (
@@ -785,9 +812,8 @@ const DesktopTable: React.FC<Props> = ({
                     title="Double-click to open details"
                     className={cn(
                       "relative cursor-pointer border-l-[3px] border-l-transparent",
-                      "transition-[background-color,box-shadow,border-color,transform] duration-200 ease-out",
-                      "hover:z-[2] hover:-translate-y-px hover:border-l-primary/80",
-                      "hover:bg-accent/65 hover:shadow-md dark:hover:bg-accent/35 dark:hover:shadow-md",
+                      "transition-[background-color,border-color] duration-150",
+                      "hover:border-l-primary/80 hover:bg-accent/45 dark:hover:bg-accent/30",
                       i % 2 ? "bg-muted/35" : "bg-card",
                       !isSelected && !isFlagged && severityRowStyles[severity],
                       isSelected &&
