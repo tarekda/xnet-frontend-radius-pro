@@ -83,6 +83,11 @@ const AlertNotification = dynamic(() => import("@/components/AlertNotification")
   ssr: false,
   loading: () => <Skeleton className="h-[200px] w-full" />,
 });
+const GlobalTrafficMap = dynamic(() => import("@/components/GlobalTrafficMap"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[500px] w-full" />,
+});
+
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation("screens");
@@ -689,6 +694,11 @@ const Dashboard: React.FC = () => {
 
             {/* Recent Activity */}
             {canSeeAudit ? <RecentActivityCard enabled={Boolean(canSeeAudit) && !isLoading} /> : null}
+
+            {/* Global Traffic Map */}
+            <div className="col-span-full w-full min-w-0 lg:col-span-4">
+              <GlobalTrafficMap />
+            </div>
 
             {/* Bandwidth Widget */}
             <div className="col-span-full w-full min-w-0 lg:col-span-3">

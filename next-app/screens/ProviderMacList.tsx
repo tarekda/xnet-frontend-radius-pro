@@ -116,7 +116,7 @@ export default function ProviderMacListPage() {
     },
   });
 
-  const supportsLiveSync = ["myisp", "myisp2", "idm", "terra"].includes(provider);
+  const supportsLiveSync = ["myisp", "myisp2", "idm", "terra", "terra2", "misp"].includes(provider);
 
   const filenameBase = useMemo(
     () => `${safeFilePart(provider || "provider")}-mac-addresses-${billingMonth}`,

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProfiles } from '@/hooks/useProfiles';
 import { User } from '@/types/api';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Shield, Network, UserIcon } from 'lucide-react';
 import { Switch } from './ui/switch';
 import useUsers, { AccountStatus } from '@/hooks/useUsers';
 
@@ -163,182 +163,191 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]  max-w-[95vw] h-[90vh] flex flex-col p-0">
-                <DialogHeader className="p-6 pb-2">
+            <DialogContent className="sm:max-w-[700px] max-w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b bg-background/90 backdrop-blur shrink-0">
                     <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="flex flex-col flex-grow overflow-hidden">
-                    <div className="flex-grow overflow-y-auto p-6 pt-2">
-                        <div className="grid gap-4">
-                            {/* Username field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="username" className="sm:text-right">Username</Label>
-                                <Input
-                                    id="username"
-                                    value={state.username}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'username', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                    disabled={!!editingUser}
-                                    required
-                                />
-                            </div>
+                    <div className="flex-grow overflow-y-auto p-6 space-y-6">
+                        {/* 2-column grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Column 1: Auth & Personal */}
+                            <div className="space-y-6">
+                                {/* Authentication & Security */}
+                                <div className="rounded-xl border border-border/70 bg-card/50 shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border/50 bg-muted/20 flex items-center gap-2">
+                                        <Shield className="w-4 h-4 text-primary" />
+                                        <h3 className="text-sm font-semibold">Authentication</h3>
+                                    </div>
+                                    <div className="p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="username">Username</Label>
+                                            <Input
+                                                id="username"
+                                                value={state.username}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'username', value: e.target.value })}
+                                                disabled={!!editingUser}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="password">Password</Label>
+                                            <div className="flex">
+                                                <Input
+                                                    id="password"
+                                                    type={state.showPassword ? "text" : "password"}
+                                                    value={state.password.value}
+                                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'password', value: e.target.value })}
+                                                    className="flex-grow rounded-r-none"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => dispatch({ type: 'SET_FIELD', field: 'showPassword', value: !state.showPassword })}
+                                                    className="rounded-l-none border-l-0 px-3"
+                                                >
+                                                    {state.showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="accountStatus">Account Status</Label>
+                                            <Select
+                                                value={state.accountStatus}
+                                                onValueChange={(value) => dispatch({ type: 'SET_FIELD', field: 'accountStatus', value })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select account status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="active">Active</SelectItem>
+                                                    <SelectItem value="suspended">Suspended</SelectItem>
+                                                    <SelectItem value="blocked">Blocked</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
 
-                            {/* Password field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="password" className="sm:text-right">Password</Label>
-                                <div className="col-span-1 sm:col-span-3 flex">
-                                    <Input
-                                        id="password"
-                                        type={state.showPassword ? "text" : "password"}
-                                        value={state.password.value}
-                                        onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'password', value: e.target.value })}
-                                        className="flex-grow"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => dispatch({ type: 'SET_FIELD', field: 'showPassword', value: !state.showPassword })}
-                                        className="ml-2"
-                                    >
-                                        {state.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
+                                {/* Personal Information */}
+                                <div className="rounded-xl border border-border/70 bg-card/50 shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border/50 bg-muted/20 flex items-center gap-2">
+                                        <UserIcon className="w-4 h-4 text-primary" />
+                                        <h3 className="text-sm font-semibold">Personal Information</h3>
+                                    </div>
+                                    <div className="p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="fullName">Full Name</Label>
+                                            <Input
+                                                id="fullName"
+                                                value={state.fullName}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'fullName', value: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email">Email</Label>
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                value={state.email}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'email', value: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="phoneNumber">Phone Number</Label>
+                                            <Input
+                                                id="phoneNumber"
+                                                value={state.phoneNumber}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'phoneNumber', value: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="address">Address</Label>
+                                            <Input
+                                                id="address"
+                                                value={state.address}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'address', value: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Profile field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="profile" className="sm:text-right">Profile</Label>
-                                <Select
-                                    value={state.selectedProfile || undefined}
-                                    onValueChange={(value) => dispatch({ type: 'SET_FIELD', field: 'selectedProfile', value })}
-                                >
-                                    <SelectTrigger className="col-span-1 sm:col-span-3">
-                                        <SelectValue placeholder="Select a profile" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {isLoading ? (
-                                            <SelectItem value="-1">Loading profiles...</SelectItem>
-                                        ) : error ? (
-                                            <SelectItem value="-1">Error loading profiles</SelectItem>
-                                        ) : (
-                                            data?.data?.map((profile) => (
-                                                <SelectItem key={profile.id} value={profile.id?.toString() || ''}>
-                                                    {profile.profileName}
-                                                </SelectItem>
-                                            ))
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Account Status field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="accountStatus" className="sm:text-right">Account Status</Label>
-                                <Select
-                                    value={state.accountStatus}
-                                    onValueChange={(value) => dispatch({ type: 'SET_FIELD', field: 'accountStatus', value })}
-                                >
-                                    <SelectTrigger className="col-span-1 sm:col-span-3">
-                                        <SelectValue placeholder="Select account status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="active">Active</SelectItem>
-                                        <SelectItem value="suspended">Suspended</SelectItem>
-                                        <SelectItem value="blocked">Blocked</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Freenight field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="freenight" className="sm:text-right">Freenight</Label>
-                                <div className="col-span-1 sm:col-span-3 flex items-center">
-                                    <Switch
-                                        id="freenight"
-                                        checked={state.freenight}
-                                        onCheckedChange={(checked) => dispatch({ type: 'SET_FIELD', field: 'freenight', value: checked })}
-                                    />
-                                    <span className="ml-2">{state.freenight ? 'Enabled' : 'Disabled'}</span>
+                            {/* Column 2: Network & Quota */}
+                            <div className="space-y-6">
+                                <div className="rounded-xl border border-border/70 bg-card/50 shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border/50 bg-muted/20 flex items-center gap-2">
+                                        <Network className="w-4 h-4 text-primary" />
+                                        <h3 className="text-sm font-semibold">Network & Quota</h3>
+                                    </div>
+                                    <div className="p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="profile">Profile</Label>
+                                            <Select
+                                                value={state.selectedProfile || undefined}
+                                                onValueChange={(value) => dispatch({ type: 'SET_FIELD', field: 'selectedProfile', value })}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a profile" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {isLoading ? (
+                                                        <SelectItem value="-1">Loading profiles...</SelectItem>
+                                                    ) : error ? (
+                                                        <SelectItem value="-1">Error loading profiles</SelectItem>
+                                                    ) : (
+                                                        data?.data?.map((profile) => (
+                                                            <SelectItem key={profile.id} value={profile.id?.toString() || ''}>
+                                                                {profile.profileName}
+                                                            </SelectItem>
+                                                        ))
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/10">
+                                            <div className="space-y-0.5">
+                                                <Label htmlFor="freenight" className="text-sm">Freenight Access</Label>
+                                                <p className="text-xs text-muted-foreground">Allow unlimited data during off-peak hours</p>
+                                            </div>
+                                            <Switch
+                                                id="freenight"
+                                                checked={state.freenight}
+                                                onCheckedChange={(checked) => dispatch({ type: 'SET_FIELD', field: 'freenight', value: checked })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="quotaResetDay">Quota Reset Day</Label>
+                                            <Input
+                                                id="quotaResetDay"
+                                                type="number"
+                                                min="1"
+                                                max="31"
+                                                value={state.quotaResetDay}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'quotaResetDay', value: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="quotaCycleStartDate">Manual cycle start</Label>
+                                            <Input
+                                                id="quotaCycleStartDate"
+                                                type="date"
+                                                value={state.quotaCycleStartDate}
+                                                onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'quotaCycleStartDate', value: e.target.value })}
+                                            />
+                                            <p className="text-[11px] text-muted-foreground leading-snug">
+                                                Optional. When set, monthly usage counts from this date; next reset is one month later. Leave empty to use reset day only.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Quota Reset Day field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="quotaResetDay" className="sm:text-right">Quota Reset Day</Label>
-                                <Input
-                                    id="quotaResetDay"
-                                    type="number"
-                                    min="1"
-                                    max="31"
-                                    value={state.quotaResetDay}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'quotaResetDay', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="quotaCycleStartDate" className="sm:text-right">Manual cycle start</Label>
-                                <div className="col-span-1 sm:col-span-3 space-y-1">
-                                    <Input
-                                        id="quotaCycleStartDate"
-                                        type="date"
-                                        value={state.quotaCycleStartDate}
-                                        onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'quotaCycleStartDate', value: e.target.value })}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Optional. When set, monthly usage counts from this date; next reset is one month later. Leave empty to use reset day only.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Full Name field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="fullName" className="sm:text-right">Full Name</Label>
-                                <Input
-                                    id="fullName"
-                                    value={state.fullName}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'fullName', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                />
-                            </div>
-
-                            {/* Address field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="address" className="sm:text-right">Address</Label>
-                                <Input
-                                    id="address"
-                                    value={state.address}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'address', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                />
-                            </div>
-
-                            {/* Phone Number field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="phoneNumber" className="sm:text-right">Phone Number</Label>
-                                <Input
-                                    id="phoneNumber"
-                                    value={state.phoneNumber}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'phoneNumber', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                />
-                            </div>
-
-                            {/* Email field */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
-                                <Label htmlFor="email" className="sm:text-right">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={state.email}
-                                    onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'email', value: e.target.value })}
-                                    className="col-span-1 sm:col-span-3"
-                                />
-                            </div>
                         </div>
                     </div>
-                    <DialogFooter className="p-6 pt-2">
+                    <DialogFooter className="px-6 py-4 border-t bg-background shrink-0 flex items-center justify-end">
+                        <Button variant="outline" type="button" onClick={onClose} className="mr-2">Cancel</Button>
                         <Button type="submit">{editingUser ? 'Update User' : 'Add User'}</Button>
                     </DialogFooter>
                 </form>

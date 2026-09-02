@@ -42,6 +42,13 @@ type Props = {
   onSave: (updated: ExternalInvoice) => void;
 };
 
+const ReadOnlyMetric = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+  <div className={className}>
+    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</div>
+    <div className="font-medium text-sm break-words">{value || "—"}</div>
+  </div>
+);
+
 function remainingOf(inv: ExternalInvoice): number {
   if (inv.remainingDue != null && Number.isFinite(Number(inv.remainingDue))) {
     return Math.max(0, Number(inv.remainingDue));
@@ -547,20 +554,47 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  {Object.entries(editedInvoice)
-                    .filter(([key]) => !["modifiedBy", "modifiedAt", "deletedBy", "lastRemindedAt", "cashReconciled", "reconciledBy", "reconciledAt", "collectedBy", "collectedAt"].includes(key))
-                    .slice(0, Math.ceil(Object.keys(editedInvoice).length / 2))
-                    .map(([key, value]) => renderField(key, value))}
+              {!isEditing ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-xl border border-border/70 bg-card/60 shadow-sm backdrop-blur-sm">
+                    <ReadOnlyMetric label="Username" value={editedInvoice.username} />
+                    <ReadOnlyMetric label="Provider" value={editedInvoice.provider} />
+                    <ReadOnlyMetric label="Billing Month" value={editedInvoice.billingMonth ? String(editedInvoice.billingMonth).slice(0, 10) : ""} />
+                    <ReadOnlyMetric label="Created" value={(editedInvoice as any).createdAt ? new Date((editedInvoice as any).createdAt).toLocaleString() : ""} />
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-xl border border-border/70 bg-card/60 shadow-sm backdrop-blur-sm">
+                    <ReadOnlyMetric label="Status" value={<Badge variant={editedInvoice.status === 'paid' ? 'default' : editedInvoice.status === 'unpaid' ? 'destructive' : 'secondary'} className="capitalize">{editedInvoice.status}</Badge>} />
+                    <ReadOnlyMetric label="Pay Due Date" value={editedInvoice.payDueDate ? String(editedInvoice.payDueDate).slice(0, 10) : ""} />
+                    <ReadOnlyMetric label="Total Amount" value={`$${Number((editedInvoice as any).totalAmount ?? editedInvoice.amount ?? 0).toFixed(2)}`} />
+                    <ReadOnlyMetric label="Remaining Due" value={`$${remainingDue.toFixed(2)}`} />
+                  </div>
+
+                  {isVoided && (
+                    <div className="p-4 rounded-xl border border-destructive/50 bg-destructive/10 text-destructive text-sm">
+                      <strong>Voided:</strong> This document was voided on {new Date((editedInvoice as any).voidedAt).toLocaleString()} by {(editedInvoice as any).voidedBy}. Reason: {(editedInvoice as any).voidReason}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="p-5 rounded-xl border border-primary/20 bg-primary/5 space-y-4 shadow-inner">
+                  <div className="flex items-center gap-2 pb-2 border-b border-primary/10">
+                    <Plus className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-primary">Edit Invoice Fields</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                    {renderField("username", editedInvoice.username)}
+                    {renderField("provider", editedInvoice.provider)}
+                    {renderField("billingMonth", editedInvoice.billingMonth)}
+                    {renderField("payDueDate", editedInvoice.payDueDate)}
+                    {renderField("amount", editedInvoice.amount)}
+                    {renderField("taxRate", (editedInvoice as any).taxRate)}
+                    {renderField("taxAmount", (editedInvoice as any).taxAmount)}
+                    {renderField("subtotalAmount", (editedInvoice as any).subtotalAmount)}
+                    {renderField("totalAmount", (editedInvoice as any).totalAmount)}
+                  </div>
                 </div>
-                <div>
-                  {Object.entries(editedInvoice)
-                    .filter(([key]) => !["modifiedBy", "modifiedAt", "deletedBy", "lastRemindedAt", "cashReconciled", "reconciledBy", "reconciledAt", "collectedBy", "collectedAt"].includes(key))
-                    .slice(Math.ceil(Object.keys(editedInvoice).length / 2))
-                    .map(([key, value]) => renderField(key, value))}
-                </div>
-              </div>
+              )}
             </TabsContent>
 
             <TabsContent value="payments" className="space-y-4">

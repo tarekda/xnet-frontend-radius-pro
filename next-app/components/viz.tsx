@@ -28,25 +28,89 @@ export const CountUpNumber = ({ value, prefix = "", suffix = "" }: { value: numb
   return <span className="tabular-nums">{prefix}{Math.round(display).toLocaleString()}{suffix}</span>;
 };
 
-/** Minimal dependency-free sparkline. */
-export const Sparkline = ({ data, strokeClass = "stroke-blue-500" }: { data: number[]; strokeClass?: string }) => {
-  if (data.length < 2) return null;
-  const width = 120;
-  const height = 28;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+/** Minimal dependency-free sparkline — supports optional area fill & animation. */
+export const Sparkline = ({
+  data,
+  strokeClass = "stroke-blue-500",
+  fillClass,
+  animated = false,
+  width: svgWidth = 120,
+  height: svgHeight = 28,
+}: {
+  data: number[];
+  strokeClass?: string;
+  /** Tailwind fill class for the gradient area under the line (e.g. "fill-blue-500/20"). Pass to enable area fill. */
+  fillClass?: string;
+  /** Animate the stroke drawing on mount. */
+  animated?: boolean;
+  width?: number;
+  height?: number;
+}) => {
+  const polyRef = useRef<SVGPolylineElement>(null);
+
+  const max = data.length >= 2 ? Math.max(...data) : 0;
+  const min = data.length >= 2 ? Math.min(...data) : 0;
   const range = max - min || 1;
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * (width - 4) + 2;
-      const y = height - 3 - ((v - min) / range) * (height - 6);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+  const pad = 3;
+  const innerW = svgWidth - pad * 2;
+  const innerH = svgHeight - pad * 2;
+
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * innerW + pad;
+    const y = svgHeight - pad - ((v - min) / range) * innerH;
+    return [x, y] as [number, number];
+  });
+
+  const polyPoints = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+  // Area path: line across all points, then close down along the bottom
+  const areaPath = pts.length
+    ? `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} ` +
+      pts.slice(1).map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ") +
+      ` L${pts[pts.length - 1][0].toFixed(1)},${(svgHeight - pad).toFixed(1)} L${pts[0][0].toFixed(1)},${(svgHeight - pad).toFixed(1)} Z`
+    : "";
+
+  // Animate the stroke draw on mount — hook must be before any early return
+  useEffect(() => {
+    if (!animated || data.length < 2) return;
+    const el = polyRef.current;
+    if (!el) return;
+    const len = el.getTotalLength?.() ?? 300;
+    el.style.strokeDasharray = String(len);
+    el.style.strokeDashoffset = String(len);
+    el.style.transition = "stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1)";
+    requestAnimationFrame(() => {
+      el.style.strokeDashoffset = "0";
+    });
+  }, [animated, data]);
+
+  // Early return AFTER all hooks
+  if (data.length < 2) return null;
+
+  const gradId = `sp-${Math.random().toString(36).slice(2, 7)}`;
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-7 w-full" preserveAspectRatio="none" aria-hidden>
+    <svg
+      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+      className="w-full"
+      style={{ height: svgHeight }}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      {fillClass && (
+        <defs>
+          <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" className={fillClass} stopOpacity="0.5" />
+            <stop offset="100%" className={fillClass} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+      )}
+      {fillClass && areaPath && (
+        <path d={areaPath} fill={`url(#${gradId})`} />
+      )}
       <polyline
-        points={points}
+        ref={polyRef}
+        points={polyPoints}
         fill="none"
         strokeWidth={1.75}
         strokeLinecap="round"
@@ -55,6 +119,51 @@ export const Sparkline = ({ data, strokeClass = "stroke-blue-500" }: { data: num
         vectorEffect="non-scaling-stroke"
       />
     </svg>
+  );
+};
+
+/**
+ * AnimatedSparkline — same as Sparkline but always animates the stroke on mount.
+ * Convenience alias for readability.
+ */
+export const AnimatedSparkline = (props: Omit<React.ComponentProps<typeof Sparkline>, "animated">) => (
+  <Sparkline {...props} animated />
+);
+
+/**
+ * MiniBarChart — lightweight horizontal bar chart for ModuleCard / StatCard footer slots.
+ * Renders N bars with optional labels and values.
+ */
+export const MiniBarChart = ({
+  data,
+  barClass = "bg-primary/70",
+  height = 32,
+  showLabels = false,
+}: {
+  data: { label?: string; value: number }[];
+  barClass?: string;
+  height?: number;
+  showLabels?: boolean;
+}) => {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div className="flex items-end gap-0.5 w-full" style={{ height }}>
+      {data.map((d, i) => {
+        const pct = (d.value / max) * 100;
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5" style={{ height }}>
+            <div
+              className={`w-full rounded-t-sm transition-all duration-700 ${barClass}`}
+              style={{ height: `${Math.max(pct, 4)}%` }}
+              title={d.label ? `${d.label}: ${d.value}` : String(d.value)}
+            />
+            {showLabels && d.label && (
+              <span className="text-[9px] text-muted-foreground truncate w-full text-center leading-none">{d.label}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

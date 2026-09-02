@@ -129,7 +129,12 @@ export type DunningCandidate = {
   phoneNumber: string;
   status: string;
   billingMonth: string;
+  /** Full billed amount (totalAmount when set, else amount). */
   amount: number;
+  /** Cumulative collected so far. */
+  amountPaid?: number;
+  /** What the customer still owes - dunning targets this, not `amount`. */
+  remainingDue?: number;
   overdueDays: number;
   dueDate: string;
   stage?: {

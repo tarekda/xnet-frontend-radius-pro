@@ -213,6 +213,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         mutationFn: ({ invoiceId, invoiceData }) => updateInvoice(invoiceId, invoiceData),
         onSuccess: () => {
             notify.success("Saved", MESSAGES.invoices.external.updated);
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
             refetch();
         },
         onError: (error) => {
@@ -226,6 +227,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         mutationFn: (invoiceId: number) => deleteInvoice(invoiceId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
         }
     });
 
@@ -233,6 +235,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         mutationFn: (invoiceIds: number[]) => deleteInvoicesBulk(invoiceIds),
         onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
             if (result.deletedIds.length > 0) {
                 notify.success("Deleted", `Deleted ${result.deletedIds.length} invoice(s).`);
             }
@@ -263,6 +266,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
             }),
         onSuccess: (_data, vars) => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
             if (!vars?.silent) notify.success("Success", MESSAGES.invoices.external.paid);
         },
         onError: (error: Error) => {
@@ -274,6 +278,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         mutationFn: (vars: { invoiceId: number; silent?: boolean }) => unpayInvoice(vars.invoiceId),
         onSuccess: (_data, vars) => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
             if (!vars?.silent) notify.success("Success", MESSAGES.invoices.external.unpaid);
         },
         onError: (error: Error) => {
@@ -315,6 +320,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ['externalInvoices'] });
             queryClient.invalidateQueries({ queryKey: ['externalInvoicesPaymentDue'] });
+            queryClient.invalidateQueries({ queryKey: ['dunningPreview'] });
             if (result.updatedIds.length > 0) {
                 notify.success("Updated", `Updated ${result.updatedIds.length} invoice(s).`);
             }

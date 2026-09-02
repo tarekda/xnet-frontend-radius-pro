@@ -14,7 +14,7 @@ type ImportResponse = {
   data?: InvoiceUploadResult;
 };
 
-export type InvoiceImportSource = 'myisp' | 'myisp2' | 'idm' | 'terra' | 'radius';
+export type InvoiceImportSource = 'myisp' | 'myisp2' | 'idm' | 'terra' | 'terra2' | 'misp' | 'radius';
 
 export type ProviderImportParams = {
   source: InvoiceImportSource;

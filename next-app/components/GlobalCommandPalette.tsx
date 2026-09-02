@@ -217,17 +217,19 @@ export default function GlobalCommandPalette() {
         <Button
           type="button"
           variant="outline"
-          className="h-9 w-full justify-between gap-3 text-muted-foreground sm:w-72"
+          className="h-9 w-full justify-between gap-3 text-muted-foreground sm:w-72 border-border/60 hover:border-primary/30 hover:bg-muted/40 transition-all group"
           onClick={() => setOpen(true)}
           aria-label="Open global search"
         >
           <span className="flex items-center gap-2">
-            <Search className="h-4 w-4" />
+            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500/20 to-sky-500/20 border border-indigo-500/20 group-hover:border-indigo-500/40 transition-colors">
+              <Search className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+            </div>
             Search subscribers, invoices…
           </span>
           <span className="hidden items-center gap-0.5 sm:flex">
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-sans text-[10px]">Ctrl</kbd>
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-sans text-[10px]">K</kbd>
+            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-sans text-[10px] text-muted-foreground shadow-sm">Ctrl</kbd>
+            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-sans text-[10px] text-muted-foreground shadow-sm">K</kbd>
           </span>
         </Button>
       </div>
@@ -268,14 +270,17 @@ export default function GlobalCommandPalette() {
 
           <div id="global-command-results" className="max-h-[60vh] overflow-y-auto p-2" role="listbox">
             {showMinimumHint ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                Enter at least two characters to search subscribers and invoices.
+              <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
+                <Search className="h-7 w-7 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Enter at least two characters to search subscribers and invoices.</p>
               </div>
             ) : items.length === 0 && !searching ? (
-              <div className="p-8 text-center">
-                <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/60" />
-                <p className="font-medium">No results found</p>
-                <p className="mt-1 text-sm text-muted-foreground">Try a username, phone number, invoice number, or page name.</p>
+              <div className="flex flex-col items-center justify-center gap-2 p-10 text-center">
+                <div className="rounded-full bg-muted/60 p-4">
+                  <Search className="h-7 w-7 text-muted-foreground/40" />
+                </div>
+                <p className="font-semibold text-sm">No results found</p>
+                <p className="text-xs text-muted-foreground">Try a username, phone number, invoice number, or page name.</p>
               </div>
             ) : (
               (["Pages", "Subscribers", "Invoices"] as const).map((group) => {
@@ -289,22 +294,32 @@ export default function GlobalCommandPalette() {
                     {groupItems.map((item) => {
                       const index = items.findIndex((candidate) => candidate.key === item.key);
                       const Icon = item.icon;
+                      const isActive = index === activeIndex;
                       return (
                         <button
                           id={item.key}
                           key={item.key}
                           type="button"
                           role="option"
-                          aria-selected={index === activeIndex}
+                          aria-selected={isActive}
                           onMouseEnter={() => setActiveIndex(index)}
                           onClick={() => navigate(item)}
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                            index === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted/70"
+                            "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150",
+                            isActive
+                              ? "bg-accent text-accent-foreground scale-[1.005] shadow-sm"
+                              : "hover:bg-muted/70"
                           )}
                         >
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background">
-                            <Icon className="h-4 w-4" />
+                          {/* Active left accent bar */}
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-gradient-to-b from-indigo-500 to-sky-500" />
+                          )}
+                          <div className={cn(
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                            isActive ? "border-primary/30 bg-primary/10" : "border-border bg-background"
+                          )}>
+                            <Icon className={cn("h-4 w-4", isActive ? "text-primary" : "text-muted-foreground")} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium">{item.label}</div>
@@ -325,8 +340,13 @@ export default function GlobalCommandPalette() {
           </div>
 
           <div className="flex items-center justify-between border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
-            <span>↑↓ Navigate · Enter Open</span>
-            <span>Esc Close</span>
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-border bg-background px-1 py-0.5 font-sans text-[9px] shadow-sm">↑↓</kbd>
+              Navigate
+              <kbd className="rounded border border-border bg-background px-1 py-0.5 font-sans text-[9px] shadow-sm">↵</kbd>
+              Open
+            </span>
+            <kbd className="rounded border border-border bg-background px-1 py-0.5 font-sans text-[9px] shadow-sm">Esc</kbd>
           </div>
         </DialogContent>
       </Dialog>

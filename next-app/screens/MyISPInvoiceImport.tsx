@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, CloudDownload, Database, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, CloudDownload, Database, History, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,9 @@ const IMPORT_SOURCES: Array<{
   { value: 'myisp', label: 'MyISP Account 1', description: 'Primary reseller page: selling price, plan, expiry, and customer details', icon: CloudDownload },
   { value: 'myisp2', label: 'MyISP Account 2', description: 'Second reseller page imported and reconciled independently', icon: CloudDownload },
   { value: 'idm', label: 'IDM', description: 'HSI Pro service, price, expiry date, and customer details', icon: CloudDownload },
-  { value: 'terra', label: 'Terra', description: 'ACP Pro service, price, expiry date, and customer details', icon: CloudDownload },
+  { value: 'terra', label: 'Terra Account 1', description: 'ACP Pro primary reseller page: price, expiry date, and customer details', icon: CloudDownload },
+  { value: 'terra2', label: 'Terra Account 2', description: 'ACP Pro second reseller page imported and reconciled independently', icon: CloudDownload },
+  { value: 'misp', label: 'MISP', description: 'MISP reseller page: price, expiry date, and customer details', icon: CloudDownload },
   { value: 'radius', label: 'Active RADIUS users', description: 'Active accounts charged at their assigned profile price', icon: Database },
 ];
 
@@ -53,6 +55,17 @@ function importSummary(stats?: InvoiceUploadResult): string {
   }${stats.inheritedCarryoverLines ? `, ${stats.inheritedCarryoverLines} carryover lines added` : ''}.`;
 }
 
+type ImportHistoryRecord = {
+  id: string;
+  timestamp: string;
+  source: string;
+  sourceLabel: string;
+  billingMonth: string;
+  summary: string;
+  inserted: number;
+  updated: number;
+};
+
 export default function MyISPInvoiceImport() {
   const queryClient = useQueryClient();
   const [source, setSource] = useState<InvoiceImportSource>('myisp');
@@ -62,6 +75,15 @@ export default function MyISPInvoiceImport() {
   const [usernameFilter, setUsernameFilter] = useState('');
   const [preview, setPreview] = useState<ImportPreviewData | null>(null);
   const [lastImportSummary, setLastImportSummary] = useState<string | null>(null);
+  const [importHistory, setImportHistory] = useState<ImportHistoryRecord[]>(() => {
+    try {
+      const raw = localStorage.getItem('provider_import_history');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const previewMutation = useProviderImportPreview();
   const importMutation = useProviderInvoiceImport();
   const sourceLabel = IMPORT_SOURCES.find((item) => item.value === source)?.label ?? source;
@@ -102,6 +124,25 @@ export default function MyISPInvoiceImport() {
       });
       const summary = importSummary(result.data);
       setLastImportSummary(summary);
+
+      const newRecord: ImportHistoryRecord = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        source,
+        sourceLabel,
+        billingMonth,
+        summary,
+        inserted: result.data?.inserted ?? 0,
+        updated: result.data?.updated ?? 0,
+      };
+      setImportHistory((prev) => {
+        const next = [newRecord, ...prev].slice(0, 20);
+        try {
+          localStorage.setItem('provider_import_history', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
       notify.success(`${sourceLabel} import complete`, summary);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['externalInvoices'] }),
@@ -339,6 +380,57 @@ export default function MyISPInvoiceImport() {
             <Upload className="mr-2 h-4 w-4" />
             {importMutation.isPending ? 'Importing…' : `Import ${preview?.validRowCount ?? 0} invoice(s)`}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Import History Card */}
+      <Card className="border-border/60 shadow-none">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4 text-violet-400" />
+                Recent Import Audit History
+              </CardTitle>
+              <CardDescription>Log of past automatic provider invoice imports</CardDescription>
+            </div>
+            {importHistory.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={() => {
+                  setImportHistory([]);
+                  try { localStorage.removeItem('provider_import_history'); } catch {}
+                }}
+              >
+                Clear History
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2.5">
+          {importHistory.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/70 p-6 text-center text-xs text-muted-foreground bg-muted/10">
+              No provider imports logged yet. Click <span className="font-semibold text-foreground">Fetch preview</span> above and complete an import to start tracking history.
+            </div>
+          ) : (
+            importHistory.map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/50 bg-muted/20 p-3 text-xs">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 font-semibold text-foreground">
+                    <Badge variant="outline" className="text-[10px] uppercase font-mono">{item.sourceLabel}</Badge>
+                    <span>Billing Month: {item.billingMonth}</span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px] truncate">{item.summary}</p>
+                </div>
+                <div className="text-right shrink-0 font-mono text-[11px] text-muted-foreground">
+                  <div>{new Date(item.timestamp).toLocaleString()}</div>
+                  <div className="text-emerald-400 font-semibold">+{item.inserted} new / {item.updated} updated</div>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

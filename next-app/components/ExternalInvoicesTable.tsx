@@ -22,8 +22,10 @@ import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import EmptyState from "@/components/EmptyState";
-import { FileText } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, Receipt, AlertCircle, Trash2, Calendar, Edit3, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
 import TablePager from "@/components/TablePager";
 import QueryState from "@/components/QueryState";
 import { useExternalInvoiceRealtimeSync } from "@/hooks/useExternalInvoiceRealtimeSync";
@@ -138,6 +140,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         deleteInvoiceMutation,
         sendReminderMutation,
         sharePaidInvoiceMutation,
+        bulkDeleteInvoicesMutation,
+        bulkUpdateInvoicesMutation,
     } = useExternalInvoices({
         initialPage,
         pageSize,
@@ -193,6 +197,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({});
     const [selectedInvoice, setSelected] = React.useState<ExternalInvoice | null>(null);
     const [invoiceToDelete, setInvoiceToDelete] = React.useState<number | null>(null);
+    const [bulkUpdateDueDate, setBulkUpdateDueDate] = React.useState<string | null>(null);
     const { toast } = useToast();
     
 
@@ -268,6 +273,31 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const saveInvoice = (inv: ExternalInvoice) => {
         updateInvoiceMutation.mutate({ invoiceId: inv.id, invoiceData: inv });
         setSelected(null);
+    };
+
+    const handleInlineUpdate = (id: number, field: keyof ExternalInvoice, value: any) => {
+        updateInvoiceMutation.mutate({ invoiceId: id, invoiceData: { [field]: value } as Partial<ExternalInvoice> });
+    };
+
+    const handleBulkDelete = () => {
+        const ids = Object.keys(rowSelection).map(Number);
+        if (ids.length === 0) return;
+        if (confirm(`Are you sure you want to delete ${ids.length} invoices?`)) {
+            bulkDeleteInvoicesMutation.mutate(ids, {
+                onSuccess: () => setRowSelection({})
+            });
+        }
+    };
+
+    const handleBulkUpdatePayDueDate = () => {
+        const ids = Object.keys(rowSelection).map(Number);
+        if (ids.length === 0) return;
+        const date = prompt("Enter new Pay Due Date (YYYY-MM-DD):");
+        if (date) {
+            bulkUpdateInvoicesMutation.mutate({ invoiceIds: ids, payDueDate: date }, {
+                onSuccess: () => setRowSelection({})
+            });
+        }
     };
 
     // Restore currentPage and sorting from URL on mount
@@ -392,6 +422,64 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             }
             errorTitle="Failed to load invoices"
         >
+            {/* Metrics Overview */}
+            {data?.data?.metrics && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+                >
+                    <Card className="border-none bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent shadow-sm">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center justify-between">
+                                Total Invoices
+                                <Receipt className="h-4 w-4 text-indigo-500" />
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{data.data.metrics.totalInvoices.toLocaleString()}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-none bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent shadow-sm">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-emerald-600 flex items-center justify-between">
+                                Total Paid
+                                <DollarSign className="h-4 w-4 text-emerald-600" />
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-emerald-600">${Number(data.data.metrics.totalPaid || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-none bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-transparent shadow-sm">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-rose-600 flex items-center justify-between">
+                                Total Unpaid
+                                <AlertCircle className="h-4 w-4 text-rose-600" />
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-rose-600">${Number(data.data.metrics.totalUnpaid || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-none bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-transparent shadow-sm">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-blue-600 flex items-center justify-between">
+                                Collection Rate
+                                <TrendingUp className="h-4 w-4 text-blue-600" />
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-blue-600">
+                                {data.data.metrics.totalAmount > 0 
+                                    ? Math.round((data.data.metrics.totalPaid / data.data.metrics.totalAmount) * 100) 
+                                    : 0}%
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
+
             {/* desktop table */}
             <div className="hidden overflow-hidden rounded-lg border border-border/60 bg-card shadow-none md:block">
                 <DesktopTable
@@ -418,6 +506,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                     onSendReminder={remind}
                     onSharePaid={sharePaid}
                     onSetWorkflowStage={onSetWorkflowStage}
+                    onInlineUpdate={handleInlineUpdate}
                     reconciliationMode={reconciliationMode}
                     reconciliationFlags={reconciliationFlags}
                     workflowGraceDays={graceDays}
@@ -479,6 +568,41 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Bulk Actions Floating Bar */}
+            {Object.keys(rowSelection).length > 0 && !hideBulkActions && (
+                <motion.div 
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-gray-900 dark:bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl"
+                >
+                    <span className="font-semibold text-sm bg-gray-800 dark:bg-gray-900 px-3 py-1 rounded-full">
+                        {Object.keys(rowSelection).length} selected
+                    </span>
+                    <div className="flex items-center gap-2 border-l border-gray-700 pl-4">
+                        <button 
+                            onClick={handleBulkUpdatePayDueDate}
+                            className="flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-700 px-3 py-1.5 rounded-md text-sm transition-colors"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            Set Due Date
+                        </button>
+                        <button 
+                            onClick={handleBulkDelete}
+                            className="flex items-center gap-2 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-md text-sm transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                        </button>
+                    </div>
+                    <button 
+                        onClick={() => setRowSelection({})}
+                        className="ml-2 p-1.5 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-full transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </motion.div>
+            )}
         </QueryState>
     );
 };

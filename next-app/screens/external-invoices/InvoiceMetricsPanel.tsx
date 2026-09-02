@@ -48,6 +48,8 @@ const InvoiceMetricLink = ({
   accentClass = "text-blue-600 dark:text-blue-400",
   glowClass = "bg-blue-500",
   to,
+  className,
+  style,
 }: {
   title: string;
   value: number | string;
@@ -56,10 +58,13 @@ const InvoiceMetricLink = ({
   accentClass?: string;
   glowClass?: string;
   to: string;
+  className?: string;
+  style?: React.CSSProperties;
 }) => (
   <Link
     href={to}
-    className="group relative block overflow-hidden rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md dark:bg-card/80"
+    className={`group relative block overflow-hidden rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md dark:bg-card/80 ${className || ""}`}
+    style={style}
   >
     <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.08] ${glowClass}`} />
     <div className="relative flex items-start justify-between gap-2">
@@ -293,73 +298,81 @@ export const InvoiceMetricsPanel = ({
                 </>
               ) : (
                 <>
-                  <StatCard
-                    label="Total invoices"
-                    value={<CountUpNumber value={totalInvoices} />}
-                    sublabel="In current filter scope"
-                    onClick={() => onQuickFilter("all")}
-                    icon={
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-                        <FileCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                    }
-                    footer={
-                      sparkSeries.total.length >= 2 ? (
-                        <Sparkline data={sparkSeries.total} strokeClass="stroke-blue-500" />
-                      ) : null
-                    }
-                  />
-                  <StatCard
-                    label="Unpaid / overdue"
-                    value={<CountUpNumber value={metrics?.totalUnpaid ?? 0} />}
-                    sublabel={
-                      agingSummary?.overdueAmount
-                        ? `$${agingSummary.overdueAmount.toLocaleString()} overdue`
-                        : "Open balances"
-                    }
-                    onClick={() => onQuickFilter("overdue")}
-                    icon={
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
-                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                      </div>
-                    }
-                    footer={
-                      sparkSeries.open.length >= 2 ? (
-                        <Sparkline data={sparkSeries.open} strokeClass="stroke-amber-500" />
-                      ) : null
-                    }
-                  />
-                  <StatCard
-                    label="Pending"
-                    value={<CountUpNumber value={metrics?.totalPending ?? 0} />}
-                    sublabel="Awaiting payment confirmation"
-                    onClick={() => onQuickFilter("pending")}
-                    icon={
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
-                        <ClockIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                    }
-                  />
-                  <StatCard
-                    label="Paid"
-                    value={<CountUpNumber value={metrics?.totalPaid ?? 0} />}
-                    sublabel={
-                      totalInvoices > 0
-                        ? `${Math.round(((metrics?.totalPaid ?? 0) / totalInvoices) * 100)}% collected`
-                        : "Collected invoices"
-                    }
-                    onClick={() => onQuickFilter("paid")}
-                    icon={
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                        <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                    }
-                    footer={
-                      sparkSeries.paid.length >= 2 ? (
-                        <Sparkline data={sparkSeries.paid} strokeClass="stroke-emerald-500" />
-                      ) : null
-                    }
-                  />
+                  <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 [animation-fill-mode:both] [animation-delay:50ms] transition-transform hover:-translate-y-1 hover:shadow-md rounded-xl">
+                    <StatCard
+                      label="Total invoices"
+                      value={<CountUpNumber value={totalInvoices} />}
+                      sublabel="In current filter scope"
+                      onClick={() => onQuickFilter("all")}
+                      icon={
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+                          <FileCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                      }
+                      footer={
+                        sparkSeries.total.length >= 2 ? (
+                          <Sparkline data={sparkSeries.total} strokeClass="stroke-blue-500" />
+                        ) : null
+                      }
+                    />
+                  </div>
+                  <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 [animation-fill-mode:both] [animation-delay:100ms] transition-transform hover:-translate-y-1 hover:shadow-md rounded-xl">
+                    <StatCard
+                      label="Unpaid / overdue"
+                      value={<CountUpNumber value={metrics?.totalUnpaid ?? 0} />}
+                      sublabel={
+                        agingSummary?.overdueAmount
+                          ? `$${agingSummary.overdueAmount.toLocaleString()} overdue`
+                          : "Open balances"
+                      }
+                      onClick={() => onQuickFilter("overdue")}
+                      icon={
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                      }
+                      footer={
+                        sparkSeries.open.length >= 2 ? (
+                          <Sparkline data={sparkSeries.open} strokeClass="stroke-amber-500" />
+                        ) : null
+                      }
+                    />
+                  </div>
+                  <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 [animation-fill-mode:both] [animation-delay:150ms] transition-transform hover:-translate-y-1 hover:shadow-md rounded-xl">
+                    <StatCard
+                      label="Pending"
+                      value={<CountUpNumber value={metrics?.totalPending ?? 0} />}
+                      sublabel="Awaiting payment confirmation"
+                      onClick={() => onQuickFilter("pending")}
+                      icon={
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
+                          <ClockIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                      }
+                    />
+                  </div>
+                  <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 [animation-fill-mode:both] [animation-delay:200ms] transition-transform hover:-translate-y-1 hover:shadow-md rounded-xl">
+                    <StatCard
+                      label="Paid"
+                      value={<CountUpNumber value={metrics?.totalPaid ?? 0} />}
+                      sublabel={
+                        totalInvoices > 0
+                          ? `${Math.round(((metrics?.totalPaid ?? 0) / totalInvoices) * 100)}% collected`
+                          : "Collected invoices"
+                      }
+                      onClick={() => onQuickFilter("paid")}
+                      icon={
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+                          <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                      }
+                      footer={
+                        sparkSeries.paid.length >= 2 ? (
+                          <Sparkline data={sparkSeries.paid} strokeClass="stroke-emerald-500" />
+                        ) : null
+                      }
+                    />
+                  </div>
                 </>
               )}
             </div>
@@ -385,7 +398,7 @@ export const InvoiceMetricsPanel = ({
                     </div>
 
                     {agingBarTotal > 0 ? (
-                      <div className="flex h-9 w-full overflow-hidden rounded-lg border border-border/50">
+                      <div className="flex h-9 w-full overflow-hidden rounded-lg border border-border/50 shadow-inner">
                         {AGING_SEGMENTS.map((segment) => {
                           const bucket = agingSummary.buckets.find((b) => b.key === segment.key);
                           const amount = bucket?.amount ?? 0;
@@ -396,8 +409,8 @@ export const InvoiceMetricsPanel = ({
                             <button
                               key={segment.key}
                               type="button"
-                              className={`relative h-full transition-all ${segment.barClass} ${
-                                isActive ? "ring-2 ring-inset ring-foreground/60" : ""
+                              className={`relative h-full transition-all duration-700 ease-out animate-in slide-in-from-left fade-in [animation-duration:1s] ${segment.barClass} ${
+                                isActive ? "ring-2 ring-inset ring-foreground/60 z-10 shadow-[0_0_12px_rgba(255,255,255,0.4)] dark:shadow-[0_0_12px_rgba(255,255,255,0.2)]" : ""
                               }`}
                               style={{ width: `${Math.max(widthPercent, 2)}%` }}
                               title={`${segment.label}: ${bucket?.count ?? 0} invoices · $${amount.toLocaleString()}`}
@@ -445,7 +458,8 @@ export const InvoiceMetricsPanel = ({
 
                 <Card className="overflow-hidden border-border/70 shadow-sm">
                   <CardContent className="flex items-center gap-4 p-4 sm:p-5">
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0 animate-in zoom-in-50 fade-in duration-700 [animation-fill-mode:both] [animation-delay:300ms]">
+                      <div className="absolute inset-0 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.2)] dark:shadow-[0_0_20px_rgba(52,211,153,0.15)] pointer-events-none" />
                       <ProgressRing percent={collectionRate.countRate} />
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-xl font-bold tabular-nums">
@@ -489,7 +503,7 @@ export const InvoiceMetricsPanel = ({
               ) : (
                 compactWidgets
                   .filter((widget) => canViewTotals || (widget.key !== "total-amount" && widget.key !== "average-amount"))
-                  .map((widget) => (
+                  .map((widget, i) => (
                     <InvoiceMetricLink
                       key={widget.key}
                       title={widget.title}
@@ -499,6 +513,8 @@ export const InvoiceMetricsPanel = ({
                       accentClass={widget.accentClass}
                       glowClass={widget.glowClass}
                       to={widget.to}
+                      className={`animate-in slide-in-from-bottom-4 fade-in duration-500 [animation-fill-mode:both]`}
+                      style={{ animationDelay: `${200 + i * 50}ms` } as React.CSSProperties}
                     />
                   ))
               )}

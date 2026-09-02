@@ -27,7 +27,22 @@ export type ExternalInvoiceGroup = {
   inheritedPayDueDate: string | null;
   /** Unpaid current-month line the Pay button should settle, if any. */
   currentMonthPayable: ExternalInvoice | null;
+  /** Payable line target for the Pay button — current month open line, or fallback to oldest open line if current month is paid. */
+  payableTarget: ExternalInvoice | null;
 };
+
+export function getGroupEffectiveStatus(group: ExternalInvoiceGroup): "paid" | "pending" | "unpaid" {
+  if (group.outstandingTotal <= 0 || group.lines.every((l) => !isOpen(l.invoice))) {
+    return "paid";
+  }
+  const hasPartial = group.lines.some((l) => {
+    if (!isOpen(l.invoice)) return false;
+    const paid = Number(l.invoice.amountPaid ?? 0);
+    return paid > 0.009;
+  });
+  if (hasPartial) return "pending";
+  return "unpaid";
+}
 
 function normKey(value: string | null | undefined): string {
   return String(value ?? "").trim().toLowerCase();
@@ -126,6 +141,9 @@ export function groupExternalInvoices(
       );
     const currentMonthPayable = currentMonthOpen[0] ?? null;
 
+    // Fall back to oldest open line if current month is paid but other open lines exist
+    const payableTarget = currentMonthPayable ?? openLines[openLines.length - 1] ?? null;
+
     // Pay due date: latest among unpaid lines; fall back to latest overall.
     let inheritedPayDueDate: string | null = null;
     for (const inv of openLines) inheritedPayDueDate = latestDate(inheritedPayDueDate, inv.payDueDate);
@@ -140,6 +158,8 @@ export function groupExternalInvoices(
       openLineCount: lines.filter((l) => l.kind === "due" || l.kind === "debit").length,
       inheritedPayDueDate,
       currentMonthPayable,
+      payableTarget,
     };
   });
 }
+

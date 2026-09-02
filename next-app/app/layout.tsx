@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
 import { AppProviders } from "./providers";
@@ -12,9 +12,16 @@ const inter = Inter({
   display: "swap",
 });
 
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "Xnet Pro Radius",
-  description: "Xnet Radius Server",
+  description: "Xnet Pro — RADIUS & ISP Network Operations Platform",
 };
 
 export default function RootLayout({
@@ -23,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${geistMono.variable}`}>
       <body className={`${inter.className} h-full antialiased`}>
         <Script src="/env.js" strategy="beforeInteractive" />
         <Script id="theme-init" strategy="beforeInteractive">

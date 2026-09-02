@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,10 +47,13 @@ import {
   Trash2,
   User,
   XCircle,
+  Edit3,
 } from "lucide-react";
 import type { ExternalInvoice } from "@/types/api";
 import type { ExternalInvoiceGroup, PaymentLineKind } from "@/lib/externalInvoiceGrouping";
+import { getGroupEffectiveStatus } from "@/lib/externalInvoiceGrouping";
 import { HeaderButton } from "./ui/HeaderButton";
+
 import { notify } from "@/lib/notify";
 import TableToolbar from "@/components/TableToolbar";
 import TablePager from "@/components/TablePager";
@@ -135,6 +139,7 @@ type Props = {
   search: string;
   key?: number;
   hideBulkActions?: boolean;
+  onInlineUpdate?: (id: number, field: keyof ExternalInvoice, value: any) => void;
 };
 
 const LINE_KIND_META: Record<PaymentLineKind, { label: string; className: string }> = {
@@ -142,6 +147,40 @@ const LINE_KIND_META: Record<PaymentLineKind, { label: string; className: string
   due: { label: "Due", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900" },
   debit: { label: "Debit", className: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-900" },
   paid: { label: "Paid", className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900" },
+};
+
+const EditableCell = ({ value: initialValue, onSave, placeholder = "Empty" }: { value: any, onSave: (v: string) => void, placeholder?: string }) => {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [val, setVal] = React.useState(initialValue || "");
+  React.useEffect(() => { setVal(initialValue || "") }, [initialValue]);
+
+  if (isEditing) {
+    return (
+      <Input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => { setIsEditing(false); if(val !== initialValue) onSave(val); }}
+        onKeyDown={(e) => { 
+            if(e.key === "Enter") { setIsEditing(false); if(val !== initialValue) onSave(val); } 
+            if(e.key === "Escape") { setIsEditing(false); setVal(initialValue || ""); } 
+        }}
+        className="h-7 text-xs px-2 w-full min-w-[100px]"
+      />
+    );
+  }
+
+  return (
+    <div 
+      className="group flex items-center gap-1 cursor-text min-h-[28px] hover:bg-muted/50 px-1 rounded transition-colors"
+      onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+    >
+      <span className={!initialValue ? "text-muted-foreground italic text-[11px]" : "text-sm max-w-[200px] truncate block"}>
+        {initialValue || placeholder}
+      </span>
+      <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity shrink-0" />
+    </div>
+  );
 };
 
 const DesktopTable: React.FC<Props> = ({
@@ -171,6 +210,7 @@ const DesktopTable: React.FC<Props> = ({
   reconciliationFlags,
   workflowGraceDays = 7,
   groupsById,
+  onInlineUpdate,
 }) => {
   const [expandedGroups, setExpandedGroups] = React.useState<Record<number, boolean>>({});
   const toggleGroup = React.useCallback((id: number) => {
@@ -283,15 +323,12 @@ const DesktopTable: React.FC<Props> = ({
           <HeaderButton column={column}>Address</HeaderButton>
         ),
         cell: ({ row }) => {
-          const a = row.original.address;
-          if (a === undefined || a === null || String(a).trim() === "") {
-            return <span className="text-muted-foreground">—</span>;
-          }
-          const text = String(a);
           return (
-            <span className="max-w-[220px] truncate block text-sm" title={text}>
-              {text}
-            </span>
+            <EditableCell 
+              value={row.original.address} 
+              onSave={(val) => onInlineUpdate?.(row.original.id, "address", val)} 
+              placeholder="No address"
+            />
           );
         },
       },
@@ -410,16 +447,16 @@ const DesktopTable: React.FC<Props> = ({
         cell: ({ row }) => {
           const group = groupsById?.get(row.original.id);
           const raw = group ? (group.inheritedPayDueDate ?? row.original.payDueDate) : row.original.payDueDate;
-          if (raw === undefined || raw === null || String(raw).trim() === "") {
-            return <span className="text-muted-foreground">—</span>;
-          }
-          const ymd = String(raw).slice(0, 10);
-          const inherited =
-            group && group.inheritedPayDueDate && group.inheritedPayDueDate !== String(row.original.payDueDate ?? "").slice(0, 10);
+          const ymd = raw ? String(raw).slice(0, 10) : "";
+          
           return (
-            <span className="text-sm font-medium" title={inherited ? "Inherited from most recent due payment date" : undefined}>
-              {ymd}
-            </span>
+            <div title={group && group.inheritedPayDueDate && group.inheritedPayDueDate !== String(row.original.payDueDate ?? "").slice(0, 10) ? "Inherited from most recent due payment date" : undefined}>
+                <EditableCell 
+                  value={ymd} 
+                  onSave={(val) => onInlineUpdate?.(row.original.id, "payDueDate", val)} 
+                  placeholder="Set due date"
+                />
+            </div>
           );
         },
       },
@@ -467,20 +504,20 @@ const DesktopTable: React.FC<Props> = ({
           <HeaderButton column={column}>Status</HeaderButton>
         ),
         cell: ({ row }) => {
-          const status = row.original.status;
           const group = groupsById?.get(row.original.id);
-          // In merged view, the Pay button settles the current-month invoice line only.
-          const payTargetId = group ? group.currentMonthPayable?.id ?? null : row.original.id;
-          const canPayHere = Boolean(onSetPaid) && (group ? payTargetId !== null : status !== "paid");
+          const effectiveStatus = group ? getGroupEffectiveStatus(group) : row.original.status;
+          // In merged view, target payableTarget (current month open line, or fallback to oldest open line)
+          const payTargetId = group ? (group.payableTarget?.id ?? null) : row.original.id;
+          const canPayHere = Boolean(onSetPaid) && payTargetId !== null && effectiveStatus !== "paid";
 
           return (
             <div className="flex items-center gap-2">
-              {status === "paid" ? (
+              {effectiveStatus === "paid" ? (
                 <Badge variant="success">
                   <CheckCircle className="h-3 w-3 mr-1 text-white" />
                   <span className="text-white">Paid</span>
                 </Badge>
-              ) : status === "pending" ? (
+              ) : effectiveStatus === "pending" ? (
                 <Badge variant="outline" className="bg-yellow-500 hover:bg-yellow-600 border-yellow-500">
                   <Clock className="h-3 w-3 mr-1 text-white" />
                   <span className="text-white">
@@ -499,7 +536,7 @@ const DesktopTable: React.FC<Props> = ({
                   size="sm"
                   variant="outline"
                   className="h-7 px-2"
-                  title={group ? "Pay the current-month invoice" : undefined}
+                  title={group && group.payableTarget && group.payableTarget.id !== row.original.id ? `Pay open invoice #${group.payableTarget.id} (${group.payableTarget.billingMonth})` : undefined}
                   onClick={() => onSetPaid?.(payTargetId)}
                 >
                   <Check className="h-4 w-4 mr-1" />

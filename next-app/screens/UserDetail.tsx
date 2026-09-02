@@ -23,6 +23,8 @@ import UserSessionsPanel from "@/components/UserSessionsPanel";
 import ConnectivityDiagnosisPanel from "@/components/ConnectivityDiagnosisPanel";
 import { AIDiagnosticsCard } from "@/components/AIDiagnosticsCard";
 import { Customer360Summary, CustomerBillingPanel, CustomerWalletPanel } from "@/components/Customer360";
+import { LiveSessionCard } from "@/components/LiveSessionCard";
+import { ClickHouseBandwidthChart } from "@/components/ClickHouseBandwidthChart";
 import { useProfiles } from "@/hooks/useProfiles";
 import { downloadTextFile, toCsv } from "@/lib/csv";
 import { useAuth } from "@/context/AuthContext";
@@ -377,6 +379,10 @@ export default function UserDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-lg border border-border/60 bg-muted/30 p-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="bandwidth" className="gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-emerald-500" />
+            Bandwidth
+          </TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           {canSeeBilling ? (
             <TabsTrigger value="billing" className="gap-1.5">
@@ -402,6 +408,9 @@ export default function UserDetailPage() {
               onNavigateTab={setActiveTab}
             />
           ) : null}
+
+          {username ? <LiveSessionCard username={username} /> : null}
+          {username ? <ClickHouseBandwidthChart username={username} /> : null}
 
           <Card className="border-border/60 shadow-none">
             <CardHeader className="border-b border-border/50 p-4">
@@ -440,6 +449,7 @@ export default function UserDetailPage() {
                   <SelectContent>
                     <SelectItem value="active">active</SelectItem>
                     <SelectItem value="suspended">suspended</SelectItem>
+                    <SelectItem value="blocked">blocked</SelectItem>
                     <SelectItem value="terminated">terminated</SelectItem>
                     <SelectItem value="expired">expired</SelectItem>
                   </SelectContent>
@@ -584,6 +594,10 @@ export default function UserDetailPage() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="bandwidth" className="space-y-4">
+          {username ? <ClickHouseBandwidthChart username={username} /> : null}
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">

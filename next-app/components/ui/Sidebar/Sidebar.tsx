@@ -210,7 +210,7 @@ const Sidebar: React.FC = () => {
 
     const isUsersRoute = useMemo(() => {
       const p = pathname || "";
-      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit");
+      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit") || p.startsWith("/external-users");
     }, [pathname]);
 
     const isSystemRoute = useMemo(() => {
@@ -226,6 +226,8 @@ const Sidebar: React.FC = () => {
     const isBillingRoute = useMemo(() => {
       const p = pathname || "";
       return (
+        p === "/billing" ||
+        p.startsWith("/billing/") ||
         p.startsWith("/invoices") ||
         p.startsWith("/invoice-upload") ||
         p.startsWith("/external-invoices") ||
@@ -279,6 +281,7 @@ const Sidebar: React.FC = () => {
       { to: '/auth-failures', label: 'Auth Failures', icon: FaBell, perms: ['users.online.view', 'reseller.users.view'] },
       { to: '/profiles/list', label: 'Profile Plans', icon: FaCreditCard, perms: ['radius.profiles.view'], navPerm: "ui.sidebar.users.profiles.show" },
       { to: '/audit', label: 'Audit Log', icon: History, perms: ['users.view'], navPerm: "ui.sidebar.users.list.show" },
+      { to: '/external-users', label: 'External Users', icon: CloudDownload, perms: ['billing.invoiceUpload.create', 'users.view'] },
     ] as const;
 
     const systemItems = [
@@ -291,24 +294,29 @@ const Sidebar: React.FC = () => {
       },
       { to: '/nas', label: 'NAS', icon: FaServer, perm: 'radius.nas.view', navPerm: "ui.sidebar.radius.nas.show" },
       { to: '/settings/security', label: 'Security (MFA)', icon: FaUserShield, navPerm: "ui.sidebar.home.show" },
+      { to: '/topology', label: 'Network Topology', icon: Network, perm: 'radius.nas.view', navPerm: "ui.sidebar.home.show" },
     ] as const;
 
     const billingItems = [
+      { label: 'Invoicing', to: 'header_invoicing', type: 'header' as const },
+      { label: 'Overview', to: '/billing', icon: BarChart3, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
+      { label: 'External Invoices', to: '/external-invoices', icon: FileText, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'RADIUS Invoices', to: '/invoices', icon: Receipt, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       { label: 'Upload Invoice', icon: Upload, to: '/invoice-upload', perm: 'billing.invoiceUpload.create', navPerm: "ui.sidebar.billing.invoiceUpload.show", feature: "invoice-upload" },
       { label: 'Provider Import', icon: CloudDownload, to: '/invoice-upload/myisp', perm: 'billing.invoiceUpload.create', navPerm: "ui.sidebar.billing.invoiceUpload.show", feature: "invoice-upload" },
-      { label: 'Provider MAC Lists', icon: Network, to: '/invoice-upload/provider-macs', perm: 'billing.invoiceUpload.create', navPerm: "ui.sidebar.billing.invoiceUpload.show", feature: "invoice-upload" },
-      { label: 'External Invoices', to: '/external-invoices', icon: FileText, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
-      { label: 'Whish payments', to: '/external-invoices/whish-payments', icon: Smartphone, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
-      { label: 'Wallet ledger', to: '/external-invoices/wallet-ledger', icon: Wallet, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
-      { label: 'Company wallet', to: '/admin/company-wallet', icon: Landmark, perms: COMPANY_WALLET_VIEW_PERMS },
       { label: 'Prepaid Vouchers', to: '/vouchers', icon: Ticket, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
-      { label: 'WhatsApp Hub', to: '/whatsapp-hub', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
-      { label: 'WhatsApp name matches', to: '/external-invoices/whatsapp-matches', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+
+      { label: 'Payments & Collections', to: 'header_payments', type: 'header' as const },
       { label: 'Payment due', to: '/external-invoices/payment-due', icon: CalendarClock, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Dunning Center', to: '/external-invoices/dunning', icon: AlertCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Reconciliation', to: '/external-invoices/reconciliation', icon: Search, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Collections', to: '/collections', icon: DollarSign, perm: 'billing.collections.view', navPerm: "ui.sidebar.billing.collections.show", feature: "collections" },
+      { label: 'Whish payments', to: '/external-invoices/whish-payments', icon: Smartphone, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'Wallet ledger', to: '/external-invoices/wallet-ledger', icon: Wallet, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'Company wallet', to: '/admin/company-wallet', icon: Landmark, perms: COMPANY_WALLET_VIEW_PERMS },
+
+      { label: 'Communications', to: 'header_communications', type: 'header' as const },
+      { label: 'WhatsApp Hub', to: '/whatsapp-hub', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       {
         label: 'Cable Vision',
         to: '/cable-vision',
@@ -316,7 +324,7 @@ const Sidebar: React.FC = () => {
         perms: ['cablevision.accounts.view', 'cablevision.accounts.manage'],
         navPerm: "ui.sidebar.cablevision.show",
       },
-    ] as const;
+    ];
 
     // Resellers use the same pages (dashboard/users/online-users) with scoped data.
 
@@ -367,12 +375,26 @@ const Sidebar: React.FC = () => {
       .filter((i) => matches(i.label))
       .map(({ to, label, icon }) => ({ to, label, icon }));
 
-    const billingItemsFiltered = billingItems
+    const _billingRaw = billingItems
       .filter((i) => !(i as any).feature || isFeatureEnabled(String((i as any).feature)))
-      .filter((i) => ("perms" in i ? canAny(user, (i as any).perms) : can(user, (i as any).perm)))
-      .filter((i) => !("navPerm" in i) || can(user, (i as any).navPerm))
-      .filter((i) => matches(i.label))
-      .map(({ to, label, icon }) => ({ to, label, icon }));
+      .filter((i) => ("type" in i && i.type === "header") || ("perms" in i ? canAny(user, (i as any).perms) : can(user, (i as any).perm)))
+      .filter((i) => ("type" in i && i.type === "header") || !("navPerm" in i) || can(user, (i as any).navPerm))
+      .filter((i) => matches(i.label) || ("type" in i && i.type === "header"))
+      .map(({ to, label, icon, type }) => ({ to, label, icon, type }));
+
+    const billingItemsFiltered: typeof _billingRaw = [];
+    for (let i = 0; i < _billingRaw.length; i++) {
+      if (_billingRaw[i].type === 'header') {
+        let hasChild = false;
+        for (let j = i + 1; j < _billingRaw.length; j++) {
+          if (_billingRaw[j].type === 'header') break;
+          hasChild = true;
+        }
+        if (hasChild) billingItemsFiltered.push(_billingRaw[i]);
+      } else {
+        billingItemsFiltered.push(_billingRaw[i]);
+      }
+    }
 
     const SectionLabel = ({ children }: { children: React.ReactNode }) => (
       <div className={cn("px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45", !isMobile && isCollapsed && "hidden")}>
@@ -458,11 +480,11 @@ const Sidebar: React.FC = () => {
       icon: any;
       isOpen: boolean;
       onToggle: () => void;
-      items: Array<{ to: string; label: string; icon: any; badgeCount?: number; badgeVariant?: "info" | "danger" }>;
+      items: Array<{ to: string; label: string; icon?: any; badgeCount?: number; badgeVariant?: "info" | "danger"; type?: "header" }>;
     }) => {
       const Icon = props.icon;
       const hasActiveChild = props.items.some(
-        (it) => it.to === "/settings" ? pathname === "/settings" : pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/"))
+        (it) => it.type !== "header" && (it.to === "/settings" ? pathname === "/settings" : pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to + "/")))
       );
       const totalGroupBadges = props.items.reduce((acc, it) => acc + (it.badgeCount || 0), 0);
 
@@ -539,9 +561,15 @@ const Sidebar: React.FC = () => {
           >
             <div className="overflow-hidden">
               <div className="relative ml-3 pl-2 space-y-0.5 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-px before:bg-sidebar-border/70">
-                {props.items.map(({ to, label, icon, badgeCount, badgeVariant }) => (
-                  <div key={to} className="transition-all duration-200">
-                    {NavItem({ to, label, icon, badgeCount, badgeVariant })}
+                {props.items.map(({ to, label, icon, badgeCount, badgeVariant, type }) => (
+                  <div key={to} className={cn("transition-all duration-200", type === "header" && "mt-2 mb-1 first:mt-0")}>
+                    {type === "header" ? (
+                      <div className={cn("px-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45", !isMobile && isCollapsed && "hidden")}>
+                        {label}
+                      </div>
+                    ) : (
+                      NavItem({ to, label, icon, badgeCount, badgeVariant })
+                    )}
                   </div>
                 ))}
               </div>

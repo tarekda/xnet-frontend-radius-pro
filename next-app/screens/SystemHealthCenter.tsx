@@ -12,7 +12,6 @@ import {
   Database,
   HardDrive,
   HeartPulse,
-  Loader2,
   MessageCircle,
   Network,
   RefreshCw,
@@ -30,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { CountUpNumber, ProgressRing } from "@/components/viz";
 
 type HealthTone = "healthy" | "warning" | "critical" | "neutral";
 
@@ -146,11 +146,13 @@ function StatusBadge({ tone, label }: { tone: HealthTone; label: string }) {
   );
 }
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Metric({ label, value, hint, animatedValue }: { label: string; value: string; hint?: string; animatedValue?: number }) {
   return (
-    <div className="rounded-lg border bg-muted/20 p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 break-all font-mono text-lg font-semibold">{value}</div>
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-3 card-hover-lift">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">{label}</div>
+      <div className="mt-1 break-all font-mono text-lg font-bold text-foreground">
+        {animatedValue !== undefined ? <CountUpNumber value={animatedValue} /> : value}
+      </div>
       {hint ? <div className="mt-1 text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );
@@ -158,9 +160,12 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 
 function LoadingState({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      {label}
+    <div className="space-y-2 py-2">
+      <div className="h-3 w-2/3 rounded animate-shimmer" />
+      <div className="grid grid-cols-2 gap-3">
+        {[0,1,2,3].map(i => <div key={i} className="h-14 rounded-lg animate-shimmer" />)}
+      </div>
+      <p className="text-xs text-muted-foreground/60 text-center pt-2">{label}</p>
     </div>
   );
 }
@@ -445,23 +450,93 @@ export default function SystemHealthCenterPage() {
 
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* Live NOC Telemetry Marquee Ticker */}
+      <div className="w-full bg-card dark:bg-[#0a0e17] border border-border dark:border-slate-800 rounded-xl overflow-hidden py-2 px-3 shadow-sm dark:shadow-md relative">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-500/15 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold shrink-0 z-10 shadow-2xs">
+            <Activity className="w-3 h-3 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+            <span>NOC TELEMETRY FEED</span>
+          </div>
+
+          <div className="flex-1 overflow-hidden relative">
+            <div className="flex gap-8 whitespace-nowrap animate-ticker text-xs font-mono text-foreground/80 dark:text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                <span>DB LATENCY:</span>
+                <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{Math.round(nocQuery.data?.dbLatencyMs ?? 0)}ms</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+                <span>API PROCESSING:</span>
+                <strong className="text-sky-600 dark:text-sky-400 font-bold">{Math.round(nocQuery.data?.serverProcessingMs ?? 0)}ms</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400" />
+                <span>CLIENT RTT:</span>
+                <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{Math.round(nocQuery.data?.clientRttMs ?? 0)}ms</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-violet-500 dark:bg-violet-400" />
+                <span>ACTIVE AAA SESSIONS:</span>
+                <strong className="text-violet-600 dark:text-violet-300 font-bold">{nocQuery.data?.activeSessions ?? 0}</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                <span>NAS REACHABLE:</span>
+                <strong className="text-emerald-600 dark:text-emerald-300 font-bold">{activeNas.length} / {nasRows.length}</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                <span>DB LATENCY:</span>
+                <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{Math.round(nocQuery.data?.dbLatencyMs ?? 0)}ms</strong>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+                <span>API PROCESSING:</span>
+                <strong className="text-sky-600 dark:text-sky-400 font-bold">{Math.round(nocQuery.data?.serverProcessingMs ?? 0)}ms</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-3 animate-slide-up">
         <PageHeader
           title="System health"
           subtitle="Live operational status for infrastructure, network services, billing, and communications"
           icon={HeartPulse}
+          variant="gradient"
+          liveTime
         />
-        <Button variant="outline" onClick={refreshAll} disabled={allFetching}>
-          <RefreshCw className={cn("h-4 w-4", allFetching && "animate-spin")} />
-          Refresh all
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={refreshAll} disabled={allFetching} className="gap-2">
+            <RefreshCw className={cn("h-4 w-4", allFetching && "animate-spin")} />
+            Refresh all
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Healthy checks" value={String(healthyCount)} hint="Reporting normally" />
-        <Metric label="Warnings" value={String(warningCount)} hint="Review recommended" />
-        <Metric label="Critical" value={String(criticalCount)} hint="Immediate attention" />
-        <Metric label="Visible checks" value={String(visibleChecks.length)} hint="Based on your permissions" />
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-sm glow-emerald card-hover-lift animate-slide-up stagger-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Healthy checks</p>
+          <p className="mt-1 text-3xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums"><CountUpNumber value={healthyCount} /></p>
+          <p className="text-[11px] text-emerald-700/60 dark:text-emerald-400/60 mt-0.5">Reporting normally</p>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-sm glow-amber card-hover-lift animate-slide-up stagger-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Warnings</p>
+          <p className="mt-1 text-3xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums"><CountUpNumber value={warningCount} /></p>
+          <p className="text-[11px] text-amber-700/60 dark:text-amber-400/60 mt-0.5">Review recommended</p>
+        </div>
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-sm glow-rose card-hover-lift animate-slide-up stagger-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Critical</p>
+          <p className={cn("mt-1 text-3xl font-extrabold font-mono tabular-nums", criticalCount > 0 ? "text-rose-600 dark:text-rose-400 animate-pulse" : "text-rose-600 dark:text-rose-400")}><CountUpNumber value={criticalCount} /></p>
+          <p className="text-[11px] text-rose-700/60 dark:text-rose-400/60 mt-0.5">Immediate attention</p>
+        </div>
+        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 shadow-sm glow-indigo card-hover-lift animate-slide-up stagger-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Visible checks</p>
+          <p className="mt-1 text-3xl font-extrabold font-mono text-indigo-600 dark:text-indigo-300 tabular-nums"><CountUpNumber value={visibleChecks.length} /></p>
+          <p className="text-[11px] text-indigo-700/60 dark:text-indigo-300/60 mt-0.5">Based on your permissions</p>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -524,10 +599,10 @@ export default function SystemHealthCenterPage() {
                 <ErrorState label="The NOC health probe failed." />
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Metric label="Database latency" value={`${Math.round(nocQuery.data?.dbLatencyMs ?? 0)} ms`} />
-                  <Metric label="Server processing" value={`${Math.round(nocQuery.data?.serverProcessingMs ?? 0)} ms`} />
-                  <Metric label="Client round-trip" value={`${Math.round(nocQuery.data?.clientRttMs ?? 0)} ms`} />
-                  <Metric label="Active sessions" value={String(nocQuery.data?.activeSessions ?? 0)} />
+                  <Metric label="Database latency" value="" animatedValue={Math.round(nocQuery.data?.dbLatencyMs ?? 0)} hint="ms" />
+                  <Metric label="Server processing" value="" animatedValue={Math.round(nocQuery.data?.serverProcessingMs ?? 0)} hint="ms" />
+                  <Metric label="Client round-trip" value="" animatedValue={Math.round(nocQuery.data?.clientRttMs ?? 0)} hint="ms" />
+                  <Metric label="Active sessions" value="" animatedValue={nocQuery.data?.activeSessions ?? 0} />
                 </div>
               )}
             </CardContent>
@@ -583,6 +658,30 @@ export default function SystemHealthCenterPage() {
           </Card>
         ) : null}
 
+        <Card className="border-border/60 shadow-none">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-amber-500" />
+                  NOC Security & Anomaly Guard
+                </CardTitle>
+                <CardDescription>Real-time line flapping & MAC spoofing monitoring</CardDescription>
+              </div>
+              <StatusBadge tone="healthy" label="Monitoring" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Metric label="Flapping Rule" value="10 drops / 15m" hint="Active threshold" />
+              <Metric label="MAC Protection" value="Multi-MAC Check" hint="Strict enforcement" />
+            </div>
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-emerald-700 dark:text-emerald-300">
+              Subscriber session anomalies and MAC spoofing attempts are automatically broadcast over the NOC event bus.
+            </div>
+          </CardContent>
+        </Card>
+
         {canSeeMikrotik ? (
           <Card>
             <CardHeader>
@@ -607,8 +706,20 @@ export default function SystemHealthCenterPage() {
                 <ErrorState label="MikroTik metrics could not be retrieved." />
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Metric label="CPU load" value={`${Number(mikrotikQuery.data?.system?.cpuLoad ?? 0).toFixed(1)}%`} />
-                  <Metric label="Memory usage" value={`${Number(mikrotikQuery.data?.system?.memoryUsage ?? 0).toFixed(1)}%`} />
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 card-hover-lift flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">CPU Load</div>
+                      <div className="mt-1 font-mono text-lg font-bold">{Number(mikrotikQuery.data?.system?.cpuLoad ?? 0).toFixed(1)}%</div>
+                    </div>
+                    <ProgressRing percent={Number(mikrotikQuery.data?.system?.cpuLoad ?? 0)} size={48} tone="inverse" />
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 card-hover-lift flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">Memory Usage</div>
+                      <div className="mt-1 font-mono text-lg font-bold">{Number(mikrotikQuery.data?.system?.memoryUsage ?? 0).toFixed(1)}%</div>
+                    </div>
+                    <ProgressRing percent={Number(mikrotikQuery.data?.system?.memoryUsage ?? 0)} size={48} tone="inverse" />
+                  </div>
                   <Metric label="Total traffic" value={formatRate(mikrotikQuery.data?.bandwidth?.total?.rate)} />
                   <Metric label="Router uptime" value={formatUptime(mikrotikQuery.data?.system?.uptime)} />
                 </div>

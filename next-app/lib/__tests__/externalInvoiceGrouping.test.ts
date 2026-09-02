@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyLine,
   currentMonthKey,
+  getGroupEffectiveStatus,
   groupExternalInvoices,
   invoiceGroupKey,
 } from "@/lib/externalInvoiceGrouping";
@@ -84,14 +85,18 @@ describe("groupExternalInvoices", () => {
 
     const [group] = groupExternalInvoices([carryover, current, overdue], NOW);
     expect(group!.currentMonthPayable?.id).toBe(current.id);
+    expect(group!.payableTarget?.id).toBe(current.id);
+    expect(getGroupEffectiveStatus(group!)).toBe("unpaid");
   });
 
-  it("has no payable when the current month is already paid", () => {
+  it("falls back payableTarget to open prior line when current month is paid", () => {
     const current = inv({ billingMonth: THIS_MONTH, status: "paid" });
     const overdue = inv({ billingMonth: LAST_MONTH, status: "unpaid" });
 
     const [group] = groupExternalInvoices([current, overdue], NOW);
     expect(group!.currentMonthPayable).toBeNull();
+    expect(group!.payableTarget?.id).toBe(overdue.id);
+    expect(getGroupEffectiveStatus(group!)).toBe("unpaid");
   });
 
   it("inherits the most recent due payment date from unpaid lines", () => {
@@ -118,11 +123,22 @@ describe("groupExternalInvoices", () => {
     const [group] = groupExternalInvoices([may, june], NOW);
     expect(group!.primary.id).toBe(june.id);
     expect(group!.currentMonthPayable).toBeNull();
+    expect(group!.payableTarget?.id).toBe(may.id);
   });
 
   it("uses remainingDue for outstanding when a line is partially paid", () => {
     const partial = inv({ billingMonth: THIS_MONTH, amount: 50, amountPaid: 20, remainingDue: 30, status: "pending" });
     const [group] = groupExternalInvoices([partial], NOW);
     expect(group!.outstandingTotal).toBe(30);
+    expect(getGroupEffectiveStatus(group!)).toBe("pending");
+  });
+
+  it("returns paid for getGroupEffectiveStatus when all lines are paid", () => {
+    const current = inv({ billingMonth: THIS_MONTH, status: "paid" });
+    const overdue = inv({ billingMonth: LAST_MONTH, status: "paid" });
+    const [group] = groupExternalInvoices([current, overdue], NOW);
+    expect(getGroupEffectiveStatus(group!)).toBe("paid");
+    expect(group!.payableTarget).toBeNull();
   });
 });
+

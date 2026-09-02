@@ -123,6 +123,7 @@ export default function WhatsAppHub() {
 
   const dueInvoices = dueInvoicesQuery.data || [];
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
+  const [isBatchSending, setIsBatchSending] = useState(false);
 
   const toggleSelectInvoice = (id: string) => {
     setSelectedInvoiceIds((prev) => {
@@ -227,9 +228,22 @@ export default function WhatsAppHub() {
       return;
     }
 
-    const count = selectedInvoiceIds.size;
-    notify.success("Batch Dispatched", `Queued ${count} WhatsApp payment reminders for delivery.`);
+    setIsBatchSending(true);
+    let success = 0;
+    let failed = 0;
+    
+    for (const id of Array.from(selectedInvoiceIds)) {
+      try {
+        await apiClient.post(`/invoices/external/${id}/remind`);
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    
+    notify.success("Batch Complete", `Dispatched ${success} reminders${failed > 0 ? `, ${failed} failed` : ''}.`);
     setSelectedInvoiceIds(new Set());
+    setIsBatchSending(false);
   };
 
   const stats = useMemo(() => {
@@ -364,11 +378,11 @@ export default function WhatsAppHub() {
               </div>
               <Button
                 onClick={handleBatchSend}
-                disabled={selectedInvoiceIds.size === 0}
+                disabled={selectedInvoiceIds.size === 0 || isBatchSending}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
               >
                 <Send className="h-4 w-4" />
-                Dispatch to Selected ({selectedInvoiceIds.size})
+                {isBatchSending ? "Dispatching..." : `Dispatch to Selected (${selectedInvoiceIds.size})`}
               </Button>
             </CardHeader>
             <CardContent className="p-0">

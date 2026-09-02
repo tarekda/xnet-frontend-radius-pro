@@ -13,6 +13,7 @@ import {
   Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import IconActionButton from "@/components/IconActionButton";
 import PageHeader from "@/components/PageHeader";
 import ExternalInvoicesTable, { type ExternalInvoicesTableData } from "@/components/ExternalInvoicesTable";
@@ -582,62 +583,99 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         title={isReconciliationMode ? t("invoices.title_reconciliation") : t("invoices.title")}
         subtitle={isReconciliationMode ? t("invoices.subtitle_reconciliation") : t("invoices.subtitle")}
         icon={isReconciliationMode ? Scale : FileText}
+        variant="gradient"
+        liveTime={true}
+        badge={
+          !isStatsLoading ? (
+            <div className="flex items-center gap-1.5 ml-2 mt-0.5">
+              <Badge variant="outline" className="bg-background/50 backdrop-blur border-primary/20 text-foreground font-mono">
+                {metrics?.totalInvoices ?? 0} Total
+              </Badge>
+              {metrics?.totalUnpaid ? (
+                <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-500 font-mono">
+                  {metrics.totalUnpaid} Unpaid
+                </Badge>
+              ) : null}
+            </div>
+          ) : null
+        }
         actions={(
-          <div className="flex w-full flex-wrap justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2 p-1 rounded-lg bg-background/40 backdrop-blur-sm border border-border/40 shadow-sm">
             <IconActionButton
               label={isRefreshing ? "Refreshing..." : "Refresh"}
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="border-border bg-card text-foreground shadow-none hover:bg-muted"
-              icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />}
+              className="bg-transparent border-transparent shadow-none hover:bg-background/60"
+              icon={<RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-primary" : "text-muted-foreground"}`} />}
             />
+            <div className="w-px h-6 bg-border/60 self-center mx-1" />
             <IconActionButton
               label={isExportingAll ? "Exporting..." : "Export all"}
               onClick={handleExportAll}
               disabled={isExportingAll || isStatsLoading}
-              className="border-border bg-card text-foreground shadow-none hover:bg-muted"
-              icon={isExportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              className="bg-transparent border-transparent shadow-none hover:bg-background/60"
+              icon={isExportingAll ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Download className="h-4 w-4 text-muted-foreground" />}
             />
             {canUploadInvoice ? (
-              <IconActionButton
-                label="Upload"
-                to="/invoice-upload"
-                className="border-primary/20 bg-primary text-primary-foreground shadow-none hover:bg-primary/90"
-                icon={<Plus className="h-4 w-4" />}
-              />
+              <>
+                <div className="w-px h-6 bg-border/60 self-center mx-1" />
+                <IconActionButton
+                  label="Upload"
+                  to="/invoice-upload"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground border-primary shadow-sm"
+                  icon={<Plus className="h-4 w-4" />}
+                />
+              </>
             ) : null}
           </div>
         )}
       />
 
-      <div className="flex flex-wrap gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-1.5">
-        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
+      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/60 bg-muted/30 p-1.5 shadow-sm backdrop-blur-md">
+        {!isReconciliationMode ? (
+          <div className="flex items-center gap-1 bg-background/50 rounded-lg p-1 border border-border/50 shadow-sm relative overflow-hidden">
+            <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
+            <Button variant="ghost" size="sm" className="relative h-8 rounded-md text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary transition-colors cursor-default shadow-sm border border-primary/20">
+              <FileText className="mr-2 h-4 w-4" />
+              Standard view
+            </Button>
+            <Button variant="ghost" size="sm" className="relative h-8 rounded-md text-xs text-muted-foreground hover:bg-background hover:text-foreground transition-colors" asChild>
+              <Link href="/external-invoices/reconciliation">
+                <Scale className="mr-2 h-4 w-4" />
+                Reconciliation
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 bg-background/50 rounded-lg p-1 border border-border/50 shadow-sm relative overflow-hidden">
+            <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
+            <Button variant="ghost" size="sm" className="relative h-8 rounded-md text-xs text-muted-foreground hover:bg-background hover:text-foreground transition-colors" asChild>
+              <Link href="/external-invoices">
+                <FileText className="mr-2 h-4 w-4" />
+                Standard view
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" className="relative h-8 rounded-md text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary transition-colors cursor-default shadow-sm border border-primary/20">
+              <Scale className="mr-2 h-4 w-4" />
+              Reconciliation
+            </Button>
+          </div>
+        )}
+
+        <div className="h-6 w-px bg-border/80 mx-2" />
+
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors" asChild>
           <Link href="/external-invoices/dunning">
             <AlertCircle className="mr-2 h-4 w-4" />
             Dunning center
           </Link>
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
+        <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors" asChild>
           <Link href="/external-invoices/payment-due">
             <Calendar className="mr-2 h-4 w-4" />
             Payment due
           </Link>
         </Button>
-        {!isReconciliationMode ? (
-          <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
-            <Link href="/external-invoices/reconciliation">
-              <Scale className="mr-2 h-4 w-4" />
-              Reconciliation
-            </Link>
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" className="h-8 rounded-md text-xs text-muted-foreground hover:text-primary" asChild>
-            <Link href="/external-invoices">
-              <FileText className="mr-2 h-4 w-4" />
-              Standard view
-            </Link>
-          </Button>
-        )}
       </div>
 
       <InvoiceMetricsPanel
