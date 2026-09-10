@@ -22,7 +22,7 @@ import { useSidebar } from './Sidebar.context';
 import { useIsMobile } from '../../../hooks/use-mobile';
 import { Button } from '../button';
 import { cn } from '@/lib/utils';
-import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket } from 'lucide-react';
+import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket, Radio, Clock, TrendingUp, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from '@/lib/permissions';
 import { getAppVersionInfo } from '@/lib/version';
@@ -235,6 +235,7 @@ const Sidebar: React.FC = () => {
         p.startsWith("/vouchers") ||
         p.startsWith("/collections") ||
         p.startsWith("/cable-vision") ||
+        p.startsWith("/revenue-leakage") ||
         p.startsWith("/admin/company-wallet")
       );
     }, [pathname]);
@@ -261,11 +262,13 @@ const Sidebar: React.FC = () => {
     const mainItems = [
       { to: '/', label: 'Home', icon: FaHome, navPerm: "ui.sidebar.home.show" },
       { to: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt, navPerm: "ui.sidebar.dashboard.show" },
+      { to: '/noc', label: 'NOC Wallboard', icon: Radio, navPerm: "ui.sidebar.dashboard.show" },
       { to: '/about', label: 'About & Help', icon: CircleHelp, navPerm: "ui.sidebar.home.show" },
     ];
 
     const adminItems = [
       { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'admin.analytics.view', navPerm: "ui.sidebar.admin.analytics.show", feature: "analytics" },
+      { to: '/analytics/revenue', label: 'Revenue Insights', icon: TrendingUp, perm: 'admin.analytics.view', navPerm: "ui.sidebar.admin.analytics.show", feature: "analytics" },
       { to: '/alerts', label: 'Alerts', icon: FaBell, perm: 'admin.alerts.view', navPerm: "ui.sidebar.admin.alerts.show", feature: "alerts" },
       { to: '/expenses', label: 'Expenses', icon: Receipt, perm: 'admin.expenses.view', navPerm: "ui.sidebar.admin.expenses.show" },
       { to: '/auth-users', label: 'Auth Users', icon: FaUserShield, perm: 'admin.authUsers.manage', navPerm: "ui.sidebar.admin.authUsers.show" },
@@ -307,8 +310,11 @@ const Sidebar: React.FC = () => {
       { label: 'Prepaid Vouchers', to: '/vouchers', icon: Ticket, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
 
       { label: 'Payments & Collections', to: 'header_payments', type: 'header' as const },
+      { label: 'Revenue Leak & Ghost Audit', to: '/revenue-leakage', icon: ShieldAlert, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       { label: 'Payment due', to: '/external-invoices/payment-due', icon: CalendarClock, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Dunning Center', to: '/external-invoices/dunning', icon: AlertCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'Aging Report', to: '/billing/aging', icon: Clock, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
+      { label: 'Revenue Insights', to: '/analytics/revenue', icon: TrendingUp, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       { label: 'Reconciliation', to: '/external-invoices/reconciliation', icon: Search, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
       { label: 'Collections', to: '/collections', icon: DollarSign, perm: 'billing.collections.view', navPerm: "ui.sidebar.billing.collections.show", feature: "collections" },
       { label: 'Whish payments', to: '/external-invoices/whish-payments', icon: Smartphone, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show", feature: "external-invoices" },
@@ -317,6 +323,7 @@ const Sidebar: React.FC = () => {
 
       { label: 'Communications', to: 'header_communications', type: 'header' as const },
       { label: 'WhatsApp Hub', to: '/whatsapp-hub', icon: MessageCircle, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
+      { label: 'WhatsApp Matches', to: '/external-invoices/whatsapp-matches', icon: CheckCircle2, perm: 'billing.externalInvoices.view', navPerm: "ui.sidebar.billing.externalInvoices.show" },
       {
         label: 'Cable Vision',
         to: '/cable-vision',

@@ -38,7 +38,9 @@ import {
   Wifi,
   Globe,
   LineChart as LineChartIcon,
-  Loader2
+  Loader2,
+  DollarSign,
+  AlertCircle,
 } from 'lucide-react';
 import { 
   useAnalyticsData, 
@@ -50,6 +52,7 @@ import {
 } from '@/hooks/useAnalytics';
 import { useOnlineMetrics } from '@/hooks/useOnlineMetrics';
 import { useBandwidthMetrics } from '@/hooks/useBandwidth';
+import { useExternalInvoicesTrend, useExternalAgingSummary } from '@/hooks/useInvoices';
 
 const Analytics: React.FC = () => {
   const { t } = useTranslation("screens");
@@ -107,10 +110,41 @@ const Analytics: React.FC = () => {
     setBandwidthSeries((prev) => [...prev, { time: label, rx: currentBandwidth.rx, tx: currentBandwidth.tx }].slice(-60));
   }, [bandwidthQuery.data, currentBandwidth.rx, currentBandwidth.tx]);
 
+  // Revenue tab data
+  const [revenueTrendMonths, setRevenueTrendMonths] = useState(6);
+  const trendQuery = useExternalInvoicesTrend(revenueTrendMonths);
+  const agingQuery = useExternalAgingSummary();
+
+  const revenueTrendData = useMemo(() => {
+    if (!trendQuery.data) return [];
+    return trendQuery.data.map(pt => ({
+      name: pt.month,
+      Billed: Number(pt.totalAmount),
+      Collected: Number(pt.paidAmount),
+    }));
+  }, [trendQuery.data]);
+
+  const agingBuckets = useMemo(() => {
+    const LABELS: Record<string, string> = {
+      current: 'Current', '1_30': '1–30d', '31_60': '31–60d', '61_90': '61–90d', '90_plus': '90d+',
+    };
+    const COLORS: Record<string, string> = {
+      current: '#10b981', '1_30': '#f59e0b', '31_60': '#f97316', '61_90': '#ef4444', '90_plus': '#7c3aed',
+    };
+    return (agingQuery.data?.buckets ?? []).map(b => ({
+      name: LABELS[b.key] ?? b.key,
+      Amount: Number(b.amount),
+      Count: b.count,
+      fill: COLORS[b.key] ?? '#94a3b8',
+    }));
+  }, [agingQuery.data]);
+
   const handleRefresh = () => {
     refetchChart();
     refetchMetrics();
     bandwidthQuery.refetch();
+    trendQuery.refetch();
+    agingQuery.refetch();
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -246,7 +280,7 @@ const Analytics: React.FC = () => {
 
       {/* Charts Section */}
       <Tabs defaultValue="usage" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="usage" className="flex items-center gap-2">
             <LineChartIcon className="h-4 w-4" />
             Usage Trends
@@ -262,6 +296,10 @@ const Analytics: React.FC = () => {
           <TabsTrigger value="peak" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             Peak Hours
+          </TabsTrigger>
+          <TabsTrigger value="revenue" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Revenue
           </TabsTrigger>
         </TabsList>
 
@@ -500,6 +538,182 @@ const Analytics: React.FC = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="revenue" className="space-y-4">
+          {/* Revenue KPI strip */}
+          <div className="grid gap-3 md:grid-cols-3">
+            <Card className="border-border/80 shadow-none">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Open Receivables</div>
+                  <div className="text-xl font-bold mt-0.5">
+                    {agingQuery.isLoading ? '…' : `$${Number(agingQuery.data?.openAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{agingQuery.data?.openInvoices ?? '—'} open invoices</div>
+                </div>
+                <DollarSign className="h-8 w-8 text-indigo-400 opacity-60" />
+              </CardContent>
+            </Card>
+            <Card className="border-border/80 shadow-none">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Total Overdue</div>
+                  <div className="text-xl font-bold mt-0.5 text-rose-600 dark:text-rose-400">
+                    {agingQuery.isLoading ? '…' : `$${Number(agingQuery.data?.overdueAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{agingQuery.data?.overdueInvoices ?? '—'} overdue invoices</div>
+                </div>
+                <AlertCircle className="h-8 w-8 text-rose-400 opacity-60" />
+              </CardContent>
+            </Card>
+            <Card className="border-border/80 shadow-none">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Overdue Rate</div>
+                  <div className="text-xl font-bold mt-0.5">
+                    {agingQuery.isLoading ? '…' : `${Number(agingQuery.data?.overdueRatePercent ?? 0).toFixed(1)}%`}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">Avg {agingQuery.data?.avgDaysOverdue?.toFixed(0) ?? '—'} days overdue</div>
+                </div>
+                <TrendingDown className="h-8 w-8 text-amber-400 opacity-60" />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Revenue vs Collections Trend */}
+            <Card className="border-border/80 shadow-none">
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle>Revenue vs Collections</CardTitle>
+                  <CardDescription>Monthly billed amount vs actual cash collected</CardDescription>
+                </div>
+                <Select value={String(revenueTrendMonths)} onValueChange={v => setRevenueTrendMonths(Number(v))}>
+                  <SelectTrigger className="w-[110px] h-7 text-xs" id="analytics-revenue-months">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3">3 months</SelectItem>
+                    <SelectItem value="6">6 months</SelectItem>
+                    <SelectItem value="12">12 months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent>
+                {trendQuery.isLoading ? (
+                  <LoadingSpinner />
+                ) : revenueTrendData.length === 0 ? (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <p>No billing data available</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={revenueTrendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="revBilledGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="revCollectedGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={11} tickLine={false} />
+                      <YAxis fontSize={11} tickLine={false} tickFormatter={v => `$${Number(v).toLocaleString('en-US', { notation: 'compact' })}`} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      <Area type="monotone" dataKey="Billed" stroke="#6366f1" strokeWidth={2} fill="url(#revBilledGrad)" fillOpacity={1} />
+                      <Area type="monotone" dataKey="Collected" stroke="#10b981" strokeWidth={2} fill="url(#revCollectedGrad)" fillOpacity={1} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Aging Buckets */}
+            <Card className="border-border/80 shadow-none">
+              <CardHeader>
+                <CardTitle>Accounts Receivable Aging</CardTitle>
+                <CardDescription>Outstanding overdue balances by age bracket</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {agingQuery.isLoading ? (
+                  <LoadingSpinner />
+                ) : agingBuckets.length === 0 ? (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <p>No aging data available</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={agingBuckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={11} tickLine={false} />
+                      <YAxis fontSize={11} tickLine={false} tickFormatter={v => `$${Number(v).toLocaleString('en-US', { notation: 'compact' })}`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                        formatter={(v: any, _n, props) => [`$${Number(v).toFixed(2)} (${props.payload?.Count} inv.)`, 'Overdue']}
+                      />
+                      <Bar dataKey="Amount" radius={[4, 4, 0, 0]}>
+                        {agingBuckets.map((entry, i) => (
+                          <Cell key={i} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Debtors */}
+          {(agingQuery.data?.topDebtors ?? []).length > 0 && (
+            <Card className="border-border/80 shadow-none">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-500" />
+                  Top Debtors
+                </CardTitle>
+                <CardDescription>Subscribers with the highest outstanding balances</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Subscriber</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Invoices</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Outstanding</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Max Days Overdue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(agingQuery.data?.topDebtors ?? []).map((d, i) => (
+                      <tr key={d.username} className={`border-b border-border/60 hover:bg-muted/30 ${i % 2 !== 0 ? 'bg-muted/10' : ''}`}>
+                        <td className="px-4 py-2.5">
+                          <div className="font-medium">{d.fullName || d.username}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{d.username}</div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{d.invoices}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-rose-600 dark:text-rose-400">
+                          ${Number(d.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                            d.maxOverdueDays > 60
+                              ? 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+                              : d.maxOverdueDays > 30
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              : 'bg-muted text-muted-foreground'
+                          }`}>{d.maxOverdueDays}d</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

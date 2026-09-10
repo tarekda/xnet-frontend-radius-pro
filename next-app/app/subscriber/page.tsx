@@ -259,7 +259,14 @@ function SubscriberPortalContent() {
   }, [searchParams]);
 
   const headers = useMemo(
-    () => (token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : undefined),
+    () =>
+      token
+        ? {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          }
+        : undefined,
     [token]
   );
 
@@ -267,7 +274,10 @@ function SubscriberPortalContent() {
     setLoading(true);
     setError(null);
     try {
-      const h = { Authorization: `Bearer ${accessToken}` };
+      const h = {
+        Authorization: `Bearer ${accessToken}`,
+        "X-Requested-With": "XMLHttpRequest",
+      };
       const [meRes, usageRes, invRes, sessRes, payRes, ledgerRes] = await Promise.all([
         fetch(`${API_BASE}/subscriber/me`, { headers: h }),
         fetch(`${API_BASE}/subscriber/usage`, { headers: h }),
@@ -312,7 +322,10 @@ function SubscriberPortalContent() {
     try {
       const res = await fetch(`${API_BASE}/auth/subscriber/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         body: JSON.stringify({ username: username.trim(), password }),
       });
       const json = await res.json();
@@ -333,7 +346,10 @@ function SubscriberPortalContent() {
       if (refresh) {
         await fetch(`${API_BASE}/auth/subscriber/logout`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
           body: JSON.stringify({ refreshToken: refresh }),
         });
       }

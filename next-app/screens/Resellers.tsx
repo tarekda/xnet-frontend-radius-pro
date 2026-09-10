@@ -12,10 +12,11 @@ import { can } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { createReseller, createResellerLogin, debitReseller, fetchResellerLedger, fetchResellers, fundReseller, type ResellerDto, type ResellerLoginDto } from "@/api/resellers";
+import { createReseller, createResellerLogin, debitReseller, fetchResellerLedger, fetchResellers, fundReseller, fetchResellerCommission, payoutResellerCommission, type ResellerDto, type ResellerLoginDto, type ResellerCommissionDto } from "@/api/resellers";
 import { fetchCompanyWalletBalance } from "@/api/companyWallet";
 import TableRowActions from "@/components/TableRowActions";
 import { useTranslation } from "react-i18next";
+import { Coins, TrendingUp } from "lucide-react";
 
 export default function ResellersPage() {
   const { t } = useTranslation("screens");
@@ -43,6 +44,59 @@ export default function ResellersPage() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginSaving, setLoginSaving] = useState(false);
   const [loginResult, setLoginResult] = useState<ResellerLoginDto | null>(null);
+
+  const [commissionOpen, setCommissionOpen] = useState(false);
+  const [commissionTarget, setCommissionTarget] = useState<ResellerDto | null>(null);
+  const [commissionData, setCommissionData] = useState<ResellerCommissionDto | null>(null);
+  const [commissionLoading, setCommissionLoading] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutNote, setPayoutNote] = useState("");
+  const [payoutSaving, setPayoutSaving] = useState(false);
+
+  const openCommissionDialog = async (r: ResellerDto) => {
+    setCommissionTarget(r);
+    setCommissionOpen(true);
+    setCommissionLoading(true);
+    setPayoutAmount("");
+    setPayoutNote("");
+    try {
+      const data = await fetchResellerCommission(r.id);
+      setCommissionData(data);
+      if (data.pendingBalance > 0) {
+        setPayoutAmount(data.pendingBalance.toFixed(2));
+      }
+    } catch (e: any) {
+      notify.error("Failed to load commission", e?.message || "Could not fetch commission ledger");
+    } finally {
+      setCommissionLoading(false);
+    }
+  };
+
+  const onProcessPayout = async () => {
+    if (!commissionTarget) return;
+    const amt = Number(payoutAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      notify.error("Invalid payout amount", "Enter an amount > 0");
+      return;
+    }
+    setPayoutSaving(true);
+    try {
+      await payoutResellerCommission(commissionTarget.id, {
+        amount: amt,
+        note: payoutNote.trim() || undefined,
+      });
+      notify.success("Payout processed", `Commission payout of $${amt.toFixed(2)} recorded`);
+      const updated = await fetchResellerCommission(commissionTarget.id);
+      setCommissionData(updated);
+      setPayoutAmount(updated.pendingBalance > 0 ? updated.pendingBalance.toFixed(2) : "");
+      setPayoutNote("");
+      await load();
+    } catch (e: any) {
+      notify.error("Payout failed", e?.response?.data?.message || e?.message || "Failed to process commission payout");
+    } finally {
+      setPayoutSaving(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -233,6 +287,7 @@ export default function ResellersPage() {
                       <div className="flex justify-end">
                         <TableRowActions
                           actions={[
+                            { label: "Commission & Payout", onClick: () => openCommissionDialog(r) },
                             { label: "Create login", onClick: () => openCreateLogin(r) },
                             { label: "Fund", onClick: () => openFundDialog(r, "credit"), disabled: !canFund },
                             { label: "Debit", onClick: () => openFundDialog(r, "debit"), disabled: !canFund },
@@ -361,6 +416,158 @@ export default function ResellersPage() {
               }
             >
               {loginSaving ? "Creating..." : "Create login"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={commissionOpen} onOpenChange={setCommissionOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-amber-500" />
+              Reseller Commission & Payout
+            </DialogTitle>
+            <DialogDescription>
+              {commissionTarget ? (
+                <>
+                  Manage commission earnings and payouts for{" "}
+                  <span className="font-semibold text-foreground">{commissionTarget.name}</span> (
+                  <span className="font-mono text-xs">{commissionTarget.code}</span>)
+                </>
+              ) : (
+                "Manage commission earnings and payouts"
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {commissionLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" /> Loading commission ledger...
+            </div>
+          ) : commissionData ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className="text-xs text-muted-foreground">Commission Rate</div>
+                  <div className="text-lg font-bold">{(commissionData.commissionRate * 100).toFixed(1)}%</div>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className="text-xs text-muted-foreground">Total Earned</div>
+                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    ${Number(commissionData.totalEarned || 0).toFixed(2)}
+                  </div>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className="text-xs text-muted-foreground">Total Paid Out</div>
+                  <div className="text-lg font-bold text-sky-600 dark:text-sky-400">
+                    ${Number(commissionData.totalPaidOut || 0).toFixed(2)}
+                  </div>
+                </div>
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium">Pending Balance</div>
+                  <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                    ${Number(commissionData.pendingBalance || 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {canFund && (
+                <div className="p-4 border rounded-lg bg-card/60 space-y-3">
+                  <div className="text-sm font-semibold flex items-center gap-1.5">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    Process Commission Payout
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <Label htmlFor="payout-amt" className="text-xs">Amount ($)</Label>
+                      <Input
+                        id="payout-amt"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="0.00"
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="payout-note" className="text-xs">Payout Reference / Note</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="payout-note"
+                          placeholder="e.g. Bank wire ref #99281, Cash disbursement"
+                          value={payoutNote}
+                          onChange={(e) => setPayoutNote(e.target.value)}
+                        />
+                        <Button
+                          onClick={onProcessPayout}
+                          disabled={payoutSaving || !Number(payoutAmount) || Number(payoutAmount) <= 0}
+                          className="shrink-0"
+                        >
+                          {payoutSaving ? "Paying..." : "Pay Out"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Commission Ledger History
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="py-2 text-xs">Date</TableHead>
+                        <TableHead className="py-2 text-xs">Type</TableHead>
+                        <TableHead className="py-2 text-xs text-right">Amount</TableHead>
+                        <TableHead className="py-2 text-xs">Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(!commissionData.history || commissionData.history.length === 0) ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="py-4 text-center text-xs text-muted-foreground">
+                            No commission history entries recorded yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        commissionData.history.map((entry: any, idx: number) => (
+                          <TableRow key={entry.id ?? idx}>
+                            <TableCell className="py-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                              {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : "—"}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs font-medium">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                entry.type === 'COMMISSION_PAYOUT' 
+                                  ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              }`}>
+                                {entry.type ?? 'COMMISSION'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs text-right font-mono font-semibold">
+                              ${Number(entry.amount ?? 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs text-muted-foreground truncate max-w-[180px]">
+                              {entry.note || "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCommissionOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

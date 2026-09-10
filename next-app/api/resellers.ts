@@ -101,3 +101,25 @@ export async function createResellerUser(input: {
   return data?.data as { userId: number };
 }
 
+export type ResellerCommissionDto = {
+  resellerId: number;
+  commissionRate: number;
+  totalEarned: number;
+  totalPaidOut: number;
+  pendingBalance: number;
+  history: ResellerLedgerEntryDto[];
+};
+
+export async function fetchResellerCommission(resellerId: number): Promise<ResellerCommissionDto> {
+  const { data } = await apiClient.get(`/admin/resellers/${resellerId}/commission`);
+  return data?.data as ResellerCommissionDto;
+}
+
+export async function payoutResellerCommission(
+  resellerId: number,
+  input: { amount: number; note?: string }
+): Promise<{ payoutId: string; amount: number; resellerId: number }> {
+  const { data } = await apiClient.post(`/admin/resellers/${resellerId}/commission/payout`, input);
+  return data?.data;
+}
+

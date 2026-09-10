@@ -17,10 +17,11 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import { useProfiles } from "@/hooks/useProfiles";
-import { Settings, Clock, Filter, Zap, Play, CheckCircle2, Users } from "lucide-react";
+import { Settings, Clock, Filter, Zap, Play, CheckCircle2, Users, ShieldCheck, RefreshCw, Loader2 } from "lucide-react";
 import {
   fetchExternalDunningPreview,
   runExternalDunningCampaign,
+  restoreSubscriberLineApi,
   type DunningPreviewResponse,
   type DunningRunResponse,
   type DunningStage,
@@ -69,6 +70,24 @@ export default function ExternalInvoicesDunningPage() {
   const [dunningThrottleProfileId, setDunningThrottleProfileId] = useState(0);
   const [dunningLastRun, setDunningLastRun] = useState<DunningRunResponse | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [restoringUsername, setRestoringUsername] = useState<string | null>(null);
+
+  const handleRestoreLine = async (username: string) => {
+    setRestoringUsername(username);
+    try {
+      const res = await restoreSubscriberLineApi(username, true);
+      if (res.ok) {
+        notify.success("Line Restored", `Subscriber @${username} was restored to default profile & re-authenticated`);
+        queryClient.invalidateQueries({ queryKey: ["dunningPreview"] });
+      } else {
+        notify.error("Restore Failed", res.reason || "Could not restore line");
+      }
+    } catch (e: any) {
+      notify.error("Restore Failed", e?.message || "Could not restore subscriber line");
+    } finally {
+      setRestoringUsername(null);
+    }
+  };
 
   const profilesQuery = useProfiles();
   const profiles = profilesQuery.data?.data ?? [];
@@ -348,6 +367,7 @@ export default function ExternalInvoicesDunningPage() {
                         <TableHead className="text-right">Overdue</TableHead>
                         <TableHead>Due</TableHead>
                         <TableHead>Stage</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -390,6 +410,23 @@ export default function ExternalInvoicesDunningPage() {
                               <Badge variant="outline" className={ACTION_BADGE_CLASS[action]}>
                                 {c.stage?.name ?? "No action"}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="py-2 text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={restoringUsername === c.username}
+                                onClick={() => handleRestoreLine(c.username)}
+                                title="Force Restore & Re-auth line on MikroTik"
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                              >
+                                {restoringUsername === c.username ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                )}
+                                Restore
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );
@@ -446,6 +483,14 @@ export default function ExternalInvoicesDunningPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-6">
+
+              <div className="flex items-start gap-2.5 p-3 rounded-lg border border-emerald-200/80 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/30 text-xs text-emerald-800 dark:text-emerald-300">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-semibold block">Closed-Loop Enforcement Active</span>
+                  <span>Throttled/suspended users are immediately disconnected on MikroTik. Upon invoice payment, their line is automatically self-healed.</span>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/20">
                 <div className="space-y-0.5">

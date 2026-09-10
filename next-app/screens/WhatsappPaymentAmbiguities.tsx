@@ -3,11 +3,21 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, MessageCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, XCircle, Search } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { notify } from "@/lib/notify";
 import { apiClient } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
@@ -44,6 +54,22 @@ export default function WhatsappPaymentAmbiguitiesPage() {
   const canPay = can(user, "billing.externalInvoices.pay");
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<"pending" | "resolved" | "dismissed">("pending");
+
+  const [customSearchItem, setCustomSearchItem] = useState<WhatsappAmbiguity | null>(null);
+  const [customSearchQueryText, setCustomSearchQueryText] = useState("");
+  const [customSelectedInvoice, setCustomSelectedInvoice] = useState<ExternalInvoice | null>(null);
+
+  const customInvoiceSearch = useQuery({
+    queryKey: ["customInvoiceSearchForAmbiguity", customSearchQueryText],
+    queryFn: async () => {
+      if (!customSearchQueryText.trim() || customSearchQueryText.trim().length < 2) return [];
+      const { data } = await apiClient.get("/invoices/external", {
+        params: { search: customSearchQueryText.trim(), status: "unpaid", limit: 8 },
+      });
+      return (Array.isArray(data?.data) ? data.data : []) as ExternalInvoice[];
+    },
+    enabled: !!customSearchItem && customSearchQueryText.trim().length >= 2,
+  });
 
   const listQuery = useQuery({
     queryKey: ["whatsappPaymentAmbiguities", status],
@@ -202,6 +228,25 @@ export default function WhatsappPaymentAmbiguitiesPage() {
                     )}
                   </div>
                 ))}
+
+                {status === "pending" && canPay && (
+                  <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Not in the candidate list above?</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCustomSearchItem(item);
+                        setCustomSearchQueryText(item.submittedName.replace(/\(.*?\)/g, "").trim());
+                        setCustomSelectedInvoice(null);
+                      }}
+                      className="text-xs h-7 gap-1"
+                    >
+                      <Search className="h-3 w-3" />
+                      Search & Select Other Subscriber
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -213,6 +258,133 @@ export default function WhatsappPaymentAmbiguitiesPage() {
           {pendingCount} item{pendingCount === 1 ? "" : "s"} need a choice before payment is applied.
         </p>
       )}
+
+      {/* Custom Subscriber Search Dialog */}
+      <Dialog
+        open={!!customSearchItem}
+        onOpenChange={(open) => !open && setCustomSearchItem(null)}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-sky-600" />
+              Select Other Subscriber For Payment
+            </DialogTitle>
+            <DialogDescription>
+              {customSearchItem ? (
+                <>
+                  Applying payment for submitted name:{" "}
+                  <span className="font-semibold text-foreground">&ldquo;{customSearchItem.submittedName}&rdquo;</span>
+                </>
+              ) : (
+                "Search and select subscriber invoice"
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="custom-inv-search" className="text-xs">
+                Search Unpaid Invoices
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="custom-inv-search"
+                  placeholder="Type name, username, or invoice #…"
+                  value={customSearchQueryText}
+                  onChange={(e) => {
+                    setCustomSearchQueryText(e.target.value);
+                    setCustomSelectedInvoice(null);
+                  }}
+                  className="pl-9 text-xs"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="max-h-52 overflow-y-auto space-y-1.5 border rounded-lg p-2">
+              {customInvoiceSearch.isLoading ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" /> Searching unpaid invoices…
+                </div>
+              ) : !customSearchQueryText.trim() || customSearchQueryText.trim().length < 2 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">
+                  Enter at least 2 characters to search unpaid invoices.
+                </div>
+              ) : (customInvoiceSearch.data || []).length === 0 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">
+                  No unpaid invoices found matching &ldquo;{customSearchQueryText}&rdquo;.
+                </div>
+              ) : (
+                (customInvoiceSearch.data || []).map((inv) => {
+                  const isSelected = customSelectedInvoice?.id === inv.id;
+                  return (
+                    <div
+                      key={inv.id}
+                      onClick={() => setCustomSelectedInvoice(inv)}
+                      className={`p-2.5 rounded-md border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/40"
+                          : "border-border/60 hover:bg-muted/40"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-foreground flex items-center gap-1.5">
+                          <span>{inv.fullName}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground font-normal">
+                            (@{inv.username})
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          Invoice #{inv.id} · Due: {inv.payDueDate ? new Date(inv.payDueDate).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-foreground">
+                          ${Number(inv.totalAmount ?? inv.amount ?? 0).toFixed(2)}
+                        </div>
+                        {isSelected && (
+                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 text-[10px]">
+                            Selected
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomSearchItem(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (customSearchItem && customSelectedInvoice?.id) {
+                  resolveMutation.mutate({
+                    ambiguityId: customSearchItem.id,
+                    invoiceId: customSelectedInvoice.id,
+                  });
+                  setCustomSearchItem(null);
+                }
+              }}
+              disabled={!customSelectedInvoice || resolveMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              {resolveMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Apply Payment & Resolve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

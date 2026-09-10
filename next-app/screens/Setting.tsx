@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import PageHeader from "@/components/PageHeader";
-import { Settings as SettingsIcon, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Shield, Tag } from "lucide-react";
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n/config';
+import { VERSION_LABEL } from '@/constants/version';
+
 
 const Setting: React.FC = () => {
   const { t } = useTranslation('common');
@@ -96,6 +98,15 @@ const Setting: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        {/* Version footer */}
+        <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-5 py-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Tag className="h-3 w-3" />
+            Build version
+          </span>
+          <span className="font-mono font-semibold text-foreground/70">{VERSION_LABEL}</span>
         </div>
       </div>
     </div>

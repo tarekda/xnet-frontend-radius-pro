@@ -242,6 +242,51 @@ export default function Vouchers() {
     window.open(`/vouchers/${selectedBatchId}/print`, "_blank");
   };
 
+  const handleExportCsv = () => {
+    if (!currentBatch || currentCards.length === 0) {
+      notify.info("No Cards", "No voucher cards available to export in this batch.");
+      return;
+    }
+    const headers = [
+      "Batch ID",
+      "Batch Name",
+      "Serial Number",
+      "PIN Code",
+      "Profile Plan",
+      "Duration (Days)",
+      "Price",
+      "Currency",
+      "Status",
+      "Used By",
+      "Used At",
+      "Created At",
+    ];
+    const rows = currentCards.map((c) => [
+      c.batchId,
+      `"${(currentBatch.name || "").replace(/"/g, '""')}"`,
+      `"${c.serialNumber}"`,
+      `"${c.pinCode}"`,
+      `"${c.profileName || ""}"`,
+      c.durationDays,
+      c.price,
+      c.currency,
+      c.status,
+      `"${c.usedByUsername || ""}"`,
+      `"${c.usedAt || ""}"`,
+      `"${c.createdAt || ""}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${currentBatch.id}_${(currentBatch.name || "batch").replace(/\s+/g, "_")}_cards.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    notify.success("Exported", `${currentCards.length} voucher cards downloaded as CSV`);
+  };
+
   return (
     <div className="w-full space-y-6">
       <PageHeader
@@ -425,6 +470,16 @@ export default function Vouchers() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCsv}
+                    className="gap-1.5 shadow-xs border-border/80 text-foreground hover:bg-muted"
+                    title="Export cards to CSV for vendors or retail distribution"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

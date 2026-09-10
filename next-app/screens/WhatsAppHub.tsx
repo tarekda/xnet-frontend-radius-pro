@@ -20,7 +20,11 @@ import {
   Users,
   ShieldCheck,
   Zap,
+  Camera,
+  Bot,
 } from "lucide-react";
+import { ReceiptOcrTesterModal } from "@/components/ReceiptOcrTesterModal";
+import { AIAgentSimulatorModal } from "@/components/AIAgentSimulatorModal";
 import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import Link from "next/link";
 import { notify } from "@/lib/notify";
 import { apiClient } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
@@ -71,6 +84,8 @@ export default function WhatsAppHub() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<string>("inbound");
+  const [isHubReceiptOcrOpen, setIsHubReceiptOcrOpen] = useState<boolean>(false);
+  const [isAgentSimulatorOpen, setIsAgentSimulatorOpen] = useState<boolean>(false);
 
   // Single test sender state
   const [testPhone, setTestPhone] = useState<string>("");
@@ -263,6 +278,22 @@ export default function WhatsAppHub() {
         icon={MessageCircle}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsAgentSimulatorOpen(true)}
+              className="h-9 gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs font-semibold text-xs"
+            >
+              <Bot className="h-4 w-4" />
+              AI Agent Simulator
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsHubReceiptOcrOpen(true)}
+              className="h-9 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs font-semibold text-xs"
+            >
+              <Sparkles className="h-4 w-4" />
+              Scan Receipt Slip (OCR)
+            </Button>
             <IconActionButton
               label="Refresh"
               onClick={() => {
@@ -363,7 +394,7 @@ export default function WhatsAppHub() {
 
         {/* Tab 0: Inbound Traffic Queue */}
         <TabsContent value="inbound" className="space-y-4">
-          <WhatsAppInboundQueueTab />
+          <WhatsAppInboundQueueTab onOpenSimulator={() => setIsAgentSimulatorOpen(true)} />
         </TabsContent>
 
         {/* Tab 1: Bulk Campaign Dispatch */}
@@ -686,16 +717,57 @@ export default function WhatsAppHub() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ReceiptOcrTesterModal
+        open={isHubReceiptOcrOpen}
+        onOpenChange={setIsHubReceiptOcrOpen}
+        onReconciled={() => {
+          qc.invalidateQueries({ queryKey: ["whatsappInboundQueue"] });
+          qc.invalidateQueries({ queryKey: ["externalInvoices"] });
+        }}
+      />
+
+      <AIAgentSimulatorModal
+        open={isAgentSimulatorOpen}
+        onOpenChange={setIsAgentSimulatorOpen}
+        onSimulationComplete={() => {
+          qc.invalidateQueries({ queryKey: ["whatsappInboundQueue"] });
+        }}
+      />
     </div>
   );
 }
 
-function WhatsAppInboundQueueTab() {
+const INTENT_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
+  batch_payment: { label: "Batch Names Payment", bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/30" },
+  receipt_payment: { label: "Receipt Submission", bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/30" },
+  receipt_submission: { label: "Receipt Submission", bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/30" },
+  bill_inquiry: { label: "Bill / Due Inquiry", bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/30" },
+  account_status: { label: "Account Status", bg: "bg-indigo-500/10", text: "text-indigo-600 dark:text-indigo-400", border: "border-indigo-500/30" },
+  how_to_pay: { label: "Payment Channels", bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500/30" },
+  quota_inquiry: { label: "Quota Check", bg: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400", border: "border-cyan-500/30" },
+  reconnect_speed: { label: "Speed / Reconnect", bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400", border: "border-teal-500/30" },
+  refresh_connection: { label: "Network Refresh", bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400", border: "border-teal-500/30" },
+  topup_inquiry: { label: "Turbo Boost / Top-Up", bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", border: "border-amber-500/30" },
+  support_escalation: { label: "Staff Escalation", bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", border: "border-rose-500/30" },
+  agent_escalation: { label: "Staff Escalation", bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", border: "border-rose-500/30" },
+  greeting_menu: { label: "Self-Service Menu", bg: "bg-slate-500/10", text: "text-slate-600 dark:text-slate-400", border: "border-slate-500/30" },
+  unknown: { label: "General Chat", bg: "bg-muted", text: "text-muted-foreground", border: "border-border" },
+};
+
+function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => void }) {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [fromNumber, setFromNumber] = useState("");
+
+  const [manualMatchRow, setManualMatchRow] = useState<any | null>(null);
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [isQueueReceiptOcrOpen, setIsQueueReceiptOcrOpen] = useState(false);
+  const [previewReceiptMedia, setPreviewReceiptMedia] = useState<{ url: string; title: string } | null>(null);
 
   const query = useQuery({
     queryKey: ["whatsappInboundQueue", page, search, status, fromNumber],
@@ -711,6 +783,44 @@ function WhatsAppInboundQueueTab() {
     },
     refetchInterval: 10000,
   });
+
+  const candidateQuery = useQuery({
+    queryKey: ["unpaidInvoicesForMatch", candidateSearch],
+    queryFn: async () => {
+      if (!candidateSearch.trim() || candidateSearch.trim().length < 2) return [];
+      const { data } = await apiClient.get("/invoices/external", {
+        params: { search: candidateSearch.trim(), status: "unpaid", limit: 8 },
+      });
+      return Array.isArray(data?.data) ? data.data : [];
+    },
+    enabled: !!manualMatchRow && candidateSearch.trim().length >= 2,
+  });
+
+  const onResolveManualMatch = async () => {
+    if (!manualMatchRow || !selectedInvoice) return;
+    setIsResolving(true);
+    try {
+      await apiClient.post(`/invoices/external/whatsapp-inbound-messages/${manualMatchRow.id}/resolve`, {
+        invoiceId: selectedInvoice.id,
+      });
+      notify.success(
+        "Conflict Resolved & Marked Paid",
+        `Payment applied to invoice #${selectedInvoice.id} (${selectedInvoice.fullName})`
+      );
+      setManualMatchRow(null);
+      setSelectedInvoice(null);
+      setCandidateSearch("");
+      qc.invalidateQueries({ queryKey: ["whatsappInboundQueue"] });
+      qc.invalidateQueries({ queryKey: ["externalInvoices"] });
+    } catch (err: any) {
+      notify.error(
+        "Resolution Failed",
+        err?.response?.data?.message || err?.message || "Could not resolve message"
+      );
+    } finally {
+      setIsResolving(false);
+    }
+  };
 
   const retryMutation = useMutation({
     mutationFn: (id: number) => apiClient.post(`/invoices/external/whatsapp-inbound-messages/${id}/retry`),
@@ -762,6 +872,13 @@ function WhatsAppInboundQueueTab() {
               <div className="text-xl font-bold mt-0.5 text-sky-600 dark:text-sky-400">
                 {metrics?.noMatch ?? 0}
               </div>
+              <button
+                type="button"
+                onClick={() => setStatus("no_match")}
+                className="text-[10px] text-sky-600 hover:underline mt-0.5 block cursor-pointer"
+              >
+                Filter No Match →
+              </button>
             </div>
             <div className="h-8 w-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-600">
               <Users className="h-4 w-4" />
@@ -776,6 +893,12 @@ function WhatsAppInboundQueueTab() {
               <div className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">
                 {metrics?.errors ?? 0}
               </div>
+              <Link
+                href="/external-invoices/whatsapp-matches"
+                className="text-[10px] text-amber-600 hover:underline mt-0.5 block"
+              >
+                Resolve Conflicts Queue →
+              </Link>
             </div>
             <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
               <AlertCircle className="h-4 w-4" />
@@ -820,6 +943,24 @@ function WhatsAppInboundQueueTab() {
           </Select>
 
           <Button
+            size="sm"
+            onClick={onOpenSimulator}
+            className="text-xs gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs shrink-0"
+          >
+            <Bot className="h-3.5 w-3.5" />
+            AI Agent Simulator
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsQueueReceiptOcrOpen(true)}
+            className="text-xs gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs shrink-0"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Scan Receipt Slip (OCR)
+          </Button>
+
+          <Button
             variant="outline"
             size="sm"
             onClick={() => query.refetch()}
@@ -836,9 +977,10 @@ function WhatsAppInboundQueueTab() {
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead className="w-[160px]">Timestamp</TableHead>
-              <TableHead className="w-[180px]">From Sender</TableHead>
-              <TableHead>Message Text</TableHead>
+              <TableHead className="w-[150px]">Timestamp</TableHead>
+              <TableHead className="w-[150px]">From Sender</TableHead>
+              <TableHead className="min-w-[180px]">Message Text</TableHead>
+              <TableHead className="min-w-[220px]">AI Intent & Reply</TableHead>
               <TableHead>Parsed Name / Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -847,13 +989,13 @@ function WhatsAppInboundQueueTab() {
           <TableBody>
             {query.isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-xs">
                   Loading inbound WhatsApp traffic queue…
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-xs">
                   No inbound WhatsApp messages found matching filters.
                 </TableCell>
               </TableRow>
@@ -866,8 +1008,61 @@ function WhatsAppInboundQueueTab() {
                   <TableCell className="text-xs font-mono font-medium">
                     {row.fromNumber}
                   </TableCell>
-                  <TableCell className="text-xs max-w-[240px] truncate font-medium">
-                    {row.rawText}
+                  <TableCell className="text-xs max-w-[240px] font-medium">
+                    {row.mediaUrl ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReceiptMedia({ url: row.mediaUrl, title: `Receipt Slip: ${row.fromNumber}` })}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-medium border border-indigo-500/30 shrink-0"
+                          title="Click to view payment slip image"
+                        >
+                          <Camera className="h-3 w-3" />
+                          <span>Slip</span>
+                        </button>
+                        <span className="truncate">{row.rawText}</span>
+                      </div>
+                    ) : (
+                      <span className="truncate block">{row.rawText}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs max-w-[280px]">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {row.intent ? (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-medium ${
+                              INTENT_BADGES[row.intent]?.bg ?? "bg-muted"
+                            } ${INTENT_BADGES[row.intent]?.text ?? "text-muted-foreground"} ${
+                              INTENT_BADGES[row.intent]?.border ?? "border-border"
+                            }`}
+                          >
+                            {INTENT_BADGES[row.intent]?.label ?? row.intent}
+                          </Badge>
+                        ) : null}
+                        {row.matchedUsername ? (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] font-mono px-1.5 py-0 bg-primary/10 text-primary border border-primary/20"
+                            title="Matched Subscriber Account"
+                          >
+                            👤 {row.matchedUsername}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {row.replyText ? (
+                        <div
+                          className="text-[11px] bg-muted/60 dark:bg-muted/40 p-1.5 rounded border border-border/50 text-foreground/80 line-clamp-2"
+                          title={row.replyText}
+                        >
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-1">🤖</span>
+                          {row.replyText}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-[11px]">—</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs">
                     {Array.isArray(row.parsedNames) && row.parsedNames.length > 0 ? (
@@ -898,16 +1093,48 @@ function WhatsAppInboundQueueTab() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => retryMutation.mutate(row.id)}
-                      disabled={retryMutation.isPending}
-                      className="h-7 text-xs gap-1"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${retryMutation.isPending ? "animate-spin" : ""}`} />
-                      Retry
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      {row.status === "ambiguous" && (
+                        <Button
+                          size="sm"
+                          asChild
+                          className="h-7 text-xs gap-1 bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                        >
+                          <Link href="/external-invoices/whatsapp-matches">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Resolve
+                          </Link>
+                        </Button>
+                      )}
+
+                      {(row.status === "no_match" || row.status === "ambiguous" || row.status === "error") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setManualMatchRow(row);
+                            setCandidateSearch(row.parsedNames?.[0] || "");
+                            setSelectedInvoice(null);
+                          }}
+                          className="h-7 text-xs gap-1 text-sky-600 border-sky-500/40 hover:bg-sky-50 dark:hover:bg-sky-950"
+                        >
+                          <Users className="h-3 w-3" />
+                          Match
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => retryMutation.mutate(row.id)}
+                        disabled={retryMutation.isPending}
+                        className="h-7 text-xs gap-1"
+                        title="Re-run automated parser"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${retryMutation.isPending ? "animate-spin" : ""}`} />
+                        Retry
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -915,6 +1142,167 @@ function WhatsAppInboundQueueTab() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Manual Match & Conflict Resolution Dialog */}
+      <Dialog open={!!manualMatchRow} onOpenChange={(open) => !open && setManualMatchRow(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-sky-600" />
+              Resolve WhatsApp Payment Conflict
+            </DialogTitle>
+            <DialogDescription>
+              Match this WhatsApp message to an unpaid subscriber invoice and mark it paid.
+            </DialogDescription>
+          </DialogHeader>
+
+          {manualMatchRow && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg border text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">From Sender:</span>
+                  <span className="font-mono font-medium">{manualMatchRow.fromNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Message Text:</span>
+                  <span className="font-semibold text-foreground">&ldquo;{manualMatchRow.rawText}&rdquo;</span>
+                </div>
+                {manualMatchRow.extractedAmount != null && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Detected Amount:</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      ${Number(manualMatchRow.extractedAmount).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="candidate-search" className="text-xs">
+                  Search Unpaid Subscriber Invoices
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="candidate-search"
+                    placeholder="Type name, username, or invoice #…"
+                    value={candidateSearch}
+                    onChange={(e) => {
+                      setCandidateSearch(e.target.value);
+                      setSelectedInvoice(null);
+                    }}
+                    className="pl-9 text-xs"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-52 overflow-y-auto space-y-1.5 border rounded-lg p-2">
+                {candidateQuery.isLoading ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-1" /> Searching invoices…
+                  </div>
+                ) : !candidateSearch.trim() || candidateSearch.trim().length < 2 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    Enter at least 2 characters to search unpaid invoices.
+                  </div>
+                ) : (candidateQuery.data || []).length === 0 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    No unpaid invoices found matching &ldquo;{candidateSearch}&rdquo;.
+                  </div>
+                ) : (
+                  (candidateQuery.data || []).map((inv: any) => {
+                    const isSelected = selectedInvoice?.id === inv.id;
+                    return (
+                      <div
+                        key={inv.id}
+                        onClick={() => setSelectedInvoice(inv)}
+                        className={`p-2.5 rounded-md border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/40"
+                            : "border-border/60 hover:bg-muted/40"
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-foreground flex items-center gap-1.5">
+                            <span>{inv.fullName}</span>
+                            <span className="font-mono text-[11px] text-muted-foreground font-normal">
+                              (@{inv.username})
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            Invoice #{inv.id} · Due: {inv.payDueDate ? new Date(inv.payDueDate).toLocaleDateString() : "—"}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="font-mono font-bold text-foreground">
+                            ${Number(inv.totalAmount ?? inv.amount ?? 0).toFixed(2)}
+                          </div>
+                          {isSelected && (
+                            <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 text-[10px]">
+                              Selected
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualMatchRow(null)} disabled={isResolving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={onResolveManualMatch}
+              disabled={!selectedInvoice || isResolving}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              {isResolving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              {isResolving ? "Applying Payment…" : "Apply Payment & Resolve"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Image Zoom Modal */}
+      <Dialog open={!!previewReceiptMedia} onOpenChange={(open) => !open && setPreviewReceiptMedia(null)}>
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] p-4 flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Camera className="h-4 w-4 text-indigo-500" />
+              {previewReceiptMedia?.title || "Receipt Slip Image"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto rounded-lg border border-border/60 bg-black/5 p-2 flex items-center justify-center">
+            {previewReceiptMedia?.url && (
+              <img
+                src={previewReceiptMedia.url.startsWith("http") ? previewReceiptMedia.url : `${apiClient.defaults.baseURL?.replace(/\/api$/, "") || ""}${previewReceiptMedia.url}`}
+                alt="Receipt Slip"
+                className="max-h-[65vh] object-contain rounded"
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setPreviewReceiptMedia(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ReceiptOcrTesterModal
+        open={isQueueReceiptOcrOpen}
+        onOpenChange={setIsQueueReceiptOcrOpen}
+        onReconciled={() => {
+          qc.invalidateQueries({ queryKey: ["whatsappInboundQueue"] });
+          qc.invalidateQueries({ queryKey: ["externalInvoices"] });
+        }}
+      />
     </div>
   );
 }

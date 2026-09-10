@@ -14,6 +14,7 @@ import UsersTable from "@/components/UsersTable";
 import AddUserModal from "@/components/AddUserModal";
 
 import { fetchFleetMetrics } from "@/api/users";
+import { apiClient } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import useUsers from "@/hooks/useUsers";
 import { useProfiles } from "@/hooks/useProfiles";
@@ -374,6 +375,15 @@ const UsersPage: React.FC = () => {
             'reset-quota': () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'reset-quota', username: user.username } }),
             'reset-monthly': () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'reset-monthly-quota', username: user.username } }),
             renew: () => dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'renew-subscription', username: user.username } }),
+            disconnect: async () => {
+                try {
+                    await apiClient.post("/sessions/disconnect", { username: user.username });
+                    notify.success("Disconnected", `Kicked active session for ${user.username}`);
+                    refetch();
+                } catch (err: any) {
+                    notify.error("Disconnect Failed", err?.response?.data?.message || err?.message || "Could not kick user session.");
+                }
+            },
         };
 
         const actionFunction = actions[action as keyof typeof actions];
@@ -382,7 +392,7 @@ const UsersPage: React.FC = () => {
         } else {
             console.warn('Unknown action:', action);
         }
-    }, []);
+    }, [refetch]);
 
     const handlePageSizeChange = useCallback((newSize: number) => {
         dispatch({ type: "SET_PAGE_SIZE", payload: newSize });

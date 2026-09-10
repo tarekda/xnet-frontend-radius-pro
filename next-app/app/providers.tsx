@@ -26,6 +26,8 @@ function makeQueryClient() {
       queries: {
         retry: 1,
         refetchOnWindowFocus: false,
+        staleTime: 30 * 1000, // Keep data fresh for 30s before refetching on mount
+        gcTime: 5 * 60 * 1000, // Cache inactive queries for 5 minutes
       },
     },
   });

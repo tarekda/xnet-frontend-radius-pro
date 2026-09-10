@@ -12,6 +12,7 @@ import MonthlyCycleCell from "@/components/MonthlyCycleCell";
 import StatusPill from "@/components/StatusPill";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
+import { getExpiryInfo } from "@/screens/users/lib";
 
 interface UserCardProps {
     user: User;
@@ -206,6 +207,32 @@ const UserCard: React.FC<UserCardProps> = ({
                             isMonthlyExceededComputed={user.isMonthlyExceededComputed}
                             monthlyUsagePct={user.monthlyUsagePct}
                         />
+                    </div>
+
+                    {/* Expiration Countdown */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-0.5">
+                        <span className="inline-flex items-center gap-1 text-[11px]">
+                            <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground/70" />
+                            Expiration:
+                        </span>
+                        {(() => {
+                            const exp = getExpiryInfo(user.expiresAt);
+                            return (
+                                <Badge
+                                    variant="outline"
+                                    className={cn(
+                                        "h-4 rounded-full px-1.5 text-[9px] font-semibold",
+                                        exp.status === "expired" && "border-rose-500/40 bg-rose-500/10 text-rose-500",
+                                        (exp.status === "expiring_today" || exp.status === "expiring_soon") && "border-amber-500/40 bg-amber-500/10 text-amber-500 animate-pulse",
+                                        exp.status === "active" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
+                                        exp.status === "no_expiry" && "border-border/60 text-muted-foreground"
+                                    )}
+                                    title={exp.sublabel}
+                                >
+                                    {exp.label}
+                                </Badge>
+                            );
+                        })()}
                     </div>
 
                     {/* Last Active Timestamp */}

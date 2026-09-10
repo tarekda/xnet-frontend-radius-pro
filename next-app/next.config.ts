@@ -16,6 +16,17 @@ const gitSha =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "date-fns",
+      "recharts",
+      "@radix-ui/react-icons",
+      "framer-motion",
+      "react-icons",
+      "@xyflow/react",
+    ],
+  },
   webpack: (config, { webpack: webpackInstance }) => {
     config.plugins.push(
       new webpackInstance.DefinePlugin({
@@ -28,6 +39,15 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
       {
         source: "/:path*",
         headers: [

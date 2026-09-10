@@ -36,6 +36,12 @@ import IconActionButton from "@/components/IconActionButton";
 import { CountUpNumber } from "@/components/viz";
 import { AIDailyOpsBriefWidget } from "@/components/AIDailyOpsBriefWidget";
 import { cn } from "@/lib/utils";
+import {
+  RevenueTrendSparklineWidget,
+  SubscriberChurnCard,
+  TopBandwidthConsumersWidget,
+  ActiveAlertsPulseBadge,
+} from "@/components/EnhancedHomeWidgets";
 
 type AuditLogRow = {
   id: number;
@@ -161,7 +167,7 @@ const ModuleCard = ({
 };
 
 // ─── System Pulse Row ─────────────────────────────────────────────────────────
-const SystemPulseRow = () => {
+const SystemPulseRow = ({ canSeeAlerts }: { canSeeAlerts?: boolean }) => {
   const q = useQuery({
     queryKey: ["noc-health", "home-pulse"],
     queryFn: async () => {
@@ -222,6 +228,9 @@ const SystemPulseRow = () => {
           </span>
         )}
       </div>
+
+      {/* Active Alerts Pulse Badge */}
+      {canSeeAlerts && <ActiveAlertsPulseBadge canSeeAlerts={canSeeAlerts} />}
     </div>
   );
 };
@@ -545,7 +554,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* System Pulse Row */}
-      <SystemPulseRow />
+      <SystemPulseRow canSeeAlerts={Boolean(canSeeAlerts)} />
 
       {/* AI Daily Brief */}
       <AIDailyOpsBriefWidget />
@@ -602,6 +611,23 @@ const Home: React.FC = () => {
         />
         <RecentActivityCard enabled={Boolean(canSeeAudit)} />
       </div>
+
+      {/* Enterprise Revenue & Subscriber Fleet Intelligence */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {canSeeInvoices && <RevenueTrendSparklineWidget canSeeInvoices={Boolean(canSeeInvoices)} />}
+        {canSeeUsers && (
+          <SubscriberChurnCard
+            fleet={fleet}
+            isLoading={fleetQuery.isLoading}
+            canSeeUsers={Boolean(canSeeUsers)}
+          />
+        )}
+      </div>
+
+      {/* Top Bandwidth Consumers Mini-Table */}
+      {canSeeOnline && (
+        <TopBandwidthConsumersWidget canSeeOnline={Boolean(canSeeOnline)} />
+      )}
 
       {/* FUP heads-up for users over quota */}
       {fleet && fleet.monthlyExceeded > 0 ? (

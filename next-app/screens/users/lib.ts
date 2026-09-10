@@ -42,6 +42,11 @@ export function filterUsers(
       switch (statusFilter) {
         case "risk":
           return isUserAtRisk(user);
+        case "expiring_soon": {
+          if (!user.expiresAt) return false;
+          const exp = new Date(user.expiresAt).getTime();
+          return exp <= Date.now() + 3 * 24 * 60 * 60 * 1000;
+        }
         case "online":
           return user.isOnline === true;
         case "offline":
@@ -74,6 +79,86 @@ export function filterUsers(
   return filtered;
 }
 
+export type ExpiryInfo = {
+  status: "expired" | "expiring_today" | "expiring_soon" | "active" | "no_expiry";
+  label: string;
+  sublabel: string;
+  badgeTone: "danger" | "warning" | "success" | "neutral";
+  daysRemaining: number | null;
+};
+
+export function getExpiryInfo(expiresAt?: string | null): ExpiryInfo {
+  if (!expiresAt) {
+    return {
+      status: "no_expiry",
+      label: "No Expiry",
+      sublabel: "Unlimited duration",
+      badgeTone: "neutral",
+      daysRemaining: null,
+    };
+  }
+
+  const expDate = new Date(expiresAt);
+  if (Number.isNaN(expDate.getTime())) {
+    return {
+      status: "no_expiry",
+      label: "Invalid Date",
+      sublabel: String(expiresAt),
+      badgeTone: "neutral",
+      daysRemaining: null,
+    };
+  }
+
+  const now = new Date();
+  const diffMs = expDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  const formattedDate = expDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  if (diffDays < 0) {
+    const pastDays = Math.abs(diffDays);
+    return {
+      status: "expired",
+      label: pastDays === 0 ? "Expired today" : `Expired ${pastDays}d ago`,
+      sublabel: formattedDate,
+      badgeTone: "danger",
+      daysRemaining: diffDays,
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      status: "expiring_today",
+      label: "Expires today",
+      sublabel: formattedDate,
+      badgeTone: "warning",
+      daysRemaining: 0,
+    };
+  }
+
+  if (diffDays <= 3) {
+    return {
+      status: "expiring_soon",
+      label: `Expires in ${diffDays}d`,
+      sublabel: formattedDate,
+      badgeTone: "warning",
+      daysRemaining: diffDays,
+    };
+  }
+
+  return {
+    status: "active",
+    label: `${diffDays}d remaining`,
+    sublabel: formattedDate,
+    badgeTone: "success",
+    daysRemaining: diffDays,
+  };
+}
+
 export type LocalUsersMetrics = {
   total: number;
   active: number;
@@ -82,6 +167,7 @@ export type LocalUsersMetrics = {
   offline: number;
   quotaExceeded: number;
   riskUsers: number;
+  expiringSoon: number;
 };
 
 /** Metrics for the currently loaded page (fallback when fleet metrics are unavailable). */
@@ -94,5 +180,10 @@ export function computeLocalMetrics(allUsers: User[], filteredUsers: User[]): Lo
     offline: filteredUsers.filter((u) => !u.isOnline).length,
     quotaExceeded: filteredUsers.filter((u) => u.isMonthlyExceeded).length,
     riskUsers: filteredUsers.filter(isUserAtRisk).length,
+    expiringSoon: filteredUsers.filter((u) => {
+      if (!u.expiresAt) return false;
+      const exp = new Date(u.expiresAt).getTime();
+      return exp <= Date.now() + 3 * 24 * 60 * 60 * 1000;
+    }).length,
   };
 }

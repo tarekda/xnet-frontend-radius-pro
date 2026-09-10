@@ -1,16 +1,30 @@
 import React, { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Edit, Trash2, ArrowUpDown, Copy, User as UserIcon, ExternalLink, CalendarPlus, LayoutGrid, List, X } from 'lucide-react';
+import {
+    RefreshCw,
+    Edit,
+    Trash2,
+    ArrowUpDown,
+    Copy,
+    User as UserIcon,
+    ExternalLink,
+    CalendarPlus,
+    LayoutGrid,
+    List,
+    X,
+    Clock,
+    KeyRound,
+    MessageCircle,
+    WifiOff,
+} from 'lucide-react';
 import { User } from '../types/api';
+import { getExpiryInfo } from '@/screens/users/lib';
 
-/** Same rules as user detail Renew +1 month. */
+/** Any non-terminated subscriber can be renewed/extended +1 month. */
 export function canRenewUserSubscription(user: User): boolean {
     const st = String(user.accountStatus ?? "").trim().toLowerCase();
-    if (st === "suspended" || st === "terminated") return false;
-    if (st === "expired") return true;
-    if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) return true;
-    return false;
+    return st !== "terminated";
 }
 import { UseMutationResult } from '@tanstack/react-query';
 import UserCard from './UserCard';
@@ -232,6 +246,44 @@ const UserRow: React.FC<{
                 />
             </TableCell>
 
+            {/* Expiration Countdown Cell */}
+            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+                {(() => {
+                    const exp = getExpiryInfo(user.expiresAt);
+                    return (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1.5 cursor-help">
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                "h-5 rounded-full px-2 text-[10px] font-semibold transition-all inline-flex items-center gap-1",
+                                                exp.status === "expired" &&
+                                                    "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                                                (exp.status === "expiring_today" || exp.status === "expiring_soon") &&
+                                                    "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse",
+                                                exp.status === "active" &&
+                                                    "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                                                exp.status === "no_expiry" &&
+                                                    "border-border/60 bg-muted/40 text-muted-foreground"
+                                            )}
+                                        >
+                                            <Clock className="h-2.5 w-2.5" />
+                                            {exp.label}
+                                        </Badge>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="font-semibold">{exp.label}</p>
+                                    <p className="text-xs text-muted-foreground">{exp.sublabel}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    );
+                })()}
+            </TableCell>
+
             {/* Account Status Cell */}
             <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
                 <StatusPill
@@ -268,6 +320,18 @@ const UserRow: React.FC<{
                             },
                         },
                         {
+                            label: "Copy Credentials",
+                            icon: KeyRound,
+                            onClick: () => {
+                                const pwd = (user as any).cleartextPassword || (user as any).password || "";
+                                const text = pwd ? `Username: ${user.username}\nPassword: ${pwd}` : `Username: ${user.username}`;
+                                navigator.clipboard.writeText(text).then(
+                                    () => notify.success("Copied", pwd ? "Username & password copied to clipboard" : "Username copied to clipboard"),
+                                    () => notify.error("Copy failed", "Could not copy to clipboard")
+                                );
+                            },
+                        },
+                        {
                             label: "Copy MAC",
                             icon: Copy,
                             onClick: () => {
@@ -283,14 +347,20 @@ const UserRow: React.FC<{
                             disabledReason: "No MAC bound for this user",
                         },
                         {
-                            label: "Reset MAC",
-                            icon: RefreshCw,
-                            onClick: () => onAction("reset-mac", user),
-                            disabled: !canManageUsers || !user.macAddress?.macAddress,
-                            disabledReason: !canManageUsers ? manageUsersReason : "No MAC is currently bound for this user.",
+                            label: "Send WhatsApp",
+                            icon: MessageCircle,
+                            onClick: () => {
+                                const raw = user.userDetails?.phoneNumber || "";
+                                const phone = raw.replace(/[^0-9]/g, "");
+                                if (phone) {
+                                    window.open(`https://wa.me/${phone}`, "_blank");
+                                } else {
+                                    notify.error("No phone number", "This subscriber has no phone number recorded.");
+                                }
+                            },
+                            disabled: !user.userDetails?.phoneNumber,
+                            disabledReason: "No phone number recorded for this subscriber",
                         },
-                        { label: "Reset Quota", icon: RefreshCw, onClick: () => onAction("reset-quota", user), disabled: !canResetDailyQuota, disabledReason: !canResetDailyQuota ? "You don't have permission to reset daily quota." : undefined },
-                        { label: "Reset Monthly", icon: RefreshCw, onClick: () => onAction("reset-monthly", user), disabled: !canResetMonthlyQuota, disabledReason: !canResetMonthlyQuota ? "You don't have permission to reset monthly quota." : undefined },
                         ...(canRenewUserSubscription(user)
                             ? [{
                                 label: "Renew +1 month",
@@ -300,8 +370,27 @@ const UserRow: React.FC<{
                                 disabledReason: !canManageUsers ? manageUsersReason : undefined,
                             }]
                             : []),
+                        ...(user.isOnline
+                            ? [{
+                                label: "Disconnect Session",
+                                icon: WifiOff,
+                                onClick: () => onAction("disconnect", user),
+                                disabled: !canManageUsers,
+                                disabledReason: !canManageUsers ? manageUsersReason : undefined,
+                                tone: "destructive" as const,
+                            }]
+                            : []),
+                        {
+                            label: "Reset MAC",
+                            icon: RefreshCw,
+                            onClick: () => onAction("reset-mac", user),
+                            disabled: !canManageUsers || !user.macAddress?.macAddress,
+                            disabledReason: !canManageUsers ? manageUsersReason : "No MAC is currently bound for this user.",
+                        },
+                        { label: "Reset Quota", icon: RefreshCw, onClick: () => onAction("reset-quota", user), disabled: !canResetDailyQuota, disabledReason: !canResetDailyQuota ? "You don't have permission to reset daily quota." : undefined },
+                        { label: "Reset Monthly", icon: RefreshCw, onClick: () => onAction("reset-monthly", user), disabled: !canResetMonthlyQuota, disabledReason: !canResetMonthlyQuota ? "You don't have permission to reset monthly quota." : undefined },
                         { label: "Edit", icon: Edit, onClick: () => onAction("edit", user), disabled: !canManageUsers, disabledReason: manageUsersReason },
-                        { label: "Delete", icon: Trash2, onClick: () => onAction("delete", user), tone: "destructive", disabled: !canManageUsers, disabledReason: manageUsersReason },
+                        { label: "Delete", icon: Trash2, onClick: () => onAction("delete", user), tone: "destructive" as const, disabled: !canManageUsers, disabledReason: manageUsersReason },
                     ]}
                 />
             </TableCell>
@@ -411,6 +500,19 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     className={sortHeaderButtonClass}
                 >
                     Monthly Cycle
+                    <ArrowUpDown className="ml-2 h-4 w-4 opacity-70" />
+                </Button>
+            ),
+        },
+        {
+            accessorKey: "expiresAt",
+            header: ({ column }) => (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    className={sortHeaderButtonClass}
+                >
+                    Expiration
                     <ArrowUpDown className="ml-2 h-4 w-4 opacity-70" />
                 </Button>
             ),

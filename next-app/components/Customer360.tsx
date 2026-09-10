@@ -13,11 +13,19 @@ import {
   Plus,
   Radio,
   Wallet,
+  Award,
+  TrendingUp,
+  CheckCircle2,
+  ShieldCheck,
+  Clock,
+  Calendar,
+  History,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { can, canAny } from "@/lib/permissions";
 import { notify } from "@/lib/notify";
+import { cn } from "@/lib/utils";
 import type { ExternalInvoice, User } from "@/types/api";
 import ExternalInvoiceDetailView from "@/components/ExternalInvoiceDetailView";
 import SendWhatsAppDialog from "@/components/SendWhatsAppDialog";
@@ -213,8 +221,27 @@ export function Customer360Summary({ user }: { user: User }) {
       Number(usageQuery.data?.bytesIn ?? 0) + Number(usageQuery.data?.bytesOut ?? 0)
   );
 
+  const allInvoices = invoicesQuery.data?.data ?? [];
+  const paidInvoices = useMemo(() => allInvoices.filter((inv) => inv.status === "paid"), [allInvoices]);
+  const ltvAmount = useMemo(
+    () => paidInvoices.reduce((sum, inv) => sum + Number(inv.amount || 0), 0),
+    [paidInvoices]
+  );
+
+  // Composite Service Quality Score (SQS)
+  const openCount = openInvoices.length;
+  const sqsValue = Math.max(15, Math.min(100, (isLiveOnline ? 98 : 88) - openCount * 12));
+  const sqsLevel =
+    sqsValue >= 90
+      ? { label: "Excellent", color: "text-emerald-600 dark:text-emerald-400" }
+      : sqsValue >= 75
+      ? { label: "Good", color: "text-blue-600 dark:text-blue-400" }
+      : sqsValue >= 50
+      ? { label: "Fair", color: "text-amber-600 dark:text-amber-400" }
+      : { label: "At Risk", color: "text-rose-600 dark:text-rose-400" };
+
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <Card className="border-border/60 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -235,14 +262,14 @@ export function Customer360Summary({ user }: { user: User }) {
       <Card className="border-border/60 shadow-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Usage · last 24h</span>
+            <span className="text-sm text-muted-foreground">Usage · 24h</span>
             <Activity className="h-4 w-4 text-primary" />
           </div>
           <div className="mt-2 text-xl font-semibold">
             {usageQuery.isLoading ? "…" : formatBytes(recentBytes)}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {usageQuery.data?.sessions ?? 0} session(s) in the usage window
+            {usageQuery.data?.sessions ?? 0} active session(s)
           </div>
         </CardContent>
       </Card>
@@ -251,7 +278,7 @@ export function Customer360Summary({ user }: { user: User }) {
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Outstanding billing</span>
+              <span className="text-sm text-muted-foreground">Outstanding</span>
               <FileText className="h-4 w-4 text-amber-500" />
             </div>
             <div className="mt-2 text-xl font-semibold">
@@ -261,7 +288,7 @@ export function Customer360Summary({ user }: { user: User }) {
                   ? formatMoney(outstanding)
                   : `${openInvoices.length} open`}
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">{openInvoices.length} unpaid or pending invoice(s)</div>
+            <div className="mt-1 text-xs text-muted-foreground">{openInvoices.length} unpaid or pending</div>
           </CardContent>
         </Card>
       ) : null}
@@ -270,16 +297,49 @@ export function Customer360Summary({ user }: { user: User }) {
         <Card className="border-border/60 shadow-none">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Wallet balance</span>
+              <span className="text-sm text-muted-foreground">Wallet</span>
               <Wallet className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="mt-2 text-xl font-semibold">
               {walletQuery.isLoading ? "…" : formatMoney(walletQuery.data?.balance)}
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">{walletQuery.data?.total ?? 0} ledger transaction(s)</div>
+            <div className="mt-1 text-xs text-muted-foreground">{walletQuery.data?.total ?? 0} transaction(s)</div>
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Lifetime Value (LTV) Card */}
+      {canSeeBilling ? (
+        <Card className="border-border/60 shadow-none">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Lifetime Value</span>
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            </div>
+            <div className="mt-2 text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+              {invoicesQuery.isLoading ? "…" : canSeeTotals ? formatMoney(ltvAmount) : "—"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{paidInvoices.length} paid cycle(s)</div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Service Quality Score (SQS) Card */}
+      <Card className="border-border/60 shadow-none">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Quality Score</span>
+            <Award className="h-4 w-4 text-indigo-500" />
+          </div>
+          <div className="mt-2 text-xl font-semibold font-mono flex items-baseline gap-1">
+            <span className={sqsLevel.color}>{sqsValue}</span>
+            <span className="text-xs text-muted-foreground font-normal">/100</span>
+          </div>
+          <div className="mt-1 text-xs font-medium text-muted-foreground truncate">
+            {sqsLevel.label}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -437,6 +497,59 @@ export function CustomerBillingPanel({ username }: { username: string }) {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Customer Payment & Billing Timeline */}
+          {rows.length > 0 && (
+            <div className="mt-6 border-t border-border/50 pt-4">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+                <History className="h-4 w-4 text-primary" />
+                Payment & Billing Lifecycle Timeline
+              </h4>
+              <div className="relative pl-6 border-l-2 border-border/60 space-y-4">
+                {rows.slice(0, 6).map((inv) => {
+                  const isPaid = inv.status === "paid";
+                  return (
+                    <div key={inv.id} className="relative group">
+                      <div
+                        className={cn(
+                          "absolute -left-[31px] top-1 h-3.5 w-3.5 rounded-full border-2 border-background",
+                          isPaid ? "bg-emerald-500" : "bg-amber-500"
+                        )}
+                      />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                        <div>
+                          <span className="font-semibold text-foreground">
+                            Invoice #{inv.id} ({inv.billingMonth ? String(inv.billingMonth).slice(0, 7) : "Cycle"})
+                          </span>
+                          <span className="text-muted-foreground ml-2">
+                            Due: {formatDate(inv.payDueDate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {canSeeTotals && (
+                            <span className="font-mono font-semibold text-foreground">
+                              {formatMoney(inv.amount)}
+                            </span>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] capitalize",
+                              isPaid
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            )}
+                          >
+                            {isPaid ? "Paid in full" : inv.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardContent>

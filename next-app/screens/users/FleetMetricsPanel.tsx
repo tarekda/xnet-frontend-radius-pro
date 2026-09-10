@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import IconActionButton from "@/components/IconActionButton";
 import StatCard from "@/components/StatCard";
 import { CountUpNumber, Sparkline } from "@/components/viz";
-import { ChevronDown, ChevronUp, Gauge, Shield, UserX, Users as UsersIcon, Wifi } from "lucide-react";
+import { ChevronDown, ChevronUp, Gauge, Shield, UserX, Users as UsersIcon, Wifi, Clock } from "lucide-react";
 import type { UsersFleetMetrics } from "@/api/users";
 import { STATUS_SEGMENTS, type LocalUsersMetrics } from "./lib";
 
@@ -101,6 +101,13 @@ export const FleetMetricsPanel = ({
                       icon: Gauge,
                       onClick: onQuotaFilter,
                     },
+                    {
+                      key: "expiring",
+                      label: "Expiring soon",
+                      value: metrics.expiringSoon,
+                      icon: Clock,
+                      onClick: () => onQuickFilter("expiring_soon"),
+                    },
                   ].map((item) => (
                     <button
                       key={item.key}
@@ -128,10 +135,10 @@ export const FleetMetricsPanel = ({
 
         {!metricsCollapsed ? (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {isLoading && !fleet ? (
                 <>
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3, 4, 5].map((i) => (
                     <Card key={i} className="border bg-card/60">
                       <CardContent className="p-4">
                         <Skeleton className="h-4 w-24" />
@@ -206,6 +213,17 @@ export const FleetMetricsPanel = ({
                     icon={
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
                         <Gauge className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                    }
+                  />
+                  <StatCard
+                    label="Expiring soon"
+                    value={<CountUpNumber value={metrics.expiringSoon} />}
+                    sublabel="Within next 3 days"
+                    onClick={() => onQuickFilter("expiring_soon")}
+                    icon={
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                        <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                       </div>
                     }
                   />

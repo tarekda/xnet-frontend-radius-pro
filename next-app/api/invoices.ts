@@ -233,6 +233,36 @@ export async function runExternalDunningCampaign(payload?: {
   return data.data as DunningRunResponse;
 }
 
+export interface SubscriberDunningState {
+  username: string;
+  isThrottled: boolean;
+  isSuspended: boolean;
+  isExpired: boolean;
+  accountStatus: string;
+  currentProfileId: number | null;
+  defaultProfileId: number | null;
+  currentProfileName: string | null;
+  defaultProfileName: string | null;
+  overdueInvoicesCount: number;
+  totalOverdueAmount: number;
+}
+
+export async function fetchSubscriberDunningState(username: string): Promise<SubscriberDunningState> {
+  const { data } = await apiClient.get(`/invoices/external/dunning/subscriber-state/${encodeURIComponent(username)}`);
+  return data.data as SubscriberDunningState;
+}
+
+export async function restoreSubscriberLineApi(username: string, force = false): Promise<{
+  ok: boolean;
+  restored: boolean;
+  reason?: string;
+  defaultProfileId?: number;
+  disconnected?: boolean;
+}> {
+  const { data } = await apiClient.post(`/invoices/external/dunning/restore-line/${encodeURIComponent(username)}`, { force });
+  return data.data;
+}
+
 export type AgingBucketKey = 'current' | '1_30' | '31_60' | '61_90' | '90_plus';
 
 export type ExternalAgingSummary = {

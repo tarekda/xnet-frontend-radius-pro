@@ -1,5 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchCollectedMetrics, fetchCollectedInvoicesList, fetchCollectorBreakdown, type CollectedInvoicesList, type CollectedMetrics, type CollectorBreakdown } from '@/api/invoices';
+import {
+  fetchCollectedMetrics,
+  fetchCollectedInvoicesList,
+  fetchCollectorBreakdown,
+  fetchExternalInvoicesTrend,
+  fetchExternalAgingSummary,
+  type CollectedInvoicesList,
+  type CollectedMetrics,
+  type CollectorBreakdown,
+  type ExternalInvoiceTrendPoint,
+  type ExternalAgingSummary,
+  type ExternalInvoiceListFilters,
+} from '@/api/invoices';
 import { notify } from '@/lib/notify';
 import { MESSAGES } from '@/constants/messages';
 
@@ -23,6 +35,23 @@ export function useCollectedInvoicesList(params: { page?: number; limit?: number
     queryFn: () => fetchCollectedInvoicesList(params),
   });
 }
+
+export function useExternalInvoicesTrend(months = 6) {
+  return useQuery<ExternalInvoiceTrendPoint[]>({
+    queryKey: ['externalInvoicesTrend', months],
+    queryFn: () => fetchExternalInvoicesTrend(months),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useExternalAgingSummary(params?: ExternalInvoiceListFilters) {
+  return useQuery<ExternalAgingSummary>({
+    queryKey: ['externalAgingSummary', params?.search, params?.from, params?.to, params?.status, params?.graceDays],
+    queryFn: () => fetchExternalAgingSummary(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
