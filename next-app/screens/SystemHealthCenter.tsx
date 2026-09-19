@@ -16,7 +16,6 @@ import {
   Network,
   RefreshCw,
   Router,
-  Server,
   ShieldCheck,
   XCircle,
 } from "lucide-react";

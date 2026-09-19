@@ -10,7 +10,6 @@ import {
   AlertTriangle, 
   Bell, 
   X,
-  CheckCircle,
   Clock
 } from 'lucide-react';
 import { useAlerts, getSeverityColor, getSeverityBgColor } from '@/hooks/useAlerts';

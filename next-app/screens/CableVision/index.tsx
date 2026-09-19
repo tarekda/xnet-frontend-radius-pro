@@ -7,6 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -84,6 +85,179 @@ export default function CableVisionPage() {
 
   const isEmpty = !accountsQuery.isLoading && !accountsQuery.error && accounts.length === 0 && !search.trim();
 
+  type CableAccount = (typeof accounts)[number];
+  type CableProfile = NonNullable<CableAccount["profiles"]>[number];
+
+  const renderAccountActions = (a: CableAccount, isExpanded: boolean) => (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => dispatch({ type: "toggleExpanded", accountId: a.id })}
+      >
+        {isExpanded ? T.table.hide : T.table.details}
+      </Button>
+      <Button
+        variant="default"
+        size="sm"
+        disabled={!canManage}
+        onClick={() => dispatch({ type: "openAddProfile", accountId: a.id })}
+        title={!canManage ? T.table.addProfileNoPerm : T.table.addProfile}
+      >
+        {T.table.addProfile}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!canManage}
+        onClick={() =>
+          dispatch({
+            type: "openEditAccount",
+            account: {
+              accountId: a.id,
+              accountNumber: a.accountNumber,
+              fullName: a.fullName,
+              phone: a.phoneNumber || null,
+              email: a.email || null,
+            },
+          })
+        }
+        title={!canManage ? T.table.addProfileNoPerm : T.table.editAccount}
+      >
+        <Pencil className="h-4 w-4 mr-2" />
+        {T.table.editAccount}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="text-red-600 hover:text-red-700"
+        disabled={!canManage}
+        onClick={() =>
+          dispatch({
+            type: "openDeleteAccount",
+            account: { accountId: a.id, accountNumber: a.accountNumber, fullName: a.fullName },
+          })
+        }
+        title={!canManage ? T.table.addProfileNoPerm : T.table.deleteAccount}
+      >
+        <Trash2 className="h-4 w-4 mr-2" />
+        {T.table.deleteAccount}
+      </Button>
+    </>
+  );
+
+  const renderProfileActions = (p: CableProfile, inv: CableProfile["currentInvoice"]) => {
+    const invStatus = inv?.status || "unpaid";
+    const canPayThis = Boolean(inv?.id) && canPay && String(invStatus) !== "paid";
+    const canUnpayThis = Boolean(inv?.id) && canUnpay && String(invStatus) === "paid";
+    const canGenerateThis = Boolean(!inv?.id) && canGenerate;
+    const payDisabledReason =
+      !inv?.id
+        ? T.table.generateInvoiceHint
+        : !canPay
+          ? T.table.markPaidNoPerm
+          : String(invStatus) === "paid"
+            ? "Already paid."
+            : undefined;
+    const unpayDisabledReason =
+      !inv?.id
+        ? T.table.generateInvoiceHint
+        : !canUnpay
+          ? T.table.markUnpaidNoPerm
+          : String(invStatus) !== "paid"
+            ? "Only paid invoices can be marked unpaid."
+            : undefined;
+    return (
+      <div className="flex flex-wrap gap-2 md:justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canManage}
+          title={!canManage ? T.table.addProfileNoPerm : T.table.edit}
+          onClick={() =>
+            dispatch({
+              type: "openEditProfile",
+              profile: {
+                profileId: p.id,
+                profileName: p.profileName,
+                assignedTo: p.assignedTo,
+                deviceId: p.deviceId,
+                monthlyFee: Number(p.monthlyFee || 0),
+                status: p.status,
+              },
+            })
+          }
+        >
+          {T.table.edit}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-red-600 hover:text-red-700"
+          disabled={!canManage}
+          title={!canManage ? T.table.addProfileNoPerm : T.table.delete}
+          onClick={() =>
+            dispatch({
+              type: "openDeleteProfile",
+              profile: { profileId: p.id, profileName: p.profileName },
+            })
+          }
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          {T.table.delete}
+        </Button>
+
+        {canGenerateThis ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={generateMonthlyInvoicesMutation.isPending}
+            title={T.table.generateInvoice}
+            onClick={() => generateMonthlyInvoicesMutation.mutate({ billingMonth: billingMonthYmd })}
+          >
+            {T.table.generateInvoice}
+          </Button>
+        ) : null}
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!inv?.id || payInvoiceMutation.isPending || !canPayThis}
+                  onClick={() => inv?.id && payInvoiceMutation.mutate({ invoiceId: inv.id, paymentMethod: "cash" })}
+                >
+                  {T.table.markPaid}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {payDisabledReason ? <TooltipContent>{payDisabledReason}</TooltipContent> : null}
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!inv?.id || unpayInvoiceMutation.isPending || !canUnpayThis}
+                  onClick={() => inv?.id && unpayInvoiceMutation.mutate({ invoiceId: inv.id })}
+                >
+                  {T.table.markUnpaid}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {unpayDisabledReason ? <TooltipContent>{unpayDisabledReason}</TooltipContent> : null}
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    );
+  };
+
   const handleRefresh = async () => {
     const start = Date.now();
     dispatch({ type: "refreshStart" });
@@ -121,6 +295,7 @@ export default function CableVisionPage() {
                   type="month"
                   value={billingMonth}
                   onChange={(e) => setBillingMonth(e.target.value)}
+                  aria-label={T.monthLabel}
                   className="w-[160px]"
                 />
               </div>
@@ -169,7 +344,7 @@ export default function CableVisionPage() {
                   showButton
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">{T.pageSizeLabel}</span>
                 <Input
                   type="number"
@@ -181,6 +356,7 @@ export default function CableVisionPage() {
                     setPageSize(n);
                     setCurrentPage(1);
                   }}
+                  aria-label={T.pageSizeLabel}
                   className="w-[100px]"
                 />
               </div>
@@ -199,7 +375,7 @@ export default function CableVisionPage() {
         ) : (
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              <div className="hidden overflow-x-auto md:block">
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
@@ -244,59 +420,7 @@ export default function CableVisionPage() {
                             </TableCell>
                             <TableCell className="px-4 py-2 text-right overflow-visible whitespace-normal">
                               <div className="flex flex-wrap justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => dispatch({ type: "toggleExpanded", accountId: a.id })}
-                                >
-                                  {isExpanded ? T.table.hide : T.table.details}
-                                </Button>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  disabled={!canManage}
-                                  onClick={() => dispatch({ type: "openAddProfile", accountId: a.id })}
-                                  title={!canManage ? T.table.addProfileNoPerm : T.table.addProfile}
-                                >
-                                  {T.table.addProfile}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!canManage}
-                                  onClick={() =>
-                                    dispatch({
-                                      type: "openEditAccount",
-                                      account: {
-                                        accountId: a.id,
-                                        accountNumber: a.accountNumber,
-                                        fullName: a.fullName,
-                                        phone: a.phoneNumber || null,
-                                        email: a.email || null,
-                                      },
-                                    })
-                                  }
-                                  title={!canManage ? T.table.addProfileNoPerm : T.table.editAccount}
-                                >
-                                  <Pencil className="h-4 w-4 mr-2" />
-                                  {T.table.editAccount}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                  disabled={!canManage}
-                                  onClick={() =>
-                                    dispatch({
-                                      type: "openDeleteAccount",
-                                      account: { accountId: a.id, accountNumber: a.accountNumber, fullName: a.fullName },
-                                    })
-                                  }
-                                  title={!canManage ? T.table.addProfileNoPerm : T.table.deleteAccount}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  {T.table.deleteAccount}
-                                </Button>
+                                {renderAccountActions(a, isExpanded)}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -306,7 +430,7 @@ export default function CableVisionPage() {
                               <TableCell colSpan={5} className="px-4 py-2">
                                 <div className="p-3 space-y-3">
                                   <div className="text-sm font-semibold">{T.table.profilesSection}</div>
-                                  <div className="overflow-x-auto">
+                                  <div className="hidden overflow-x-auto md:block">
                                     <Table className="table-fixed">
                                       <TableHeader>
                                         <TableRow>
@@ -329,25 +453,6 @@ export default function CableVisionPage() {
                                           (a.profiles || []).map((p) => {
                                             const inv = p.currentInvoice || null;
                                             const invStatus = inv?.status || "unpaid";
-                                            const canPayThis = Boolean(inv?.id) && canPay && String(invStatus) !== "paid";
-                                            const canUnpayThis = Boolean(inv?.id) && canUnpay && String(invStatus) === "paid";
-                                            const canGenerateThis = Boolean(!inv?.id) && canGenerate;
-                                            const payDisabledReason =
-                                              !inv?.id
-                                                ? T.table.generateInvoiceHint
-                                                : !canPay
-                                                  ? T.table.markPaidNoPerm
-                                                  : String(invStatus) === "paid"
-                                                    ? "Already paid."
-                                                    : undefined;
-                                            const unpayDisabledReason =
-                                              !inv?.id
-                                                ? T.table.generateInvoiceHint
-                                                : !canUnpay
-                                                  ? T.table.markUnpaidNoPerm
-                                                  : String(invStatus) !== "paid"
-                                                    ? "Only paid invoices can be marked unpaid."
-                                                    : undefined;
                                             return (
                                               <TableRow key={p.id} className="bg-card/80 dark:bg-card/50">
                                                 <TableCell className="px-4 py-2 font-mono">{p.profileIndex}</TableCell>
@@ -378,102 +483,7 @@ export default function CableVisionPage() {
                                                   )}
                                                 </TableCell>
                                                 <TableCell className="px-4 py-2 text-right overflow-visible whitespace-normal">
-                                                  <div className="flex flex-wrap justify-end gap-2">
-                                                    <Button
-                                                      size="sm"
-                                                      variant="outline"
-                                                      disabled={!canManage}
-                                                      title={!canManage ? T.table.addProfileNoPerm : T.table.edit}
-                                                      onClick={() =>
-                                                        dispatch({
-                                                          type: "openEditProfile",
-                                                          profile: {
-                                                            profileId: p.id,
-                                                            profileName: p.profileName,
-                                                            assignedTo: p.assignedTo,
-                                                            deviceId: p.deviceId,
-                                                            monthlyFee: Number(p.monthlyFee || 0),
-                                                            status: p.status,
-                                                          },
-                                                        })
-                                                      }
-                                                    >
-                                                      {T.table.edit}
-                                                    </Button>
-                                                    <Button
-                                                      size="sm"
-                                                      variant="outline"
-                                                      className="text-red-600 hover:text-red-700"
-                                                      disabled={!canManage}
-                                                      title={!canManage ? T.table.addProfileNoPerm : T.table.delete}
-                                                      onClick={() =>
-                                                        dispatch({
-                                                          type: "openDeleteProfile",
-                                                          profile: { profileId: p.id, profileName: p.profileName },
-                                                        })
-                                                      }
-                                                    >
-                                                      <Trash2 className="h-4 w-4 mr-2" />
-                                                      {T.table.delete}
-                                                    </Button>
-
-                                                    {canGenerateThis ? (
-                                                      <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        disabled={generateMonthlyInvoicesMutation.isPending}
-                                                        title={T.table.generateInvoice}
-                                                        onClick={() =>
-                                                          generateMonthlyInvoicesMutation.mutate({ billingMonth: billingMonthYmd })
-                                                        }
-                                                      >
-                                                        {T.table.generateInvoice}
-                                                      </Button>
-                                                    ) : null}
-
-                                                    <TooltipProvider>
-                                                      <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                          <span>
-                                                            <Button
-                                                              size="sm"
-                                                              variant="outline"
-                                                              disabled={!inv?.id || payInvoiceMutation.isPending || !canPayThis}
-                                                              onClick={() =>
-                                                                inv?.id &&
-                                                                payInvoiceMutation.mutate({ invoiceId: inv.id, paymentMethod: "cash" })
-                                                              }
-                                                            >
-                                                              {T.table.markPaid}
-                                                            </Button>
-                                                          </span>
-                                                        </TooltipTrigger>
-                                                        {payDisabledReason ? (
-                                                          <TooltipContent>{payDisabledReason}</TooltipContent>
-                                                        ) : null}
-                                                      </Tooltip>
-                                                    </TooltipProvider>
-
-                                                    <TooltipProvider>
-                                                      <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                          <span>
-                                                            <Button
-                                                              size="sm"
-                                                              variant="outline"
-                                                              disabled={!inv?.id || unpayInvoiceMutation.isPending || !canUnpayThis}
-                                                              onClick={() => inv?.id && unpayInvoiceMutation.mutate({ invoiceId: inv.id })}
-                                                            >
-                                                              {T.table.markUnpaid}
-                                                            </Button>
-                                                          </span>
-                                                        </TooltipTrigger>
-                                                        {unpayDisabledReason ? (
-                                                          <TooltipContent>{unpayDisabledReason}</TooltipContent>
-                                                        ) : null}
-                                                      </Tooltip>
-                                                    </TooltipProvider>
-                                                  </div>
+                                                  {renderProfileActions(p, inv)}
                                                 </TableCell>
                                               </TableRow>
                                             );
@@ -491,6 +501,83 @@ export default function CableVisionPage() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="space-y-3 p-3 md:hidden">
+                {accounts.map((a) => {
+                  const stats = totalsByAccount.get(a.id) || { profiles: 0, unpaid: 0, paid: 0, pending: 0 };
+                  const isExpanded = state.expandedAccountId === a.id;
+                  return (
+                    <div key={a.id} className="space-y-3 rounded-lg border border-border/60 bg-card p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-mono text-xs text-muted-foreground">{a.accountNumber}</div>
+                          <div className="truncate font-semibold">{a.fullName}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {a.phoneNumber || "—"} {a.email ? `• ${a.email}` : ""}
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="shrink-0">
+                          {accountsQuery.data?.data?.billingMonth ?? billingMonthYmd ?? "—"}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{stats.profiles}/5</Badge>
+                        {stats.unpaid > 0 ? <Badge className={statusBadgeClass("unpaid")}>{stats.unpaid} unpaid</Badge> : null}
+                        {stats.pending > 0 ? <Badge className={statusBadgeClass("pending")}>{stats.pending} pending</Badge> : null}
+                        {stats.paid > 0 ? <Badge className={statusBadgeClass("paid")}>{stats.paid} paid</Badge> : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">{renderAccountActions(a, isExpanded)}</div>
+                      {isExpanded ? (
+                        <div className="space-y-2 border-t border-border/60 pt-3">
+                          <div className="text-sm font-semibold">{T.table.profilesSection}</div>
+                          {(a.profiles || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground">{T.table.noProfiles}</div>
+                          ) : (
+                            (a.profiles || []).map((p) => {
+                              const inv = p.currentInvoice || null;
+                              const invStatus = inv?.status || "unpaid";
+                              return (
+                                <div key={p.id} className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="truncate font-medium">{p.profileName}</div>
+                                      <div className="truncate text-xs text-muted-foreground">
+                                        {T.table.devicePrefix} {p.deviceId || "—"}
+                                      </div>
+                                    </div>
+                                    <Badge variant="outline" className="shrink-0">Slot {p.profileIndex}</Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div className="min-w-0">
+                                      <div className="text-xs text-muted-foreground">User</div>
+                                      <div className="truncate">{p.assignedTo || "—"}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-muted-foreground">Fee</div>
+                                      <div className="font-mono">${Number(p.monthlyFee || 0).toFixed(2)}</div>
+                                    </div>
+                                  </div>
+                                  {inv ? (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Badge className={statusBadgeClass(invStatus)} variant="outline">{invStatus}</Badge>
+                                      <span className="truncate font-mono text-[11px] text-muted-foreground">
+                                        #{inv.id} • {inv.billingMonth}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">{T.table.noInvoice}</Badge>
+                                  )}
+                                  {renderProfileActions(p, inv)}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="p-3 flex items-center justify-between text-sm text-muted-foreground">
@@ -529,16 +616,18 @@ export default function CableVisionPage() {
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.accountNumberLabel}</div>
+                <Label htmlFor="create-account-number">{T.dialogs.accountNumberLabel}</Label>
                 <Input
+                  id="create-account-number"
                   value={state.createAccount.accountNumber}
                   onChange={(e) => dispatch({ type: "setCreateAccountField", field: "accountNumber", value: e.target.value })}
                   placeholder={T.dialogs.accountNumberPlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.customerNameLabel}</div>
+                <Label htmlFor="create-account-name">{T.dialogs.customerNameLabel}</Label>
                 <Input
+                  id="create-account-name"
                   value={state.createAccount.fullName}
                   onChange={(e) => dispatch({ type: "setCreateAccountField", field: "fullName", value: e.target.value })}
                   placeholder={T.dialogs.customerNamePlaceholder}
@@ -546,16 +635,18 @@ export default function CableVisionPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{T.dialogs.phoneLabel}</div>
+                  <Label htmlFor="create-account-phone">{T.dialogs.phoneLabel}</Label>
                   <Input
+                    id="create-account-phone"
                     value={state.createAccount.phone}
                     onChange={(e) => dispatch({ type: "setCreateAccountField", field: "phone", value: e.target.value })}
                     placeholder={T.dialogs.phonePlaceholder}
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{T.dialogs.emailLabel}</div>
+                  <Label htmlFor="create-account-email">{T.dialogs.emailLabel}</Label>
                   <Input
+                    id="create-account-email"
                     value={state.createAccount.email}
                     onChange={(e) => dispatch({ type: "setCreateAccountField", field: "email", value: e.target.value })}
                     placeholder={T.dialogs.emailPlaceholder}
@@ -602,16 +693,18 @@ export default function CableVisionPage() {
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.accountNumberLabel}</div>
+                <Label htmlFor="edit-account-number">{T.dialogs.accountNumberLabel}</Label>
                 <Input
+                  id="edit-account-number"
                   value={state.editAccount.accountNumber}
                   onChange={(e) => dispatch({ type: "setEditAccountField", field: "accountNumber", value: e.target.value })}
                   placeholder={T.dialogs.accountNumberPlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.customerNameLabel}</div>
+                <Label htmlFor="edit-account-name">{T.dialogs.customerNameLabel}</Label>
                 <Input
+                  id="edit-account-name"
                   value={state.editAccount.fullName}
                   onChange={(e) => dispatch({ type: "setEditAccountField", field: "fullName", value: e.target.value })}
                   placeholder={T.dialogs.customerNamePlaceholder}
@@ -619,16 +712,18 @@ export default function CableVisionPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{T.dialogs.phoneLabel}</div>
+                  <Label htmlFor="edit-account-phone">{T.dialogs.phoneLabel}</Label>
                   <Input
+                    id="edit-account-phone"
                     value={state.editAccount.phone}
                     onChange={(e) => dispatch({ type: "setEditAccountField", field: "phone", value: e.target.value })}
                     placeholder={T.dialogs.phonePlaceholder}
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{T.dialogs.emailLabel}</div>
+                  <Label htmlFor="edit-account-email">{T.dialogs.emailLabel}</Label>
                   <Input
+                    id="edit-account-email"
                     value={state.editAccount.email}
                     onChange={(e) => dispatch({ type: "setEditAccountField", field: "email", value: e.target.value })}
                     placeholder={T.dialogs.emailPlaceholder}
@@ -681,32 +776,36 @@ export default function CableVisionPage() {
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.profileNameLabel}</div>
+                <Label htmlFor="add-profile-name">{T.dialogs.profileNameLabel}</Label>
                 <Input
+                  id="add-profile-name"
                   value={state.addProfile.profileName}
                   onChange={(e) => dispatch({ type: "setAddProfileField", field: "profileName", value: e.target.value })}
                   placeholder={T.dialogs.profileNamePlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.assignedToLabel}</div>
+                <Label htmlFor="add-profile-assigned">{T.dialogs.assignedToLabel}</Label>
                 <Input
+                  id="add-profile-assigned"
                   value={state.addProfile.assignedTo}
                   onChange={(e) => dispatch({ type: "setAddProfileField", field: "assignedTo", value: e.target.value })}
                   placeholder={T.dialogs.assignedToPlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.deviceIdLabel}</div>
+                <Label htmlFor="add-profile-device">{T.dialogs.deviceIdLabel}</Label>
                 <Input
+                  id="add-profile-device"
                   value={state.addProfile.deviceId}
                   onChange={(e) => dispatch({ type: "setAddProfileField", field: "deviceId", value: e.target.value })}
                   placeholder={T.dialogs.deviceIdPlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.monthlyFeeLabel}</div>
+                <Label htmlFor="add-profile-fee">{T.dialogs.monthlyFeeLabel}</Label>
                 <Input
+                  id="add-profile-fee"
                   value={state.addProfile.monthlyFee}
                   onChange={(e) => dispatch({ type: "setAddProfileField", field: "monthlyFee", value: e.target.value })}
                   placeholder={T.dialogs.monthlyFeePlaceholder}
@@ -752,24 +851,27 @@ export default function CableVisionPage() {
 
             <div className="space-y-3">
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.profileNameLabel}</div>
+                <Label htmlFor="edit-profile-name">{T.dialogs.profileNameLabel}</Label>
                 <Input
+                  id="edit-profile-name"
                   value={state.editProfile.profileName}
                   onChange={(e) => dispatch({ type: "setEditProfileField", field: "profileName", value: e.target.value })}
                   placeholder={T.dialogs.profileNamePlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.assignedToLabel}</div>
+                <Label htmlFor="edit-profile-assigned">{T.dialogs.assignedToLabel}</Label>
                 <Input
+                  id="edit-profile-assigned"
                   value={state.editProfile.assignedTo}
                   onChange={(e) => dispatch({ type: "setEditProfileField", field: "assignedTo", value: e.target.value })}
                   placeholder={T.dialogs.assignedToPlaceholder}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">{T.dialogs.deviceIdLabel}</div>
+                <Label htmlFor="edit-profile-device">{T.dialogs.deviceIdLabel}</Label>
                 <Input
+                  id="edit-profile-device"
                   value={state.editProfile.deviceId}
                   onChange={(e) => dispatch({ type: "setEditProfileField", field: "deviceId", value: e.target.value })}
                   placeholder={T.dialogs.deviceIdPlaceholder}
@@ -777,8 +879,9 @@ export default function CableVisionPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{T.dialogs.monthlyFeeLabel}</div>
+                  <Label htmlFor="edit-profile-fee">{T.dialogs.monthlyFeeLabel}</Label>
                   <Input
+                    id="edit-profile-fee"
                     value={state.editProfile.monthlyFee}
                     onChange={(e) => dispatch({ type: "setEditProfileField", field: "monthlyFee", value: e.target.value })}
                     placeholder={T.dialogs.monthlyFeePlaceholder}

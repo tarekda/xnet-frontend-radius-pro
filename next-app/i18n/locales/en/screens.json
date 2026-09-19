@@ -73,6 +73,14 @@
     "title": "Network Access Servers (NAS)",
     "subtitle": "Manage NAS entries and settings"
   },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Generate and export operational, billing, and collection reports."
+  },
+  "tickets": {
+    "title": "Support tickets",
+    "subtitle": "Subscriber issues, assignment, and SLA tracking."
+  },
   "paymentDue": {
     "title": "Payment due",
     "subtitle": "Unpaid and pending external invoices with a pay due date. Overdue and near-term items also appear in the notification bell (deduped)."

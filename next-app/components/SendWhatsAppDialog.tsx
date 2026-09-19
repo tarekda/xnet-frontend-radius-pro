@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageCircle, Send, CheckCircle2, Phone, AlertCircle } from "lucide-react";
+import { MessageCircle, Send, CheckCircle2, Phone } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { apiClient } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
@@ -146,9 +145,8 @@ export default function SendWhatsAppDialog({
       notify.success("WhatsApp Sent", `Message successfully queued for ${targetPhone}`);
       onOpenChange(false);
       onSuccess?.();
-    } catch (err: any) {
+    } catch {
       // If endpoint returns specific error, handle gracefully
-      const msg = err?.response?.data?.message || err?.message || "Failed to send WhatsApp message";
       // Even if gateway is simulated, show notification
       notify.info("WhatsApp Dispatched", `Notification sent to ${targetPhone}`);
       onOpenChange(false);

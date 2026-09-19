@@ -83,6 +83,7 @@ export default function SavedViews({
     <div className={cn("flex items-center gap-2", className)}>
       <div className="flex items-center gap-1">
         <Input
+          aria-label="Saved view name"
           placeholder={compact ? "Save view…" : "Save current view…"}
           className={cn(compact ? "h-8 w-28" : "h-9 w-44")}
           onKeyDown={(e) => {
@@ -116,7 +117,7 @@ export default function SavedViews({
       </div>
 
       <Select value={selectedName} onValueChange={apply}>
-        <SelectTrigger className={cn(compact ? "h-8 w-32" : "h-9 w-44")}>
+        <SelectTrigger aria-label="Saved views" className={cn(compact ? "h-8 w-32" : "h-9 w-44")}>
           <SelectValue placeholder="Views" />
         </SelectTrigger>
         <SelectContent align="end">

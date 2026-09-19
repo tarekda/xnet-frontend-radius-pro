@@ -2,10 +2,9 @@
  * Frontend version constants - kept in sync with package.json.
  * Displayed in the Settings page, About screen, and browser console on app boot.
  */
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pkg = require('../package.json') as { version: string; name: string };
-
-export const FRONTEND_VERSION: string = pkg.version;
+// Version is injected at build time by next.config.ts (DefinePlugin: __APP_VERSION__).
+export const FRONTEND_VERSION: string =
+  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "0.0.0";
 export const BACKEND_API_VERSION = 'v1';
 export const APP_BUILD_DATE: string = new Date().toISOString();
 

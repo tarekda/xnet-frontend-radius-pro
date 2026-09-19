@@ -1,6 +1,35 @@
 import { isUserAtRisk } from "@/lib/userHealth";
 import type { User } from "@/types/api";
+import type { SortingState } from "@tanstack/react-table";
 import type { AdvancedFiltersState } from "./usersPageReducer";
+
+/**
+ * Maps a table column id to the backend `sortBy` value.
+ * Only columns backed by a server-side sort are listed; any other column is
+ * sorted client-side over the current page.
+ */
+export const USERS_SERVER_SORT_BY: Record<string, string> = {
+  id: "id",
+  username: "username",
+  expiresAt: "expiresAt",
+  accountStatus: "accountStatus",
+  "profile.profileName": "profileName",
+  "macAddress.macAddress": "macAddress",
+};
+
+/** True when the active sorting column is sorted by the server. */
+export function isServerSortColumn(sorting: SortingState): boolean {
+  const id = sorting[0]?.id;
+  return Boolean(id && USERS_SERVER_SORT_BY[id]);
+}
+
+/** Backend sort params for the active column, or `{}` for client-only columns. */
+export function toServerSortParams(sorting: SortingState): { sortBy?: string; sortDir?: "asc" | "desc" } {
+  const first = sorting[0];
+  const sortBy = first ? USERS_SERVER_SORT_BY[first.id] : undefined;
+  if (!sortBy) return {};
+  return { sortBy, sortDir: first.desc ? "desc" : "asc" };
+}
 
 export const STATUS_SEGMENTS: Array<{
   key: string;

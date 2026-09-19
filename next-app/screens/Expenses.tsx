@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { useExpenseMonthlyTotals, useExpenses } from "@/hooks/useExpenses";
-import { DollarSign, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
+import { DollarSign, Loader2, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { MESSAGES } from "@/constants/messages";
 import { useTranslation } from "react-i18next";
@@ -28,6 +28,8 @@ import TableRowActions from "@/components/TableRowActions";
 import SearchBar from "@/components/SearchBar";
 import FiltersBar from "@/components/FiltersBar";
 import QueryState from "@/components/QueryState";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 function toYmd(d?: Date) {
   if (!d) return undefined;
@@ -81,6 +83,8 @@ export default function ExpensesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const openCreate = () => {
     setEditingId(null);
@@ -141,17 +145,40 @@ export default function ExpensesPage() {
   };
 
   const onDelete = async (id: number) => {
-    if (!confirm(MESSAGES.validation.confirmDeleteExpense)) return;
+    setPendingDeleteId(id);
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (pendingDeleteId == null) return;
+    setConfirmDeleteOpen(false);
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync(pendingDeleteId);
     } catch {
       // Toasts are handled in the hook
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
   const rows = data?.data?.data || [];
   const totalItems = data?.data?.total || 0;
   const totalPages = data?.data?.totalPages || 1;
+
+  const renderRowActions = (exp: any) => (
+    <TableRowActions
+      actions={[
+        { label: "Edit", icon: Pencil, onClick: () => openEdit(exp) },
+        {
+          label: "Delete",
+          icon: Trash2,
+          onClick: () => onDelete(exp.id),
+          disabled: deleteMutation.isPending,
+          tone: "destructive",
+        },
+      ]}
+    />
+  );
 
   const monthlyTotals = monthlyTotalsQuery.data?.data || [];
   const currentMonth = new Date();
@@ -246,7 +273,19 @@ export default function ExpensesPage() {
             error={error}
             isEmpty={!isLoading && !error && rows.length === 0}
             onRetry={() => refetch()}
-            loading={<div className="py-10 text-center text-muted-foreground">Loading…</div>}
+            loading={
+              <div className="space-y-3 py-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-[80px]" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-[60px]" />
+                    <Skeleton className="h-4 w-[80px]" />
+                    <Skeleton className="h-6 w-[60px]" />
+                  </div>
+                ))}
+              </div>
+            }
             errorTitle="Failed to load expenses"
             emptyTitle="No expenses found"
             emptyDescription="Try adjusting filters or add a new expense."
@@ -255,6 +294,7 @@ export default function ExpensesPage() {
               <TableToolbar
                 label={`Expenses: ${totalItems.toLocaleString()} • Page ${page} / ${totalPages}`}
               />
+              <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -285,23 +325,41 @@ export default function ExpensesPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right space-x-2">
-                          <TableRowActions
-                            actions={[
-                              { label: "Edit", icon: Pencil, onClick: () => openEdit(e) },
-                              {
-                                label: "Delete",
-                                icon: Trash2,
-                                onClick: () => onDelete(e.id),
-                                disabled: deleteMutation.isPending,
-                                tone: "destructive",
-                              },
-                            ]}
-                          />
+                          {renderRowActions(e)}
                         </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              <div className="space-y-3 md:hidden">
+                {rows.map((e: any) => (
+                  <Card key={e.id} className="border-border/60 shadow-none">
+                    <CardContent className="space-y-2 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{e.title}</div>
+                          <div className="font-mono text-xs text-muted-foreground">{e.expenseDate}</div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="font-semibold">
+                            {Number(e.amount).toFixed(2)} {e.currency}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{e.category || "-"}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                        {e.status === "paid" ? (
+                          <Badge variant="success">Paid</Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-white">Unpaid</Badge>
+                        )}
+                        {renderRowActions(e)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
               {/* Monthly totals list */}
               <div className="mt-6">
@@ -353,24 +411,27 @@ export default function ExpensesPage() {
 
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Title</Label>
+              <Label htmlFor="expense-title" className="text-right">Title</Label>
               <Input
+                id="expense-title"
                 className="col-span-3"
                 value={draft.title}
                 onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Category</Label>
+              <Label htmlFor="expense-category" className="text-right">Category</Label>
               <Input
+                id="expense-category"
                 className="col-span-3"
                 value={draft.category}
                 onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Amount</Label>
+              <Label htmlFor="expense-amount" className="text-right">Amount</Label>
               <Input
+                id="expense-amount"
                 className="col-span-2"
                 type="number"
                 value={draft.amount}
@@ -378,13 +439,15 @@ export default function ExpensesPage() {
               />
               <Input
                 className="col-span-1"
+                aria-label="Currency"
                 value={draft.currency}
                 onChange={(e) => setDraft((d) => ({ ...d, currency: e.target.value }))}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Date</Label>
+              <Label htmlFor="expense-date" className="text-right">Date</Label>
               <Input
+                id="expense-date"
                 className="col-span-3"
                 type="date"
                 value={draft.expenseDate}
@@ -392,8 +455,8 @@ export default function ExpensesPage() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Status</Label>
-              <div className="col-span-3 flex gap-2">
+              <Label id="expense-status-label" className="text-right">Status</Label>
+              <div className="col-span-3 flex gap-2" role="group" aria-labelledby="expense-status-label">
                 <Button
                   type="button"
                   variant={draft.status === "unpaid" ? "default" : "outline"}
@@ -411,8 +474,9 @@ export default function ExpensesPage() {
               </div>
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right mt-2">Notes</Label>
+              <Label htmlFor="expense-notes" className="text-right mt-2">Notes</Label>
               <textarea
+                id="expense-notes"
                 className="col-span-3 min-h-[90px] rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={draft.notes}
                 onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
@@ -434,6 +498,26 @@ export default function ExpensesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm action</AlertDialogTitle>
+            <AlertDialogDescription>
+              {MESSAGES.validation.confirmDeleteExpense}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={executeDelete}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

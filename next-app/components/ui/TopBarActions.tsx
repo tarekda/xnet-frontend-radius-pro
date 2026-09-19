@@ -6,12 +6,20 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/api/client";
 import { FaBell } from "react-icons/fa";
+import { Bot } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useNotificationInboxStore } from "@/store/notificationInboxStore";
 import { NotificationPopup } from "./NotificationPopup";
 import { UserMenu } from "./UserMenu";
 import HeaderAlertWidget from "./HeaderAlertWidget";
 
-const TopBarActions: React.FC = () => {
+type TopBarActionsProps = {
+  /** Supplied by the app shell; the AI button only renders when this is provided. */
+  onToggleCopilot?: () => void;
+  isCopilotOpen?: boolean;
+};
+
+const TopBarActions: React.FC<TopBarActionsProps> = ({ onToggleCopilot, isCopilotOpen = false }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [userInfo, setUserInfo] = useState<{ username: string; email: string; role: string } | null>(null);
   const { isAuthenticated, logout } = useAuth();
@@ -70,6 +78,23 @@ const TopBarActions: React.FC = () => {
 
   return (
     <div className="relative flex shrink-0 items-center gap-2" ref={parentRef}>
+      {onToggleCopilot ? (
+        <button
+          type="button"
+          onClick={onToggleCopilot}
+          className={cn(
+            "relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/50 bg-secondary/30 text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-secondary/70 hover:text-foreground hover:scale-105 active:scale-95",
+            isCopilotOpen && "border-primary/40 bg-primary/10 text-primary"
+          )}
+          aria-label="AI Copilot"
+          aria-expanded={isCopilotOpen}
+          aria-controls="radius-copilot-drawer"
+          title="AI Copilot"
+        >
+          <Bot className="h-4 w-4" />
+        </button>
+      ) : null}
+
       <HeaderAlertWidget />
 
       <div className="relative">

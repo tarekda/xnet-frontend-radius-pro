@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Bell, Mail, Smartphone, Webhook, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,55 @@ import type { AlertSettings } from "@/types/alerts";
 import LoadingSpinner from "./LoadingSpinner";
 import { apiClient } from "@/api/client";
 import { notify } from "@/lib/notify";
+import { cn } from "@/lib/utils";
+
+/** Non-secret transport status returned by `GET /alerts/channels`. */
+type ChannelStatus = {
+  email: {
+    configured: boolean;
+    issue: string | null;
+    host: string | null;
+    port: number;
+  };
+  sms: {
+    configured: boolean;
+    issue: string | null;
+    from: string | null;
+    messagingServiceSid: string | null;
+  };
+};
+
+function ChannelStatusCard({
+  icon: Icon,
+  label,
+  configured,
+  detail,
+}: {
+  icon: React.ElementType;
+  label: string;
+  configured: boolean;
+  detail?: string | null;
+}) {
+  const toneContainer = configured
+    ? "border-emerald-500/30 bg-emerald-500/5"
+    : "border-amber-500/30 bg-amber-500/5";
+  const toneText = configured
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-amber-600 dark:text-amber-400";
+
+  return (
+    <div className={cn("rounded-lg border px-3 py-2", toneContainer)}>
+      <div className="flex items-center gap-2">
+        <Icon className={cn("h-3.5 w-3.5 shrink-0", toneText)} />
+        <span className="text-xs font-semibold">{label}</span>
+        <span className={cn("ml-auto text-[10px] font-semibold uppercase tracking-wide", toneText)}>
+          {configured ? "Ready" : "Not configured"}
+        </span>
+      </div>
+      {detail ? <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{detail}</p> : null}
+    </div>
+  );
+}
 
 type Props = {
   open: boolean;
@@ -34,6 +83,25 @@ const AlertSettingsDialog: React.FC<Props> = ({
   onUpdateSettings,
 }) => {
   const [testingWebhook, setTestingWebhook] = useState(false);
+  const [channelStatus, setChannelStatus] = useState<ChannelStatus | null>(null);
+
+  // Fetch transport readiness whenever the dialog opens, so operators can see
+  // which channels still need credentials.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    apiClient
+      .get("/alerts/channels")
+      .then((resp) => {
+        if (!cancelled) setChannelStatus(resp.data?.data ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setChannelStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const handleTestWebhook = async () => {
     const url = (settings?.webhookUrl || "").trim();
@@ -68,6 +136,31 @@ const AlertSettingsDialog: React.FC<Props> = ({
             {/* Notification Channels */}
             <div>
               <h3 className="text-lg font-medium mb-4">Notification Channels</h3>
+
+              {channelStatus ? (
+                <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                  <ChannelStatusCard
+                    icon={Mail}
+                    label="Email (SMTP)"
+                    configured={channelStatus.email.configured}
+                    detail={
+                      channelStatus.email.configured
+                        ? `${channelStatus.email.host}:${channelStatus.email.port}`
+                        : channelStatus.email.issue
+                    }
+                  />
+                  <ChannelStatusCard
+                    icon={Smartphone}
+                    label="SMS (Twilio)"
+                    configured={channelStatus.sms.configured}
+                    detail={
+                      channelStatus.sms.configured
+                        ? channelStatus.sms.from ?? channelStatus.sms.messagingServiceSid ?? ""
+                        : channelStatus.sms.issue
+                    }
+                  />
+                </div>
+              ) : null}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -84,8 +177,9 @@ const AlertSettingsDialog: React.FC<Props> = ({
                   </div>
                   {settings?.emailNotifications && (
                     <div className="pl-6 space-y-1">
-                      <Label className="text-xs text-muted-foreground">Email Recipients (comma-separated)</Label>
+                      <Label htmlFor="alert-email-recipients" className="text-xs text-muted-foreground">Email Recipients (comma-separated)</Label>
                       <Input
+                        id="alert-email-recipients"
                         placeholder="ops@example.com, oncall@example.com"
                         value={settings.emailRecipients?.join(", ") || ""}
                         onChange={(e) =>
@@ -130,9 +224,10 @@ const AlertSettingsDialog: React.FC<Props> = ({
                   </div>
                   {settings?.webhookNotifications && (
                     <div className="pl-6 space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Webhook Endpoint URL</Label>
+                      <Label htmlFor="alert-webhook-url" className="text-xs text-muted-foreground">Webhook Endpoint URL</Label>
                       <div className="flex gap-2">
                         <Input
+                          id="alert-webhook-url"
                           placeholder="https://hooks.slack.com/services/... or https://api.ops.com/webhook"
                           value={settings.webhookUrl || ""}
                           onChange={(e) =>
@@ -189,8 +284,9 @@ const AlertSettingsDialog: React.FC<Props> = ({
                 {settings?.quietHours?.enabled && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Start Time</Label>
+                      <Label htmlFor="alert-quiet-start">Start Time</Label>
                       <Input
+                        id="alert-quiet-start"
                         type="time"
                         value={settings.quietHours.startTime}
                         onChange={(e) => 
@@ -202,8 +298,9 @@ const AlertSettingsDialog: React.FC<Props> = ({
                       />
                     </div>
                     <div>
-                      <Label>End Time</Label>
+                      <Label htmlFor="alert-quiet-end">End Time</Label>
                       <Input
+                        id="alert-quiet-end"
                         type="time"
                         value={settings.quietHours.endTime}
                         onChange={(e) => 
@@ -238,8 +335,9 @@ const AlertSettingsDialog: React.FC<Props> = ({
                 {settings?.escalationPolicy?.enabled && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Escalation Delay (minutes)</Label>
+                      <Label htmlFor="alert-escalation-delay">Escalation Delay (minutes)</Label>
                       <Input
+                        id="alert-escalation-delay"
                         type="number"
                         value={settings.escalationPolicy.escalationDelay}
                         onChange={(e) => 
@@ -254,8 +352,9 @@ const AlertSettingsDialog: React.FC<Props> = ({
                       />
                     </div>
                     <div>
-                      <Label>Max Escalations</Label>
+                      <Label htmlFor="alert-max-escalations">Max Escalations</Label>
                       <Input
+                        id="alert-max-escalations"
                         type="number"
                         value={settings.escalationPolicy.maxEscalations}
                         onChange={(e) => 

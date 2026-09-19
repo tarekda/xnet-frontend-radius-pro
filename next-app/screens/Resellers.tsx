@@ -15,6 +15,7 @@ import Link from "next/link";
 import { createReseller, createResellerLogin, debitReseller, fetchResellerLedger, fetchResellers, fundReseller, fetchResellerCommission, payoutResellerCommission, type ResellerDto, type ResellerLoginDto, type ResellerCommissionDto } from "@/api/resellers";
 import { fetchCompanyWalletBalance } from "@/api/companyWallet";
 import TableRowActions from "@/components/TableRowActions";
+import StatusPill from "@/components/StatusPill";
 import { useTranslation } from "react-i18next";
 import { Coins, TrendingUp } from "lucide-react";
 
@@ -206,6 +207,17 @@ export default function ResellersPage() {
     }
   };
 
+  const renderRowActions = (r: ResellerDto) => (
+    <TableRowActions
+      actions={[
+        { label: "Commission & Payout", onClick: () => openCommissionDialog(r) },
+        { label: "Create login", onClick: () => openCreateLogin(r) },
+        { label: "Fund", onClick: () => openFundDialog(r, "credit"), disabled: !canFund },
+        { label: "Debit", onClick: () => openFundDialog(r, "debit"), disabled: !canFund },
+      ]}
+    />
+  );
+
   const title = useMemo(() => `Resellers (${rows.length})`, [rows.length]);
 
   if (!canManage) {
@@ -240,8 +252,8 @@ export default function ResellersPage() {
           <CardTitle>Create reseller</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-2">
-          <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input placeholder="Code (unique)" value={code} onChange={(e) => setCode(e.target.value)} />
+          <Input placeholder="Name" aria-label="Reseller name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input placeholder="Code (unique)" aria-label="Reseller code" value={code} onChange={(e) => setCode(e.target.value)} />
           <Button onClick={onCreate} disabled={!name.trim() || !code.trim()}>
             Create
           </Button>
@@ -259,6 +271,7 @@ export default function ResellersPage() {
           />
         </CardHeader>
         <CardContent>
+          <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -284,22 +297,49 @@ export default function ResellersPage() {
                       {Number(r.balance ?? 0).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <TableRowActions
-                          actions={[
-                            { label: "Commission & Payout", onClick: () => openCommissionDialog(r) },
-                            { label: "Create login", onClick: () => openCreateLogin(r) },
-                            { label: "Fund", onClick: () => openFundDialog(r, "credit"), disabled: !canFund },
-                            { label: "Debit", onClick: () => openFundDialog(r, "debit"), disabled: !canFund },
-                          ]}
-                        />
-                      </div>
+                      <div className="flex justify-end">{renderRowActions(r)}</div>
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+            ) : rows.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No resellers.
+              </div>
+            ) : (
+              rows.map((r) => (
+                <Card key={r.id} className="border-border/60 shadow-none">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold">{r.name}</div>
+                        <div className="truncate font-mono text-xs text-muted-foreground">#{r.id} · {r.code}</div>
+                      </div>
+                      <StatusPill
+                        label={r.isActive ? "active" : "inactive"}
+                        tone={r.isActive ? "success" : "danger"}
+                        dot
+                        className="shrink-0 capitalize"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Balance</div>
+                        <div className="font-semibold">{Number(r.balance ?? 0).toFixed(2)}</div>
+                      </div>
+                      {renderRowActions(r)}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

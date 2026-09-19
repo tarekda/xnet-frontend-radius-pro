@@ -5,6 +5,7 @@ import {
   getGroupEffectiveStatus,
   groupExternalInvoices,
   invoiceGroupKey,
+  mergePinnedRows,
 } from "@/lib/externalInvoiceGrouping";
 import type { ExternalInvoice } from "@/types/api";
 
@@ -86,7 +87,8 @@ describe("groupExternalInvoices", () => {
     const [group] = groupExternalInvoices([carryover, current, overdue], NOW);
     expect(group!.currentMonthPayable?.id).toBe(current.id);
     expect(group!.payableTarget?.id).toBe(current.id);
-    expect(getGroupEffectiveStatus(group!)).toBe("unpaid");
+    // The two open current-month lines are stored as "pending", so the group mirrors that.
+    expect(getGroupEffectiveStatus(group!)).toBe("pending");
   });
 
   it("falls back payableTarget to open prior line when current month is paid", () => {
@@ -139,6 +141,83 @@ describe("groupExternalInvoices", () => {
     const [group] = groupExternalInvoices([current, overdue], NOW);
     expect(getGroupEffectiveStatus(group!)).toBe("paid");
     expect(group!.payableTarget).toBeNull();
+  });
+
+  it("does not call an open zero-amount invoice paid just because nothing is owed", () => {
+    const zero = inv({ billingMonth: THIS_MONTH, amount: 0, totalAmount: 0, amountPaid: 0, status: "pending" });
+
+    const [group] = groupExternalInvoices([zero], NOW);
+
+    // outstandingTotal is 0, but the stored status is still "pending" — this used
+    // to render as Paid, which disagreed with reconciliation mode.
+    expect(group!.outstandingTotal).toBe(0);
+    expect(getGroupEffectiveStatus(group!)).toBe("pending");
+  });
+
+  it("mirrors the stored status instead of inferring it from the outstanding amount", () => {
+    const unpaid = inv({ billingMonth: THIS_MONTH, amount: 0, totalAmount: 0, status: "unpaid" });
+
+    const [group] = groupExternalInvoices([unpaid], NOW);
+
+    expect(getGroupEffectiveStatus(group!)).toBe("unpaid");
+  });
+});
+
+describe("mergePinnedRows", () => {
+  it("puts a settled row the refetch dropped back at its old position", () => {
+    const a = inv({ username: "a" });
+    const b = inv({ username: "b" });
+    const c = inv({ username: "c" });
+
+    // b was paid, so the filtered refetch no longer returns it.
+    const merged = mergePinnedRows([a, c], [{ page: 1, index: 1, row: { ...b, status: "paid" } }], 1);
+
+    expect(merged.map((row) => row.id)).toEqual([a.id, b.id, c.id]);
+  });
+
+  it("does not duplicate a row the refetch still returns", () => {
+    const a = inv({ username: "a" });
+    const b = inv({ username: "b" });
+
+    const merged = mergePinnedRows([a, b], [{ page: 1, index: 1, row: b }], 1);
+
+    expect(merged).toEqual([a, b]);
+  });
+
+  it("ignores pins recorded for another page", () => {
+    const a = inv({ username: "a" });
+    const b = inv({ username: "b" });
+
+    const merged = mergePinnedRows([a], [{ page: 2, index: 0, row: b }], 1);
+
+    expect(merged).toEqual([a]);
+  });
+
+  it("clamps a stale index to the end of the page", () => {
+    const a = inv({ username: "a" });
+    const b = inv({ username: "b" });
+
+    const merged = mergePinnedRows([a], [{ page: 1, index: 9, row: b }], 1);
+
+    expect(merged.map((row) => row.id)).toEqual([a.id, b.id]);
+  });
+
+  it("re-inserts multiple pins in their original order", () => {
+    const a = inv({ username: "a" });
+    const b = inv({ username: "b" });
+    const c = inv({ username: "c" });
+    const d = inv({ username: "d" });
+
+    const merged = mergePinnedRows(
+      [a, d],
+      [
+        { page: 1, index: 2, row: c },
+        { page: 1, index: 1, row: b },
+      ],
+      1
+    );
+
+    expect(merged.map((row) => row.id)).toEqual([a.id, b.id, c.id, d.id]);
   });
 });
 

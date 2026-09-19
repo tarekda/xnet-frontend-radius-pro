@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/api/client";
 import { notify } from "@/lib/notify";
 import {
@@ -19,11 +18,8 @@ import {
   Send,
   User,
   Sparkles,
-  Zap,
   RefreshCw,
   Clock,
-  HelpCircle,
-  CheckCircle2,
   Trash2,
 } from "lucide-react";
 
@@ -193,6 +189,7 @@ export function AIAgentSimulatorModal({
             <Input
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
+              aria-label="Simulated sender phone number"
               className="h-7 w-[160px] font-mono text-xs"
               placeholder="+961..."
             />
@@ -323,6 +320,7 @@ export function AIAgentSimulatorModal({
                 handleSendMessage();
               }
             }}
+            aria-label="WhatsApp message to simulate"
             placeholder="Type WhatsApp message (e.g. 'Adde 3laye fatora?', 'How can I pay?')..."
             className="text-xs flex-1"
             disabled={isSending}

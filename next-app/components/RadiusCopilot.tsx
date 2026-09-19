@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   Bot,
   Send,
@@ -16,7 +17,6 @@ import {
   X,
   Copy,
   Terminal,
-  Activity,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -459,7 +459,7 @@ export const RadiusCopilot: React.FC<RadiusCopilotProps> = ({
           } catch {}
         }
       }
-    } catch (err: any) {
+    } catch {
       if (!abort.signal.aborted) {
         setMessages((prev) =>
           prev.map((m) =>
@@ -512,7 +512,8 @@ export const RadiusCopilot: React.FC<RadiusCopilotProps> = ({
           <div>
             <h3 className="font-bold text-xs text-foreground dark:text-slate-100 flex items-center gap-2">
               Radius AI Network Ops
-              <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" aria-hidden="true" />
+              <span className="sr-only">Copilot status: online</span>
               {isThinking && (
                 <span className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-600 dark:text-violet-300 animate-pulse">
                   <Brain className="w-2.5 h-2.5" />
@@ -589,8 +590,14 @@ export const RadiusCopilot: React.FC<RadiusCopilotProps> = ({
               >
                 {m.attachmentImage && (
                   <div className="rounded-lg overflow-hidden border border-border dark:border-slate-700/80 bg-muted/50 mb-2 max-h-48">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.attachmentImage} alt="Attachment" className="w-full h-auto max-h-48 object-contain" />
+                    <Image
+                      src={m.attachmentImage}
+                      alt="Attachment"
+                      width={400}
+                      height={300}
+                      unoptimized
+                      className="w-full h-auto max-h-48 object-contain"
+                    />
                   </div>
                 )}
 

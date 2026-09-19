@@ -12,13 +12,10 @@ import {
   Settings,
   Clock,
   Search,
-  Filter,
   FileText,
-  DollarSign,
   Smartphone,
   Sparkles,
   Users,
-  ShieldCheck,
   Zap,
   Camera,
   Bot,
@@ -33,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -81,7 +79,7 @@ interface WhatsAppLogItem {
 
 export default function WhatsAppHub() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  useAuth();
 
   const [activeTab, setActiveTab] = useState<string>("inbound");
   const [isHubReceiptOcrOpen, setIsHubReceiptOcrOpen] = useState<boolean>(false);
@@ -90,10 +88,11 @@ export default function WhatsAppHub() {
   // Single test sender state
   const [testPhone, setTestPhone] = useState<string>("");
   const [testName, setTestName] = useState<string>("John Doe");
-  const [testTemplate, setTestTemplate] = useState<WhatsAppTemplateKind>("payment_reminder");
-  const [testAmount, setTestAmount] = useState<string>("35.00");
+  // Kept as a hook call to preserve hook ordering; this state is currently unused.
+  useState<WhatsAppTemplateKind>("payment_reminder");
+  const [testAmount] = useState<string>("35.00");
   const [testInvoice, setTestInvoice] = useState<string>("INV-2026-0801");
-  const [testDueDate, setTestDueDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [testDueDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
 
   // Template editor state
@@ -109,12 +108,8 @@ export default function WhatsAppHub() {
   const whatsappQuery = useQuery({
     queryKey: ["whatsappHub", "diagnostics"],
     queryFn: async () => {
-      try {
-        const { data } = await apiClient.get("/invoices/whatsapp/diagnostics");
-        return data?.data ?? null;
-      } catch {
-        return null;
-      }
+      const { data } = await apiClient.get("/invoices/whatsapp/diagnostics");
+      return data?.data ?? null;
     },
     staleTime: 30000,
   });
@@ -123,15 +118,11 @@ export default function WhatsAppHub() {
   const dueInvoicesQuery = useQuery({
     queryKey: ["whatsappHub", "dueInvoices"],
     queryFn: async () => {
-      try {
-        const { data } = await apiClient.get("/invoices/external", {
-          params: { status: "unpaid", limit: 50 },
-        });
-        const list = Array.isArray(data?.data) ? data.data : [];
-        return list;
-      } catch {
-        return [];
-      }
+      const { data } = await apiClient.get("/invoices/external", {
+        params: { status: "unpaid", limit: 50 },
+      });
+      const list = Array.isArray(data?.data) ? data.data : [];
+      return list;
     },
     staleTime: 30000,
   });
@@ -277,7 +268,7 @@ export default function WhatsAppHub() {
         subtitle="Automated billing alerts, dynamic payment reminders, dunning notices, and digital receipt dispatch"
         icon={MessageCircle}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               onClick={() => setIsAgentSimulatorOpen(true)}
@@ -417,14 +408,31 @@ export default function WhatsAppHub() {
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/40">
-                    <TableRow>
-                      <TableHead className="w-12 text-center">
-                        <input
-                          type="checkbox"
-                          checked={dueInvoices.length > 0 && selectedInvoiceIds.size === dueInvoices.length}
+              {dueInvoicesQuery.isLoading ? (
+                <div className="space-y-2 p-4">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded" />
+                  ))}
+                </div>
+              ) : dueInvoicesQuery.isError ? (
+                <div className="space-y-3 py-10 text-center">
+                  <AlertCircle className="h-8 w-8 mx-auto text-destructive" />
+                  <p className="text-sm text-muted-foreground">Failed to load pending due invoices.</p>
+                  <Button variant="outline" size="sm" onClick={() => dueInvoicesQuery.refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden overflow-x-auto md:block">
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow>
+                          <TableHead className="w-12 text-center">
+                            <input
+                              type="checkbox"
+                              checked={dueInvoices.length > 0 && selectedInvoiceIds.size === dueInvoices.length}
                           onChange={selectAllDueInvoices}
                           className="rounded border-border"
                         />
@@ -482,6 +490,58 @@ export default function WhatsAppHub() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 p-3 md:hidden">
+                {dueInvoices.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">
+                    No pending due invoices found. All subscriber accounts are up to date!
+                  </div>
+                ) : (
+                  dueInvoices.map((inv: any) => {
+                    const isSelected = selectedInvoiceIds.has(String(inv.id));
+                    return (
+                      <div key={inv.id} className="rounded-lg border border-border/60 bg-card p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <label className="flex min-w-0 cursor-pointer items-start gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectInvoice(String(inv.id))}
+                              className="mt-0.5 rounded border-border"
+                            />
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium">
+                                {inv.subscriberName || inv.username || "Customer"}
+                              </span>
+                              <span className="block truncate font-mono text-xs text-muted-foreground">
+                                {inv.phone || inv.subscriberPhone || "+961 70 …"}
+                              </span>
+                            </span>
+                          </label>
+                          <Badge variant="outline" className="shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
+                            Unpaid
+                          </Badge>
+                        </div>
+                        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <div className="text-muted-foreground">Invoice</div>
+                            <div className="font-mono">{inv.invoiceNumber || `INV-${inv.id}`}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Amount</div>
+                            <div className="font-semibold">${Number(inv.amount || 0).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Due</div>
+                            <div>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "Immediate"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -513,8 +573,9 @@ export default function WhatsAppHub() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Template Content</Label>
+                    <Label htmlFor="whatsapp-template-content" className="text-xs font-semibold">Template Content</Label>
                     <Textarea
+                      id="whatsapp-template-content"
                       rows={7}
                       value={templateBodies[selectedTemplateKey] || ""}
                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -599,10 +660,11 @@ export default function WhatsAppHub() {
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Destination Phone Number</Label>
+                <Label htmlFor="whatsapp-test-phone" className="text-xs font-semibold">Destination Phone Number</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    id="whatsapp-test-phone"
                     value={testPhone}
                     onChange={(e) => setTestPhone(e.target.value)}
                     placeholder="+961 70 123 456"
@@ -613,12 +675,12 @@ export default function WhatsAppHub() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Test Name</Label>
-                  <Input value={testName} onChange={(e) => setTestName(e.target.value)} />
+                  <Label htmlFor="whatsapp-test-name" className="text-xs font-semibold">Test Name</Label>
+                  <Input id="whatsapp-test-name" value={testName} onChange={(e) => setTestName(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Test Invoice #</Label>
-                  <Input value={testInvoice} onChange={(e) => setTestInvoice(e.target.value)} />
+                  <Label htmlFor="whatsapp-test-invoice" className="text-xs font-semibold">Test Invoice #</Label>
+                  <Input id="whatsapp-test-invoice" value={testInvoice} onChange={(e) => setTestInvoice(e.target.value)} />
                 </div>
               </div>
 
@@ -641,49 +703,80 @@ export default function WhatsAppHub() {
               <CardTitle className="text-base">Recent WhatsApp Dispatch Logs</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader className="bg-muted/40">
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Snippet</TableHead>
-                    <TableHead>Delivery Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-muted/30">
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{log.recipientName}</TableCell>
-                      <TableCell className="font-mono text-xs">{log.recipientPhone}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px] font-mono">
-                          {log.templateKind}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground truncate max-w-xs" title={log.messageSnippet}>
-                        {log.messageSnippet}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            log.status === "delivered"
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                          }
-                        >
-                          {log.status}
-                        </Badge>
-                      </TableCell>
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Recipient</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Template</TableHead>
+                      <TableHead>Snippet</TableHead>
+                      <TableHead>Delivery Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {logs.map((log) => (
+                      <TableRow key={log.id} className="hover:bg-muted/30">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{log.recipientName}</TableCell>
+                        <TableCell className="font-mono text-xs">{log.recipientPhone}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px] font-mono">
+                            {log.templateKind}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground truncate max-w-xs" title={log.messageSnippet}>
+                          {log.messageSnippet}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              log.status === "delivered"
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            }
+                          >
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="space-y-3 p-3 md:hidden">
+                {logs.map((log) => (
+                  <div key={log.id} className="space-y-2 rounded-lg border border-border/60 bg-card p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{log.recipientName}</div>
+                        <div className="truncate font-mono text-xs text-muted-foreground">{log.recipientPhone}</div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`shrink-0 ${
+                          log.status === "delivered"
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                        }`}
+                      >
+                        {log.status}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(log.createdAt).toLocaleString()}</span>
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        {log.templateKind}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{log.messageSnippet}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -695,24 +788,41 @@ export default function WhatsAppHub() {
               <CardTitle className="text-base">WhatsApp Gateway Configuration & Health</CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4 text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
-                  <div className="text-xs text-muted-foreground">Provider</div>
-                  <div className="font-semibold">{whatsappQuery.data?.config?.provider || "Twilio WhatsApp / Meta Cloud"}</div>
+              {whatsappQuery.isLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                  ))}
                 </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
-                  <div className="text-xs text-muted-foreground">Authentication Mode</div>
-                  <div className="font-semibold">{whatsappQuery.data?.twilio?.authModeUsed || "API Key / Auth Token"}</div>
+              ) : whatsappQuery.isError ? (
+                <div className="space-y-3 py-8 text-center">
+                  <AlertCircle className="h-8 w-8 mx-auto text-destructive" />
+                  <p className="text-muted-foreground">Failed to load gateway configuration.</p>
+                  <Button variant="outline" size="sm" onClick={() => whatsappQuery.refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
-                  <div className="text-xs text-muted-foreground">Registered Sender</div>
-                  <div className="font-semibold">{whatsappQuery.data?.twilio?.whatsappFrom || "+1 415 523 8886"}</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="text-xs text-muted-foreground">Provider</div>
+                    <div className="font-semibold">{whatsappQuery.data?.config?.provider || "Twilio WhatsApp / Meta Cloud"}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="text-xs text-muted-foreground">Authentication Mode</div>
+                    <div className="font-semibold">{whatsappQuery.data?.twilio?.authModeUsed || "API Key / Auth Token"}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="text-xs text-muted-foreground">Registered Sender</div>
+                    <div className="font-semibold">{whatsappQuery.data?.twilio?.whatsappFrom || "+1 415 523 8886"}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="text-xs text-muted-foreground">Content Template SID</div>
+                    <div className="font-mono text-xs">{whatsappQuery.data?.twilio?.contentSid || "HXxxxxxxxxxxxxxxxxxxxx"}</div>
+                  </div>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1">
-                  <div className="text-xs text-muted-foreground">Content Template SID</div>
-                  <div className="font-mono text-xs">{whatsappQuery.data?.twilio?.contentSid || "HXxxxxxxxxxxxxxxxxxxxx"}</div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -757,7 +867,7 @@ const INTENT_BADGES: Record<string, { label: string; bg: string; text: string; b
 
 function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => void }) {
   const qc = useQueryClient();
-  const [page, setPage] = useState(1);
+  const [page] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [fromNumber, setFromNumber] = useState("");
@@ -833,7 +943,6 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
 
   const items = query.data?.items ?? [];
   const metrics = query.data?.metrics;
-  const totalPages = query.data?.totalPages ?? 1;
 
   return (
     <div className="space-y-4">
@@ -913,6 +1022,7 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              aria-label="Search inbound WhatsApp messages"
               placeholder="Search text, phone, or error details…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -922,6 +1032,7 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
 
           <div className="w-[180px]">
             <Input
+              aria-label="Filter by sender phone number"
               placeholder="Filter by phone (e.g. 9613181476)…"
               value={fromNumber}
               onChange={(e) => setFromNumber(e.target.value)}
@@ -974,6 +1085,7 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
 
       {/* Message Queue Table */}
       <Card className="border-border/60 shadow-xs overflow-hidden">
+        <div className="hidden overflow-x-auto md:block">
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
@@ -1141,6 +1253,108 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
             )}
           </TableBody>
         </Table>
+        </div>
+        <div className="space-y-3 p-3 md:hidden">
+          {query.isLoading ? (
+            <div className="py-8 text-center text-muted-foreground text-xs">Loading inbound WhatsApp traffic queue…</div>
+          ) : items.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-xs">No inbound WhatsApp messages found matching filters.</div>
+          ) : (
+            items.map((row: any) => (
+              <div key={row.id} className="space-y-2 rounded-lg border border-border/60 bg-card p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-mono text-xs font-medium">{row.fromNumber}</div>
+                    <div className="text-[11px] text-muted-foreground">{new Date(row.createdAt).toLocaleString()}</div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`shrink-0 text-[10px] font-semibold ${
+                      row.status === "processed"
+                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                        : row.status === "ambiguous"
+                          ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                          : row.status === "no_match"
+                            ? "bg-sky-500/10 text-sky-600 border-sky-500/30"
+                            : "bg-destructive/10 text-destructive border-destructive/30"
+                    }`}
+                  >
+                    {row.status}
+                  </Badge>
+                </div>
+                <div className="break-words text-xs">{row.rawText}</div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {row.intent ? (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-medium ${
+                        INTENT_BADGES[row.intent]?.bg ?? "bg-muted"
+                      } ${INTENT_BADGES[row.intent]?.text ?? "text-muted-foreground"} ${
+                        INTENT_BADGES[row.intent]?.border ?? "border-border"
+                      }`}
+                    >
+                      {INTENT_BADGES[row.intent]?.label ?? row.intent}
+                    </Badge>
+                  ) : null}
+                  {row.matchedUsername ? (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] font-mono px-1.5 py-0 bg-primary/10 text-primary border border-primary/20"
+                      title="Matched Subscriber Account"
+                    >
+                      {row.matchedUsername}
+                    </Badge>
+                  ) : null}
+                </div>
+                {row.replyText ? (
+                  <div className="rounded border border-border/50 bg-muted/60 p-1.5 text-[11px] text-foreground/80 dark:bg-muted/40">
+                    {row.replyText}
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-1 pt-1">
+                  {row.status === "ambiguous" && (
+                    <Button
+                      size="sm"
+                      asChild
+                      className="h-7 text-xs gap-1 bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                    >
+                      <Link href="/external-invoices/whatsapp-matches">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Resolve
+                      </Link>
+                    </Button>
+                  )}
+                  {(row.status === "no_match" || row.status === "ambiguous" || row.status === "error") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setManualMatchRow(row);
+                        setCandidateSearch(row.parsedNames?.[0] || "");
+                        setSelectedInvoice(null);
+                      }}
+                      className="h-7 text-xs gap-1 text-sky-600 border-sky-500/40 hover:bg-sky-50 dark:hover:bg-sky-950"
+                    >
+                      <Users className="h-3 w-3" />
+                      Match
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => retryMutation.mutate(row.id)}
+                    disabled={retryMutation.isPending}
+                    className="h-7 text-xs gap-1"
+                    title="Re-run automated parser"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${retryMutation.isPending ? "animate-spin" : ""}`} />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </Card>
 
       {/* Manual Match & Conflict Resolution Dialog */}
@@ -1216,8 +1430,17 @@ function WhatsAppInboundQueueTab({ onOpenSimulator }: { onOpenSimulator?: () => 
                     return (
                       <div
                         key={inv.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
                         onClick={() => setSelectedInvoice(inv)}
-                        className={`p-2.5 rounded-md border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedInvoice(inv);
+                          }
+                        }}
+                        className={`p-2.5 rounded-md border text-xs cursor-pointer transition-all flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           isSelected
                             ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/40"
                             : "border-border/60 hover:bg-muted/40"

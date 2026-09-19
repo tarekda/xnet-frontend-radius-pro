@@ -164,21 +164,26 @@ export function ReceiptOcrTesterModal({
         <div className="space-y-4 pt-2">
           {/* File Upload Zone */}
           {!file ? (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-8 text-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/30"
-            >
+            <>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
                 className="hidden"
+                aria-label="Upload payment receipt file"
                 onChange={handleFileChange}
               />
-              <UploadCloud className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-              <div className="text-sm font-semibold text-foreground">Click to upload payment slip screenshot</div>
-              <div className="text-xs text-muted-foreground mt-1">Supports PNG, JPG, JPEG, WEBP, or PDF up to 10MB</div>
-            </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Upload or drop a payment receipt screenshot"
+                className="w-full border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-8 text-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <UploadCloud className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <div className="text-sm font-semibold text-foreground">Click to upload payment slip screenshot</div>
+                <div className="text-xs text-muted-foreground mt-1">Supports PNG, JPG, JPEG, WEBP, or PDF up to 10MB</div>
+              </button>
+            </>
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border/60">

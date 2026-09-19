@@ -26,6 +26,7 @@ import SavedViews from "@/components/SavedViews";
 import type { SavedViewState } from "@/lib/savedViews";
 import FilterPills from "@/components/FilterPills";
 import StatCard from "@/components/StatCard";
+import QueryState from "@/components/QueryState";
 
 type AuthFailureRow = {
   id: number;
@@ -160,7 +161,7 @@ export default function AuthFailuresPage() {
     },
   });
 
-  const rows = authFailuresQuery.data?.rows ?? [];
+  const rows = useMemo(() => authFailuresQuery.data?.rows ?? [], [authFailuresQuery.data?.rows]);
   const total = authFailuresQuery.data?.total ?? 0;
   const totalPages = authFailuresQuery.data?.totalPages ?? 1;
   const topUsers = authFailuresQuery.data?.summary?.topUsers ?? [];
@@ -389,7 +390,7 @@ export default function AuthFailuresPage() {
         subtitle={t("authFailures.subtitle")}
         icon={AlertTriangle}
         actions={(
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <IconActionButton
               label={authFailuresQuery.isFetching ? "Refreshing..." : "Refresh"}
               onClick={() => authFailuresQuery.refetch()}
@@ -421,8 +422,8 @@ export default function AuthFailuresPage() {
             <Button variant="outline" size="sm" onClick={() => applyQuickRange("7d")}>Last 7d</Button>
           </div>
           <div className="grid gap-3 md:grid-cols-4">
-            <Input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Input type="datetime-local" aria-label="From date and time" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Input type="datetime-local" aria-label="To date and time" value={to} onChange={(e) => setTo(e.target.value)} />
             <div className="flex items-center">
               <FilterPills
                 name="auth-failures-status-filter"
@@ -436,7 +437,7 @@ export default function AuthFailuresPage() {
                 ]}
               />
             </div>
-            <Input placeholder="Search user / NAS / MAC" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <Input placeholder="Search user / NAS / MAC" aria-label="Search by user, NAS, or MAC" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <IconActionButton
@@ -503,11 +504,13 @@ export default function AuthFailuresPage() {
 
       <Card className="overflow-hidden border-border/80 shadow-none">
         <CardContent className="p-0">
-          {authFailuresQuery.isLoading ? (
-            <div className="space-y-2 p-4">
-              {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
-            </div>
-          ) : (
+          <QueryState
+            isLoading={authFailuresQuery.isLoading}
+            error={authFailuresQuery.error}
+            onRetry={() => authFailuresQuery.refetch()}
+            loading={<div className="space-y-2 p-4">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>}
+            errorTitle="Failed to load auth failures"
+          >
             <div className="max-h-[560px] overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/55">
@@ -591,7 +594,7 @@ export default function AuthFailuresPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </QueryState>
         </CardContent>
       </Card>
       <TablePager
@@ -630,8 +633,9 @@ export default function AuthFailuresPage() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <Label>Threshold</Label>
+                  <Label htmlFor="rule-threshold">Threshold</Label>
                   <Input
+                    id="rule-threshold"
                     type="number"
                     min="1"
                     value={ruleDraft.threshold}
@@ -639,8 +643,9 @@ export default function AuthFailuresPage() {
                   />
                 </div>
                 <div>
-                  <Label>Duration (min)</Label>
+                  <Label htmlFor="rule-duration">Duration (min)</Label>
                   <Input
+                    id="rule-duration"
                     type="number"
                     min="1"
                     value={ruleDraft.duration}

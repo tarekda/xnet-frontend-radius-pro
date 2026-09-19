@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useReducer, useState } from "re
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { Activity, Download, Layers, Plus, RefreshCw, Server, Upload, Users as UsersIcon, X } from "lucide-react";
 
@@ -36,7 +37,7 @@ import { UsersAnalyticsView } from "./UsersAnalyticsView";
 import { UsersConfirmDialog } from "./UsersConfirmDialog";
 import { UsersFiltersPanel } from "./UsersFiltersPanel";
 import { UsersPageSkeleton } from "./UsersPageSkeleton";
-import { computeLocalMetrics, effectiveAccountStatus, filterUsers } from "./lib";
+import { computeLocalMetrics, effectiveAccountStatus, filterUsers, toServerSortParams } from "./lib";
 import { usersPageInitialState, usersPageReducer, type ViewMode } from "./usersPageReducer";
 
 const UsersPage: React.FC = () => {
@@ -59,11 +60,13 @@ const UsersPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const router = useRouter();
     const savedViewsKeys = useMemo(
-        () => ["q", "status", "account", "profile", "quotaExceeded", "hasMacAddress", "hasContactInfo", "ps", "view", "p"],
+        () => ["q", "status", "account", "profile", "quotaExceeded", "hasMacAddress", "hasContactInfo", "ps", "view", "p", "sort"],
         []
     );
 
     const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const serverSort = useMemo(() => toServerSortParams(sorting), [sorting]);
 
     const { user: authUser } = useAuth();
     const canSeeAudit = useMemo(() => canAny(authUser, ["users.view", "reseller.users.view"]), [authUser]);
@@ -94,7 +97,20 @@ const UsersPage: React.FC = () => {
     } = useUsers(1, pageSize, {
         accountStatus: advancedFilters.accountStatus,
         connectivityStatus: statusFilter,
+        // Applied server-side so totals and pagination reflect the filters
+        // instead of only narrowing the current page.
+        profile: advancedFilters.profile,
+        quotaExceeded: advancedFilters.quotaExceeded,
+        hasMacAddress: advancedFilters.hasMacAddress,
+        hasContactInfo: advancedFilters.hasContactInfo,
+        ...serverSort,
     });
+
+    const handleSortingChange = useCallback<OnChangeFn<SortingState>>((updater) => {
+        setSorting((prev) => (typeof updater === "function" ? updater(prev) : updater));
+        setCurrentPage(1);
+    }, [setCurrentPage]);
+
     const profilesQuery = useProfiles();
     const recentRejectQuery = useRecentRejectUsers(canSeeOpsSignals);
     const recentRejectCounts = recentRejectQuery.data ?? {};
@@ -160,7 +176,13 @@ const UsersPage: React.FC = () => {
         const ps = parseInt(searchParams.get("ps") ?? "", 10);
         const view = (searchParams.get("view") ?? "table") as ViewMode;
         const p = parseInt(searchParams.get("p") ?? "", 10);
+        const sort = searchParams.get("sort") ?? "";
         if (q) setSearchQuery(q);
+
+        if (sort.includes(":")) {
+            const [sortId, dir] = sort.split(":");
+            if (sortId) setSorting([{ id: sortId, desc: dir === "desc" }]);
+        }
 
         let accountStatus = accountFromUrl;
         if (!accountStatus && (status === "active" || status === "suspended")) {
@@ -205,14 +227,25 @@ const UsersPage: React.FC = () => {
             next.set("ps", String(pageSize));
             next.set("view", viewMode);
             next.set("p", String(currentPage));
+            if (sorting[0]) next.set("sort", `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}`);
+            else next.delete("sort");
             return next;
         }, { replace: true } as any);
-    }, [searchQuery, statusFilter, advancedFilters, pageSize, viewMode, currentPage, setSearchParams]);
+    }, [searchQuery, statusFilter, advancedFilters, pageSize, viewMode, currentPage, sorting, setSearchParams]);
 
     const filteredUsers = useMemo(
         () => filterUsers(serverUsers, statusFilter, advancedFilters),
         [serverUsers, statusFilter, advancedFilters]
     );
+
+    // Safety net: a filter change can leave us on a page that no longer exists in
+    // the narrower result set. Snap back to the last available page.
+    const loadedTotalPages = Array.isArray((data as any)?.data) ? 1 : ((data as any)?.data?.totalPages ?? 1);
+    useEffect(() => {
+        if (loadedTotalPages > 0 && currentPage > loadedTotalPages) {
+            setCurrentPage(Math.max(1, loadedTotalPages));
+        }
+    }, [loadedTotalPages, currentPage, setCurrentPage]);
 
     const metrics = useMemo(() => computeLocalMetrics(serverUsers, filteredUsers), [serverUsers, filteredUsers]);
 
@@ -304,7 +337,13 @@ const UsersPage: React.FC = () => {
                 hasContactInfo: value === "contact",
             },
         });
-    }, [advancedFilters]);
+        setCurrentPage(1);
+    }, [advancedFilters, setCurrentPage]);
+
+    const handleProfileFilter = useCallback((value: string) => {
+        dispatch({ type: "SET_ADVANCED_FILTERS", payload: { ...advancedFilters, profile: value } });
+        setCurrentPage(1);
+    }, [advancedFilters, setCurrentPage]);
 
     const applyAccountStatusFilter = useCallback((status: string) => {
         dispatch({
@@ -422,6 +461,7 @@ const UsersPage: React.FC = () => {
             case 'suspend':
             case 'activate':
             case 'delete':
+            case 'renew':
                 dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'bulk', action, usernames } });
                 break;
             case 'reset-mac':
@@ -451,7 +491,8 @@ const UsersPage: React.FC = () => {
         ps: String(pageSize),
         view: viewMode,
         p: String(currentPage),
-    }), [searchQuery, statusFilter, advancedFilters, pageSize, viewMode, currentPage]);
+        sort: sorting[0] ? `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}` : "",
+    }), [searchQuery, statusFilter, advancedFilters, pageSize, viewMode, currentPage, sorting]);
 
     const applySavedViewState = useCallback((s: Record<string, string | undefined>) => {
         if (s.q !== undefined) setSearchQuery(s.q || "");
@@ -469,6 +510,14 @@ const UsersPage: React.FC = () => {
         if (s.ps) { const n = parseInt(s.ps, 10); if (Number.isFinite(n)) dispatch({ type: "SET_PAGE_SIZE", payload: n }); }
         if (s.view && ["table", "cards", "analytics"].includes(s.view)) dispatch({ type: "SET_VIEW_MODE", payload: s.view as ViewMode });
         if (s.p) { const n = parseInt(s.p, 10); if (Number.isFinite(n) && n > 0) setCurrentPage(n); }
+        if (s.sort !== undefined) {
+            if (s.sort && s.sort.includes(":")) {
+                const [sortId, dir] = s.sort.split(":");
+                if (sortId) setSorting([{ id: sortId, desc: dir === "desc" }]);
+            } else {
+                setSorting([]);
+            }
+        }
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             savedViewsKeys.forEach((key) => {
@@ -586,9 +635,7 @@ const UsersPage: React.FC = () => {
                 quickFilterValue={quickFilterPillValue}
                 onQuickFilter={handleQuickFilter}
                 profileFilterValue={advancedFilters.profile}
-                onProfileFilter={(value) =>
-                    dispatch({ type: "SET_ADVANCED_FILTERS", payload: { ...advancedFilters, profile: value } })
-                }
+                onProfileFilter={handleProfileFilter}
                 attributeFilterValue={currentAttributeFilter}
                 onAttributeFilter={setAttributeFilter}
                 onOpenAccountStatusDialog={() => setIsFiltersDialogOpen(true)}
@@ -597,6 +644,8 @@ const UsersPage: React.FC = () => {
                 applySavedViewState={applySavedViewState}
                 onViewSaved={(name) => notify.success("View saved", `Saved "${name}".`)}
                 onViewDeleted={(name) => notify.success("View deleted", `Deleted "${name}".`)}
+                viewMode={viewMode}
+                onViewModeChange={(mode) => dispatch({ type: "SET_VIEW_MODE", payload: mode })}
             />
 
             <ActiveFiltersBar
@@ -649,6 +698,7 @@ const UsersPage: React.FC = () => {
             ) : (
                 <UsersTable
                     users={filteredUsers}
+                    displayMode={viewMode}
                     currentPage={currentPage}
                     totalPages={Array.isArray((data as any)?.data) ? 1 : ((data as any)?.data?.totalPages ?? 0)}
                     totalUsers={Array.isArray((data as any)?.data) ? serverUsers.length : ((data as any)?.data?.totalUsers ?? 0)}
@@ -667,6 +717,8 @@ const UsersPage: React.FC = () => {
                     canResetDailyQuota={canResetDailyQuota}
                     canResetMonthlyQuota={canResetMonthlyQuota}
                     recentRejectCounts={recentRejectCounts}
+                    sorting={sorting}
+                    onSortingChange={handleSortingChange}
                 />
             )}
 

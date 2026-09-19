@@ -3,8 +3,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, Plus, Edit, Trash2, Play, Search, Filter,
-  CheckCircle2, AlertTriangle, ShieldAlert, Clock,
-  Layers, Settings, RefreshCw, Send, Check
+  AlertTriangle, ShieldAlert, RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
 import { apiClient } from "@/api/client";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/PageHeader";
+import QueryState from "@/components/QueryState";
 
 export interface AlertRuleItem {
   id: string | number;
@@ -84,7 +84,7 @@ export default function AlertRules() {
   });
 
   // Query rules
-  const { data: rules = [], isLoading, refetch } = useQuery<AlertRuleItem[]>({
+  const { data: rules = [], isLoading, error, refetch } = useQuery<AlertRuleItem[]>({
     queryKey: ["alert-rules"],
     queryFn: async () => {
       const resp = await apiClient.get("/alerts/rules");
@@ -198,7 +198,7 @@ export default function AlertRules() {
         title="Enterprise Alert Rules"
         subtitle="Configure multi-channel thresholds, metric triggers, and automatic escalation policies."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
               <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
               Refresh
@@ -262,6 +262,7 @@ export default function AlertRules() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search rules..."
+            aria-label="Search alert rules"
             className="pl-9 h-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -285,18 +286,24 @@ export default function AlertRules() {
       </div>
 
       {/* Rules Grid */}
-      {isLoading ? (
-        <div className="py-12 text-center text-muted-foreground">Loading alert rules…</div>
-      ) : filteredRules.length === 0 ? (
-        <Card className="border-dashed border-border/70 p-12 text-center">
-          <Bell className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
-          <h3 className="text-base font-semibold">No alert rules found</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">
-            {searchTerm ? "Try adjusting your search criteria." : "Create your first rule to start monitoring thresholds."}
-          </p>
-          <Button onClick={openCreateDialog}>Create Rule</Button>
-        </Card>
-      ) : (
+      <QueryState
+        isLoading={isLoading}
+        error={error}
+        isEmpty={!isLoading && !error && filteredRules.length === 0}
+        onRetry={() => refetch()}
+        loading={<div className="py-12 text-center text-muted-foreground">Loading alert rules…</div>}
+        errorTitle="Failed to load alert rules"
+        empty={
+          <Card className="border-dashed border-border/70 p-12 text-center">
+            <Bell className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
+            <h3 className="text-base font-semibold">No alert rules found</h3>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">
+              {searchTerm ? "Try adjusting your search criteria." : "Create your first rule to start monitoring thresholds."}
+            </p>
+            <Button onClick={openCreateDialog}>Create Rule</Button>
+          </Card>
+        }
+      >
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredRules.map((rule) => {
             const sevInfo = SEVERITY_CONFIG[rule.severity] || SEVERITY_CONFIG.medium;
@@ -414,7 +421,7 @@ export default function AlertRules() {
             );
           })}
         </div>
-      )}
+      </QueryState>
 
       {/* Create / Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -481,8 +488,9 @@ export default function AlertRules() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Threshold Value</Label>
+                <Label htmlFor="rule-threshold">Threshold Value</Label>
                 <Input
+                  id="rule-threshold"
                   type="number"
                   value={formData.threshold}
                   onChange={(e) => setFormData({ ...formData, threshold: parseFloat(e.target.value) || 0 })}
@@ -490,8 +498,9 @@ export default function AlertRules() {
               </div>
 
               <div className="space-y-1">
-                <Label>Duration Window (min)</Label>
+                <Label htmlFor="rule-duration">Duration Window (min)</Label>
                 <Input
+                  id="rule-duration"
                   type="number"
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 1 })}

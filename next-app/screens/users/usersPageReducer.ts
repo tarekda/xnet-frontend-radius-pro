@@ -18,7 +18,7 @@ export type ConfirmActionState =
   | { kind: "renew-subscription"; username: string }
   | {
       kind: "bulk";
-      action: "suspend" | "activate" | "delete" | "reset-mac" | "assign-profile";
+      action: "suspend" | "activate" | "delete" | "reset-mac" | "assign-profile" | "renew";
       usernames: string[];
       profileId?: number;
       profileName?: string;

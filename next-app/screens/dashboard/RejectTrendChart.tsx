@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import type { RejectTrendPoint } from "./dashboardShared";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/lib/chartTheme";
 
 type Props = {
   data: RejectTrendPoint[];
@@ -30,7 +31,7 @@ const RejectTrendChart: React.FC<Props> = ({ data, onSelectRejectBucket }) => (
       <RechartsLine
         type="monotone"
         dataKey="rejectRate"
-        stroke="#dc2626"
+        stroke={CHART_COLORS.quinary}
         strokeWidth={2}
         dot={{ r: 2 }}
         activeDot={{

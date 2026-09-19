@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell } from 'react-icons/fa';
+import { Bell } from 'lucide-react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface Notification {
   id: number;
@@ -8,15 +9,10 @@ interface Notification {
 
 const NotificationButton: React.FC<{ className: string }> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 1, message: 'You have a new message!' },
-    { id: 2, message: 'Your invoice has been processed.' },
-    { id: 3, message: 'New customer added to your dashboard.' },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Toggle Popup Visibility
   const togglePopup = () => setIsOpen(!isOpen);
 
   // Close Popup on Outside Click
@@ -33,41 +29,44 @@ const NotificationButton: React.FC<{ className: string }> = ({ className }) => {
     };
   }, []);
 
+  // Close on Escape
   useEffect(() => {
-    // Simulate fetching notifications from an API
-    const fetchNotifications = () => {
-      setTimeout(() => {
-        setNotifications((prev) => [
-          ...prev,
-          { id: prev.length + 1, message: 'Another notification arrived!' },
-        ]);
-      }, 15000); // Add a new notification every 5 seconds
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
     };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
 
-    fetchNotifications();
-  }, []);
+  useFocusTrap(popupRef, isOpen);
+
+  const clearNotification = (id: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   return (
     <div className={`relative ${className}`}>
       {/* Notification Bell */}
       <button
         onClick={togglePopup}
-        className={`relative p-2 bg-gray-200 rounded-full hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none`}
+        className="relative rounded-full p-2 bg-muted text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Notifications"
       >
-        <FaBell className="text-gray-700 dark:text-gray-300" size={20} />
+        <Bell className="h-5 w-5" />
         {notifications.length > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
+          <span className="absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
             {notifications.length}
           </span>
         )}
       </button>
 
-      {/* Backdrop for Popup */}
+      {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-opacity-30 z-40"
+          className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -75,24 +74,43 @@ const NotificationButton: React.FC<{ className: string }> = ({ className }) => {
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-50 animate-scale-up"
+          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-popover text-popover-foreground shadow-[var(--shop-shadow-lg)] z-50 animate-scale-in outline-none"
           role="dialog"
+          aria-modal="true"
+          aria-label="Notifications"
+          tabIndex={-1}
         >
-          <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              Notifications
-            </h3>
-            <ul className="mt-2 space-y-2">
-              {notifications.map((notification) => (
-                <li
-                  key={notification.id}
-                  className="flex items-start text-xs text-gray-600 dark:text-gray-400"
-                >
-                  <span className="font-bold mr-2">{notification.id}.</span>
-                  <span>{notification.message}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="border-b border-border p-4">
+            <h3 className="text-sm font-semibold">Notifications</h3>
+          </div>
+          <div className="max-h-72 overflow-y-auto">
+            {notifications.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {notifications.map((notification) => (
+                  <li
+                    key={notification.id}
+                    className="flex items-start gap-3 px-4 py-3 transition-colors duration-150 hover:bg-muted/50"
+                  >
+                    <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span className="flex-1 text-sm text-foreground">{notification.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => clearNotification(notification.id)}
+                      className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                <Bell className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No notifications</p>
+                <p className="text-xs text-muted-foreground/70">You&apos;re all caught up</p>
+              </div>
+            )}
           </div>
         </div>
       )}

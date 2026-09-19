@@ -11,9 +11,22 @@ const CollectedSummaryCards: React.FC = () => {
   const totalInvoices = data?.totalCollectedInvoices ?? 0;
   const totalCash = data?.totalCashCollected ?? 0;
 
+  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      action();
+    }
+  };
+
   return (
     <>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/collections?view=breakdown')}>
+      <Card
+        role="button"
+        tabIndex={0}
+        className="hover:shadow-lg transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => router.push('/collections?view=breakdown')}
+        onKeyDown={(e) => handleKeyDown(e, () => router.push('/collections?view=breakdown'))}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Invoices Collected</CardTitle>
           <Receipt className="h-4 w-4 text-blue-600" />
@@ -24,7 +37,13 @@ const CollectedSummaryCards: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/collections?view=list')}>
+      <Card
+        role="button"
+        tabIndex={0}
+        className="hover:shadow-lg transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => router.push('/collections?view=list')}
+        onKeyDown={(e) => handleKeyDown(e, () => router.push('/collections?view=list'))}
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Cash Collected</CardTitle>
           <DollarSign className="h-4 w-4 text-green-600" />

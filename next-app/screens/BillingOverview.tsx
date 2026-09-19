@@ -11,12 +11,12 @@ import {
   AlertCircle, RefreshCw, Loader2, BarChart2, Clock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useExternalInvoicesTrend, useExternalAgingSummary, useCollectedMetrics } from '@/hooks/useInvoices';
 import PageHeader from '@/components/PageHeader';
 import IconActionButton from '@/components/IconActionButton';
+import { Button } from '@/components/ui/button';
 
 const AGING_COLORS: Record<string, string> = {
   current:  '#10b981',
@@ -105,6 +105,7 @@ export default function BillingOverview() {
   const collectedQuery = useCollectedMetrics();
 
   const isLoading = trendQuery.isLoading || agingQuery.isLoading || collectedQuery.isLoading;
+  const isError = trendQuery.isError || agingQuery.isError || collectedQuery.isError;
 
   const trendData = useMemo(() => {
     if (!trendQuery.data) return [];
@@ -157,7 +158,7 @@ export default function BillingOverview() {
         subtitle="Live revenue, collection rates, and accounts receivable aging"
         icon={BarChart2}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
             <Select value={String(trendMonths)} onValueChange={v => setTrendMonths(Number(v))}>
               <SelectTrigger className="w-[130px]" id="billing-trend-months">
                 <SelectValue />
@@ -177,6 +178,16 @@ export default function BillingOverview() {
           </div>
         }
       />
+
+      {isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <p className="text-sm text-destructive">Failed to load one or more billing metrics.</p>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      ) : null}
 
       {/* KPI Cards */}
       <motion.div
@@ -252,6 +263,15 @@ export default function BillingOverview() {
               {trendQuery.isLoading ? (
                 <div className="flex items-center justify-center h-64">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : trendQuery.isError ? (
+                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
+                  <AlertCircle className="h-10 w-10 opacity-40 text-rose-500" />
+                  <p className="text-sm">Failed to load billing trend.</p>
+                  <Button variant="outline" size="sm" onClick={() => trendQuery.refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                    Retry
+                  </Button>
                 </div>
               ) : trendData.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-2">
@@ -329,6 +349,15 @@ export default function BillingOverview() {
               {agingQuery.isLoading ? (
                 <div className="flex items-center justify-center h-64">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : agingQuery.isError ? (
+                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
+                  <AlertCircle className="h-10 w-10 opacity-40 text-rose-500" />
+                  <p className="text-sm">Failed to load aging data.</p>
+                  <Button variant="outline" size="sm" onClick={() => agingQuery.refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                    Retry
+                  </Button>
                 </div>
               ) : agingBuckets.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-2">

@@ -244,6 +244,7 @@ export default function AccessPage() {
               <Input
                 value={userIdInput}
                 onChange={(e) => setUserIdInput(e.target.value)}
+                aria-label="User ID or username for permission overrides"
                 placeholder="User ID or username…"
                 className="w-full"
                 onFocus={() => {

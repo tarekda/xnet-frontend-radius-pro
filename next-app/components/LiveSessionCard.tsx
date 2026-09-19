@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Clock, LogIn, LogOut, Radio, Server, XCircle, ChevronRight } from "lucide-react";
+import { Activity, Clock, Radio, Server, XCircle } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +119,7 @@ export function LiveSessionCard({ username }: { username: string }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 shadow-none hover:border-primary/20 transition-colors flex flex-col">
+      <Card className="glass-card hover:border-primary/20 transition-colors flex flex-col">
         <CardHeader className="border-b border-border/50 p-4">
           <CardTitle className="text-base flex items-center gap-2">
             <XCircle className="h-4 w-4 text-rose-500" />

@@ -67,7 +67,7 @@ const WatchlistCard: React.FC<Props> = ({
   snapshotFetching,
 }) => {
   return (
-    <Card className="rounded-lg border-border shadow-none lg:col-span-3">
+    <Card className="lg:col-span-3">
       <CardHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between">
           <div>

@@ -3,7 +3,6 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
-  Loader2,
   RefreshCw,
   Sparkles,
   Stethoscope,

@@ -31,7 +31,7 @@ const PlatformHealthCard: React.FC<Props> = ({
   fupUsersCount,
 }) => {
   return (
-    <Card className="w-full min-w-0 rounded-lg border-border shadow-none md:col-span-4">
+    <Card className="w-full min-w-0 md:col-span-4">
       <CardHeader className="border-b border-border p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>

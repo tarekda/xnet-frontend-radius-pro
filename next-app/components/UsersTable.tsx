@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,16 +10,16 @@ import {
     User as UserIcon,
     ExternalLink,
     CalendarPlus,
-    LayoutGrid,
-    List,
-    X,
     Clock,
     KeyRound,
     MessageCircle,
     WifiOff,
+    SlidersHorizontal,
+    Rows3,
+    Rows4,
 } from 'lucide-react';
 import { User } from '../types/api';
-import { getExpiryInfo } from '@/screens/users/lib';
+import { getExpiryInfo, isServerSortColumn } from '@/screens/users/lib';
 
 /** Any non-terminated subscriber can be renewed/extended +1 month. */
 export function canRenewUserSubscription(user: User): boolean {
@@ -28,7 +28,7 @@ export function canRenewUserSubscription(user: User): boolean {
 }
 import { UseMutationResult } from '@tanstack/react-query';
 import UserCard from './UserCard';
-import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table';
+import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, OnChangeFn, SortingState, useReactTable, VisibilityState } from '@tanstack/react-table';
 import { ariaSortFor } from '@/lib/tableA11y';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -41,9 +41,18 @@ import TablePager from "@/components/TablePager";
 import TableRowActions from "@/components/TableRowActions";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuCheckboxItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { notify } from "@/lib/notify";
 import { getUserHealth } from "@/lib/userHealth";
 import MonthlyCycleCell from "@/components/MonthlyCycleCell";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface UsersTableProps {
     users: User[];
@@ -65,9 +74,58 @@ interface UsersTableProps {
     canResetDailyQuota?: boolean;
     canResetMonthlyQuota?: boolean;
     recentRejectCounts?: Record<string, number>;
+    sorting?: SortingState;
+    onSortingChange?: OnChangeFn<SortingState>;
+    /** Which layout to render. Owned by the page so there is a single view switcher. */
+    displayMode?: 'cards' | 'table';
 }
 const sortHeaderButtonClass =
     "h-7 -ml-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/70 hover:text-foreground";
+
+type Density = "comfortable" | "compact";
+
+const COLUMN_VISIBILITY_STORAGE_KEY = "ui.usersTable.columns.v1";
+const DENSITY_STORAGE_KEY = "ui.usersTable.density.v1";
+
+const columnLabels: Record<string, string> = {
+    id: "ID",
+    username: "User",
+    isOnline: "Status",
+    lastTimeActive: "Last Active",
+    "profile.profileName": "Profile",
+    monthlyCycle: "Monthly Cycle",
+    expiresAt: "Expiration",
+    accountStatus: "Account",
+    "macAddress.macAddress": "MAC Address",
+};
+
+/** Restore persisted column visibility, defaulting to all columns visible. */
+function readStoredColumnVisibility(): VisibilityState {
+    if (typeof window === "undefined") return {};
+    try {
+        const raw = window.localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            return parsed as VisibilityState;
+        }
+    } catch {
+        // ignore malformed stored preferences
+    }
+    return {};
+}
+
+/** Restore persisted row density, defaulting to "comfortable". */
+function readStoredDensity(): Density {
+    if (typeof window === "undefined") return "comfortable";
+    try {
+        const raw = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+        if (raw === "compact" || raw === "comfortable") return raw;
+    } catch {
+        // ignore stored preference read errors
+    }
+    return "comfortable";
+}
 
 const getProfileBadge = (profileName: string) => {
     const colorMap: { [key: string]: string } = {
@@ -115,9 +173,12 @@ const UserRow: React.FC<{
     canResetDailyQuota?: boolean;
     canResetMonthlyQuota?: boolean;
     recentRejectCounts?: Record<string, number>;
-}> = ({ user, onAction, isSelected, onToggleSelected, canManageUsers = true, manageUsersReason = "You don't have permission to manage users.", canResetDailyQuota = true, canResetMonthlyQuota = true, recentRejectCounts }) => {
+    columnVisibility: VisibilityState;
+    cellPadding: string;
+}> = ({ user, onAction, isSelected, onToggleSelected, canManageUsers = true, manageUsersReason = "You don't have permission to manage users.", canResetDailyQuota = true, canResetMonthlyQuota = true, recentRejectCounts, columnVisibility, cellPadding }) => {
     const router = useRouter();
     const health = getUserHealth(user);
+    const isColumnVisible = (columnId: string) => columnVisibility[columnId] !== false;
     const healthBadgeClass = cn(
         "transition-colors duration-200 text-xs",
         health.level === "healthy" &&
@@ -135,7 +196,7 @@ const UserRow: React.FC<{
         >
             {/* First Cell: Select Checkbox */}
             <TableCell className={cn(
-                "w-[38px] px-3.5 py-3 rounded-l-2xl border-y group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                `w-[38px] px-3.5 ${cellPadding} rounded-l-2xl border-y group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all`,
                 user.isOnline ? "border-l-4 border-l-emerald-500 border-y-border/50" : "border-l-4 border-l-red-500 border-y-border/50"
             )}>
                 <Checkbox
@@ -146,12 +207,20 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* ID Cell */}
-            <TableCell className="px-3 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 font-mono text-xs text-muted-foreground transition-all">
+            <TableCell className={cn(
+                "px-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 font-mono text-xs text-muted-foreground transition-all",
+                cellPadding,
+                !isColumnVisible("id") && "hidden"
+            )}>
                 #{user.id}
             </TableCell>
             
             {/* User Info Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("username") && "hidden"
+            )}>
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white shadow-md ring-2 ring-violet-500/20 group-hover:scale-105 transition-transform">
                         {initial}
@@ -189,7 +258,11 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* Status Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("isOnline") && "hidden"
+            )}>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -208,14 +281,22 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* Last Active Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("lastTimeActive") && "hidden"
+            )}>
                 <span className="whitespace-nowrap text-xs text-muted-foreground font-medium">
                     {user.lastTimeActive ? new Date(user.lastTimeActive).toLocaleString() : "—"}
                 </span>
             </TableCell>
 
             {/* Profile Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("profile.profileName") && "hidden"
+            )}>
                 <div className="flex items-center gap-2">
                     <TooltipProvider>
                         <Tooltip>
@@ -232,7 +313,11 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* Monthly Cycle Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("monthlyCycle") && "hidden"
+            )}>
                 <MonthlyCycleCell
                     monthlyUsage={user.monthlyUsage}
                     monthlyQuota={user.profile?.monthlyQuota}
@@ -247,7 +332,11 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* Expiration Countdown Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("expiresAt") && "hidden"
+            )}>
                 {(() => {
                     const exp = getExpiryInfo(user.expiresAt);
                     return (
@@ -285,7 +374,11 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* Account Status Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("accountStatus") && "hidden"
+            )}>
                 <StatusPill
                     label={user.accountStatus}
                     tone={user.accountStatus.toLowerCase() === "active" ? "success" : user.accountStatus.toLowerCase() === "suspended" ? "danger" : "warning"}
@@ -295,13 +388,20 @@ const UserRow: React.FC<{
             </TableCell>
 
             {/* MAC Address Cell */}
-            <TableCell className="px-4 py-3 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all">
+            <TableCell className={cn(
+                "px-4 border-y border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 transition-all",
+                cellPadding,
+                !isColumnVisible("macAddress.macAddress") && "hidden"
+            )}>
                 <span className="font-mono text-xs text-muted-foreground">
                     {user.macAddress?.macAddress || 'N/A'}
                 </span>
             </TableCell>
 
-            <TableCell align="right" className="px-3 py-3 rounded-r-2xl border-y border-r border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 text-right transition-all">
+            <TableCell align="right" className={cn(
+                "px-3 rounded-r-2xl border-y border-r border-border/50 group-hover:border-primary/40 bg-card/95 group-hover:bg-muted/30 text-right transition-all",
+                cellPadding
+            )}>
                 <TableRowActions
                     actions={[
                         {
@@ -417,9 +517,37 @@ const UsersTable: React.FC<UsersTableProps> = ({
     canResetDailyQuota = true,
     canResetMonthlyQuota = true,
     recentRejectCounts,
+    sorting = [],
+    onSortingChange,
+    displayMode = 'table',
 }) => {
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const pageSizes = [10, 20, 50, 100,200,500];
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => readStoredColumnVisibility());
+    const [density, setDensity] = useState<Density>(() => readStoredDensity());
+    const pageSizes = [10, 20, 50, 100];
+
+    // The desktop table is ~768px wide, so on phones always use the card layout
+    // instead of making the user find the view toggle first.
+    const isMobile = useIsMobile();
+    const effectiveDisplayMode: 'cards' | 'table' = isMobile ? 'cards' : displayMode;
+
+    const cellPadding = density === "compact" ? "h-9 py-1.5" : "py-3";
+    const headerCellPadding = density === "compact" ? "h-7 py-1" : "h-9 py-1.5";
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(columnVisibility));
+        } catch {
+            // ignore storage write errors (e.g. disabled localStorage)
+        }
+    }, [columnVisibility]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
+        } catch {
+            // ignore storage write errors (e.g. disabled localStorage)
+        }
+    }, [density]);
 
     const allSelected = Boolean(users.length) && Boolean(selectedUserIds) && selectedUserIds!.size === users.length;
     const someSelected = Boolean(selectedUserIds) && selectedUserIds!.size > 0 && !allSelected;
@@ -436,6 +564,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             ),
             cell: () => null,
             enableSorting: false,
+            enableHiding: false,
         },
         {
             accessorKey: "id",
@@ -538,17 +667,20 @@ const UsersTable: React.FC<UsersTableProps> = ({
         },
     ];
 
-    const [displayMode, setDisplayMode] = useState<'cards' | 'table'>('table');
-
     const table = useReactTable({
         data: users,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
-        onSortingChange: setSorting,
+        // Server-backed columns arrive already ordered; don't re-sort that page client-side
+        // (client sorting is kept for columns the backend does not support).
+        manualSorting: isServerSortColumn(sorting),
+        onSortingChange: onSortingChange ?? (() => {}),
+        onColumnVisibilityChange: setColumnVisibility,
         state: {
             sorting,
+            columnVisibility,
         },
         initialState: {
             pagination: {
@@ -568,31 +700,65 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-none">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3 bg-muted/20">
                     <TableToolbar label={totalUsers ? `${totalUsers} users` : "No users"} />
-                    <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/40 p-1">
-                        <Button
-                            type="button"
-                            variant={displayMode === "cards" ? "secondary" : "ghost"}
-                            size="sm"
-                            className="h-7 px-3 text-xs gap-1.5 font-medium rounded-lg"
-                            onClick={() => setDisplayMode("cards")}
-                        >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            Fancy Cards
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={displayMode === "table" ? "secondary" : "ghost"}
-                            size="sm"
-                            className="h-7 px-3 text-xs gap-1.5 font-medium rounded-lg"
-                            onClick={() => setDisplayMode("table")}
-                        >
-                            <List className="h-3.5 w-3.5" />
-                            Table View
-                        </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {displayMode === "table" && (
+                            <>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 px-3 text-xs gap-1.5 font-medium rounded-lg"
+                                        >
+                                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                                            Columns
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="max-h-[60vh] overflow-auto">
+                                        <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {table.getAllLeafColumns().filter((col) => col.getCanHide()).map((col) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={col.id}
+                                                checked={col.getIsVisible()}
+                                                onCheckedChange={(v) => col.toggleVisibility(Boolean(v))}
+                                                onSelect={(e) => e.preventDefault()}
+                                            >
+                                                {columnLabels[col.id] ?? col.id}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/40 p-1">
+                                    <Button
+                                        type="button"
+                                        variant={density === "comfortable" ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="h-7 px-3 text-xs gap-1.5 font-medium rounded-lg"
+                                        onClick={() => setDensity("comfortable")}
+                                    >
+                                        <Rows3 className="h-3.5 w-3.5" />
+                                        Comfortable
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={density === "compact" ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="h-7 px-3 text-xs gap-1.5 font-medium rounded-lg"
+                                        onClick={() => setDensity("compact")}
+                                    >
+                                        <Rows4 className="h-3.5 w-3.5" />
+                                        Compact
+                                    </Button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {displayMode === 'cards' ? (
+                {effectiveDisplayMode === 'cards' ? (
                     <div className="p-4">
                         {displayUsers.length === 0 ? (
                             <EmptyState
@@ -636,14 +802,20 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                     />
                                 </div>
                             ) : (
-                            <Table className="w-full border-separate border-spacing-y-2.5 px-4 pb-4">
+                            <Table className={cn(
+                                "w-full border-separate px-4 pb-4",
+                                density === "compact" ? "border-spacing-y-1" : "border-spacing-y-2.5"
+                            )}>
                                 <TableHeader className="sticky top-0 z-10 bg-card/90 backdrop-blur">
                                     <TableRow className="border-none hover:bg-transparent">
                                         {table.getHeaderGroups().map((headerGroup) => (
                                             headerGroup.headers.map((header) => (
                                                 <TableHead
                                                     key={header.id}
-                                                    className="h-9 px-2 py-1.5 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                                    className={cn(
+                                                        "px-2 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+                                                        headerCellPadding
+                                                    )}
                                                     aria-sort={ariaSortFor(header)}
                                                 >
                                                     {header.isPlaceholder
@@ -655,7 +827,10 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                                 </TableHead>
                                             ))
                                         ))}
-                                        <TableHead className="h-9 px-2 py-1.5 text-right align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                        <TableHead className={cn(
+                                            "px-2 text-right align-middle text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+                                            headerCellPadding
+                                        )}>
                                             Actions
                                         </TableHead>
                                     </TableRow>
@@ -674,6 +849,8 @@ const UsersTable: React.FC<UsersTableProps> = ({
                                             canResetDailyQuota={canResetDailyQuota}
                                             canResetMonthlyQuota={canResetMonthlyQuota}
                                             recentRejectCounts={recentRejectCounts}
+                                            columnVisibility={columnVisibility}
+                                            cellPadding={cellPadding}
                                         />
                                     ))}
                                 </TableBody>
@@ -695,60 +872,6 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 isDisabled={isLoading}
                 noun="results"
             />
-
-            {/* Multi-Select Floating Action Dock */}
-            {selectedUserIds && selectedUserIds.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-violet-500/40 bg-zinc-950/90 backdrop-blur-md px-5 py-3 shadow-2xl text-white animate-in slide-in-from-bottom-5">
-                    <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 font-bold text-xs">
-                            {selectedUserIds.size}
-                        </span>
-                        <span className="text-xs font-medium">user(s) selected</span>
-                    </div>
-
-                    <div className="h-4 w-px bg-white/20" />
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 px-3 text-xs gap-1.5 font-medium rounded-xl"
-                            onClick={() => {
-                                const selected = displayUsers.filter((u) => selectedUserIds.has(u.id));
-                                selected.forEach((u) => onAction("renew", u));
-                            }}
-                        >
-                            <CalendarPlus className="h-3.5 w-3.5 text-emerald-400" />
-                            Bulk Renew +1m
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 px-3 text-xs gap-1.5 font-medium rounded-xl"
-                            onClick={() => {
-                                const selected = displayUsers.filter((u) => selectedUserIds.has(u.id));
-                                selected.forEach((u) => onAction("reset-mac", u));
-                            }}
-                        >
-                            <RefreshCw className="h-3.5 w-3.5 text-blue-400" />
-                            Reset MAC
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 px-2.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-xl"
-                            onClick={() => {
-                                displayUsers.forEach((u) => onToggleSelected?.(u.id, false));
-                            }}
-                        >
-                            <X className="h-3.5 w-3.5" />
-                            Deselect All
-                        </Button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

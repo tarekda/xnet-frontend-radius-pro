@@ -32,15 +32,14 @@ export type ExternalInvoiceGroup = {
 };
 
 export function getGroupEffectiveStatus(group: ExternalInvoiceGroup): "paid" | "pending" | "unpaid" {
-  if (group.outstandingTotal <= 0 || group.lines.every((l) => !isOpen(l.invoice))) {
-    return "paid";
-  }
-  const hasPartial = group.lines.some((l) => {
-    if (!isOpen(l.invoice)) return false;
-    const paid = Number(l.invoice.amountPaid ?? 0);
-    return paid > 0.009;
-  });
-  if (hasPartial) return "pending";
+  const openLines = group.lines.filter((l) => isOpen(l.invoice));
+  if (openLines.length === 0) return "paid";
+  // Mirror the stored status rather than inferring it from money. Deriving "paid"
+  // from an outstanding total of zero labelled zero-amount invoices as paid, so a
+  // row could sit in the "Pending" filter while being badged Paid — and it made
+  // this grouped view disagree with reconciliation mode, which renders the raw
+  // status (grouping is disabled there).
+  if (openLines.some((l) => l.invoice.status === "pending")) return "pending";
   return "unpaid";
 }
 
@@ -93,6 +92,41 @@ function latestDate(a: string | null, b: string | null | undefined): string | nu
   if (!a) return bv;
   if (!bv) return a;
   return a >= bv ? a : bv;
+}
+
+export type PinnedInvoiceRow = {
+  /** Page the row was on when it was settled. */
+  page: number;
+  /** Position the row occupied on that page. */
+  index: number;
+  /** Snapshot of the row as it should keep rendering (i.e. already marked paid). */
+  row: ExternalInvoice;
+};
+
+/**
+ * Re-insert rows that were just settled and have since dropped out of the
+ * result set — a paid invoice no longer matches a "pending" filter, so the
+ * refetch would remove it and shift every row below it up. Pins are kept at the
+ * position they occupied, and pins recorded for another page are ignored so
+ * paging away simply hides them.
+ */
+export function mergePinnedRows(
+  rows: ExternalInvoice[],
+  pins: PinnedInvoiceRow[],
+  currentPage: number
+): ExternalInvoice[] {
+  const forPage = pins.filter((pin) => pin.page === currentPage);
+  if (forPage.length === 0) return rows;
+
+  const present = new Set(rows.map((row) => row.id));
+  const missing = forPage.filter((pin) => !present.has(pin.row.id));
+  if (missing.length === 0) return rows;
+
+  const merged = [...rows];
+  for (const pin of [...missing].sort((a, b) => a.index - b.index)) {
+    merged.splice(Math.max(0, Math.min(pin.index, merged.length)), 0, pin.row);
+  }
+  return merged;
 }
 
 export function groupExternalInvoices(

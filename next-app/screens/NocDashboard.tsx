@@ -7,7 +7,7 @@ import { useAuthMetrics } from "@/hooks/useAuthMetrics";
 import {
   Wifi, WifiOff, ShieldAlert, ShieldCheck, AlertTriangle,
   CheckCircle2, Clock, RefreshCw, Maximize2, Minimize2,
-  TrendingUp, TrendingDown, Minus, Users, Radio, Bell,
+  TrendingUp, TrendingDown, Minus, Users, Radio, Bell, Loader2,
 } from "lucide-react";
 import { VERSION_LABEL } from "@/constants/version";
 
@@ -100,7 +100,12 @@ const NocDashboard: React.FC = () => {
     setAuthFailHistory(h => [...h.slice(-29), { t: Date.now(), v: auth?.current?.rejected ?? 0 }]);
   }, [auth?.current?.rejected]);
 
-  const { data: alertsData, refetch: refetchAlerts } = useQuery({
+  const {
+    data: alertsData,
+    isLoading: alertsLoading,
+    isError: alertsError,
+    refetch: refetchAlerts,
+  } = useQuery({
     queryKey: ["noc-alerts"],
     queryFn: async () => {
       const r = await apiClient.get<{ success: boolean; data: NocAlert[] }>("/alerts?limit=10&unacknowledged=true");
@@ -223,17 +228,41 @@ const NocDashboard: React.FC = () => {
               <Bell className="h-4 w-4 text-amber-400" />
             </div>
             <div>
-              <p className={`text-3xl font-black tabular-nums leading-none ${criticalCount > 0 ? "text-red-400" : warningCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>{alerts.length}</p>
+              <p className={`text-3xl font-black tabular-nums leading-none ${alertsError ? "text-red-400" : criticalCount > 0 ? "text-red-400" : warningCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                {alertsLoading ? "—" : alertsError ? "!" : alerts.length}
+              </p>
               <div className="flex items-center gap-2 mt-0.5">
-                {criticalCount > 0 && <span className="text-[11px] text-red-400 font-semibold">{criticalCount} critical</span>}
-                {warningCount > 0 && <span className="text-[11px] text-amber-400 font-semibold">{warningCount} warning</span>}
-                {alerts.length === 0 && <span className="text-[11px] text-emerald-400 font-semibold">All clear</span>}
+                {alertsLoading ? (
+                  <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                  </span>
+                ) : alertsError ? (
+                  <button
+                    type="button"
+                    onClick={() => void refetchAlerts()}
+                    className="text-[11px] text-red-400 font-semibold hover:underline"
+                  >
+                    Failed to load — Retry
+                  </button>
+                ) : (
+                  <>
+                    {criticalCount > 0 && <span className="text-[11px] text-red-400 font-semibold">{criticalCount} critical</span>}
+                    {warningCount > 0 && <span className="text-[11px] text-amber-400 font-semibold">{warningCount} warning</span>}
+                    {alerts.length === 0 && <span className="text-[11px] text-emerald-400 font-semibold">All clear</span>}
+                  </>
+                )}
               </div>
             </div>
             <div className="flex gap-1.5">
-              {criticalCount > 0 && <span className="h-2 w-2 rounded-full bg-red-400 animate-ping" />}
-              {warningCount > 0 && <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />}
-              {alerts.length === 0 && <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />}
+              {alertsLoading ? null : alertsError ? (
+                <span className="h-2 w-2 rounded-full bg-red-400" />
+              ) : (
+                <>
+                  {criticalCount > 0 && <span className="h-2 w-2 rounded-full bg-red-400 animate-ping" />}
+                  {warningCount > 0 && <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />}
+                  {alerts.length === 0 && <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -248,7 +277,25 @@ const NocDashboard: React.FC = () => {
               </h2>
               <span className="text-[10px] text-muted-foreground font-mono">auto-refresh 15s</span>
             </div>
-            {alerts.length === 0 ? (
+            {alertsLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Loading alerts…</p>
+              </div>
+            ) : alertsError ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <AlertTriangle className="h-10 w-10 text-red-400" />
+                <p className="text-sm font-semibold text-red-400">Failed to load alerts</p>
+                <button
+                  type="button"
+                  onClick={() => void refetchAlerts()}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry
+                </button>
+              </div>
+            ) : alerts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <CheckCircle2 className="h-10 w-10 text-emerald-400" />
                 <p className="text-sm font-semibold text-emerald-400">All systems nominal</p>
@@ -320,15 +367,20 @@ const NocDashboard: React.FC = () => {
             { label: "RabbitMQ", ok: true, detail: "AMQP message queue" },
             { label: "Redis Cache", ok: true, detail: "Session and auth cache" },
           ].map(({ label, ok, detail }) => (
-            <div key={label} className="rounded-xl border border-border bg-card px-4 py-3 flex items-center gap-3">
-              <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${ok ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} />
+            <div
+              key={label}
+              className="rounded-xl border border-border bg-card px-4 py-3 flex items-center gap-3"
+              title={`${label}: ${ok ? "Operational" : "Down"}`}
+            >
+              <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${ok ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-foreground truncate">{label}</p>
                 <p className="text-[10px] text-muted-foreground truncate">{detail}</p>
               </div>
               {ok
-                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                : <WifiOff className="h-3.5 w-3.5 text-red-400 shrink-0" />}
+                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" aria-hidden />
+                : <WifiOff className="h-3.5 w-3.5 text-red-400 shrink-0" aria-hidden />}
+              <span className="sr-only">{ok ? "Operational" : "Down"}</span>
             </div>
           ))}
         </div>

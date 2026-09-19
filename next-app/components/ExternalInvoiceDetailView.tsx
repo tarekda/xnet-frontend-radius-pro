@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Ban, CalendarIcon, Copy, MessageCircle, Printer, ReceiptText, User } from "lucide-react";
+import { Ban, CalendarIcon, Copy, Loader2, Mail, MessageCircle, Printer, ReceiptText, User } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 import {
   Dialog,
@@ -77,14 +78,13 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
   const [paymentReference, setPaymentReference] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [debitRemainder, setDebitRemainder] = useState(false);
-  const [whishClaims, setWhishClaims] = useState<any[]>([]);
   const [matchedClaims, setMatchedClaims] = useState<any[]>([]);
   const [matchLoading, setMatchLoading] = useState(false);
   const [gatewayBusy, setGatewayBusy] = useState(false);
   const [creditNoteBusy, setCreditNoteBusy] = useState(false);
+  const [creditNoteConfirmOpen, setCreditNoteConfirmOpen] = useState(false);
   const [creditNoteToVoid, setCreditNoteToVoid] = useState<ExternalInvoice | null>(null);
   const [voidReason, setVoidReason] = useState("");
-  const [claimsLoading, setClaimsLoading] = useState(false);
   const [promiseDateInput, setPromiseDateInput] = useState<string>(parsePromiseDateFromLastAction((invoice as any).lastAction) || "");
   const [editedInvoice, setEditedInvoice] = useState<ExternalInvoice>({
     ...invoice,
@@ -108,13 +108,15 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     setInvoiceAsPaidMutation,
     unpayInvoiceMutation,
     sendReminderMutation,
+    emailInvoiceMutation,
     sharePaidInvoiceMutation,
     refetch,
-  } = useExternalInvoices({ initialPage: 1, pageSize: 1, search: "", });
+  } = useExternalInvoices({ initialPage: 1, pageSize: 1, search: "", enabled: false });
   const { toast } = useToast();
   const historyQuery = useQuery({
     queryKey: ["externalInvoiceHistory", invoice.id],
     queryFn: () => fetchExternalInvoiceHistory(invoice.id, 100),
+    staleTime: 30_000,
   });
   const paymentLinesQuery = useQuery({
     queryKey: ["externalInvoicePaymentLines", invoice.username, invoice.billingMonth, invoice.provider],
@@ -124,6 +126,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
         String(invoice.billingMonth).slice(0, 10),
         invoice.provider
       ),
+    staleTime: 30_000,
   });
   const workflowMutation = useMutation({
     mutationFn: async (payload: { stage: "new" | "reminded" | "promise_to_pay" | "escalated" | "resolved"; promiseDate?: string | null }) =>
@@ -160,23 +163,18 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
     },
   });
 
-  const loadWhishClaims = async () => {
-    setClaimsLoading(true);
-    try {
+  const whishClaimsQuery = useQuery({
+    queryKey: ["externalInvoiceWhishClaims", invoice.id],
+    queryFn: async (): Promise<any[]> => {
       const { data } = await apiClient.get("/invoices/whish-claims", { params: { status: "pending" } });
-      const all = data?.data || [];
-      setWhishClaims(all.filter((c: any) => Number(c.externalInvoiceId) === Number(invoice.id)));
-    } catch {
-      setWhishClaims([]);
-    } finally {
-      setClaimsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadWhishClaims();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoice.id]);
+      const all: any[] = data?.data || [];
+      return all.filter((c) => Number(c.externalInvoiceId) === Number(invoice.id));
+    },
+    // Cached per invoice so re-opening the same invoice doesn't re-fetch all pending claims.
+    staleTime: 30_000,
+  });
+  const whishClaims = whishClaimsQuery.data ?? [];
+  const claimsLoading = whishClaimsQuery.isLoading;
 
   useEffect(() => {
     setPayAmount(remainingOf(invoice).toFixed(2));
@@ -214,7 +212,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
       await apiClient.post(`/invoices/whish-claims/${claimId}/confirm`, {});
       notify.success("Wallet credited", "Whish payment approved — subscriber balance updated.");
       refetch();
-      void loadWhishClaims();
+      void whishClaimsQuery.refetch();
       onClose();
     } catch (e: any) {
       notify.error("Confirm failed", e?.response?.data?.message || e?.message || "Could not confirm");
@@ -532,6 +530,27 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                 </Button>
               )
             ) : null}
+            {!isVoided ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  emailInvoiceMutation.mutate(
+                    { invoiceId: editedInvoice.id },
+                    { onSuccess: () => historyQuery.refetch() }
+                  )
+                }
+                disabled={emailInvoiceMutation.isPending}
+                title="Email this document to the subscriber's address on file"
+              >
+                {emailInvoiceMutation.isPending ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-1 h-4 w-4" />
+                )}
+                Email
+              </Button>
+            ) : null}
             {!isVoided && (isEditing ? (
               <>
                 <Button size="sm" onClick={saveAndClose}>Save</Button>
@@ -821,9 +840,9 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
 
               <div className="max-w-xs space-y-3">
                 <div>
-                  <Label className="block mb-2">Payment Method</Label>
+                  <Label htmlFor="external-invoice-payment-method" className="block mb-2">Payment Method</Label>
                   <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
-                    <SelectTrigger>
+                    <SelectTrigger id="external-invoice-payment-method">
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
                     <SelectContent>
@@ -837,8 +856,9 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   </Select>
                 </div>
                 <div>
-                  <Label className="block mb-2">Amount to collect</Label>
+                  <Label htmlFor="external-invoice-payment-amount" className="block mb-2">Amount to collect</Label>
                   <Input
+                    id="external-invoice-payment-amount"
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -866,8 +886,9 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   </label>
                 ) : null}
                 <div>
-                  <Label className="block mb-2">Whish reference / transaction #</Label>
+                  <Label htmlFor="external-invoice-payment-reference" className="block mb-2">Whish reference / transaction #</Label>
                   <Input
+                    id="external-invoice-payment-reference"
                     value={paymentReference}
                     onChange={(e) => setPaymentReference(e.target.value)}
                     placeholder="Paste Whish txn / reference"
@@ -985,37 +1006,7 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                   <Button
                     variant="outline"
                     disabled={creditNoteBusy}
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Create a credit note for invoice #${editedInvoice.id}? This adds a linked credit_note document.`
-                        )
-                      ) {
-                        return;
-                      }
-                      setCreditNoteBusy(true);
-                      try {
-                        const { data } = await apiClient.post(
-                          `/invoices/external/${editedInvoice.id}/credit-note`
-                        );
-                        notify.success(
-                          "Credit note created",
-                          data?.data?.id ? `Document #${data.data.id}` : "Saved."
-                        );
-                        await Promise.all([
-                          paymentLinesQuery.refetch(),
-                          historyQuery.refetch(),
-                          refetch(),
-                        ]);
-                      } catch (e: any) {
-                        notify.error(
-                          "Credit note failed",
-                          e?.response?.data?.message || e?.message || "Could not create credit note"
-                        );
-                      } finally {
-                        setCreditNoteBusy(false);
-                      }
-                    }}
+                    onClick={() => setCreditNoteConfirmOpen(true)}
                   >
                     {creditNoteBusy ? "Creating…" : "Create credit note"}
                   </Button>
@@ -1139,6 +1130,48 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
         dueDate={editedInvoice.payDueDate || ""}
         defaultTemplate={editedInvoice.status === "paid" ? "payment_receipt" : "payment_reminder"}
       />
+      <AlertDialog open={creditNoteConfirmOpen} onOpenChange={setCreditNoteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm action</AlertDialogTitle>
+            <AlertDialogDescription>
+              Create a credit note for invoice #{editedInvoice.id}? This adds a linked credit_note document.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setCreditNoteConfirmOpen(false);
+                setCreditNoteBusy(true);
+                try {
+                  const { data } = await apiClient.post(
+                    `/invoices/external/${editedInvoice.id}/credit-note`
+                  );
+                  notify.success(
+                    "Credit note created",
+                    data?.data?.id ? `Document #${data.data.id}` : "Saved."
+                  );
+                  await Promise.all([
+                    paymentLinesQuery.refetch(),
+                    historyQuery.refetch(),
+                    refetch(),
+                  ]);
+                } catch (e: any) {
+                  notify.error(
+                    "Credit note failed",
+                    e?.response?.data?.message || e?.message || "Could not create credit note"
+                  );
+                } finally {
+                  setCreditNoteBusy(false);
+                }
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import type { NocHealthSample } from "./dashboardShared";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/lib/chartTheme";
 
 type Props = {
   data: NocHealthSample[];
@@ -19,10 +20,10 @@ const LatencyTrendChart: React.FC<Props> = ({ data }) => (
     <RechartsLineChart data={data} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
       <XAxis dataKey="time" tick={{ fontSize: 10 }} minTickGap={16} />
       <YAxis tick={{ fontSize: 10 }} width={26} />
-      <RechartsTooltip />
-      <RechartsLine type="monotone" dataKey="dbLatencyMs" stroke="#8b5cf6" strokeWidth={1.5} dot={false} />
-      <RechartsLine type="monotone" dataKey="serverProcessingMs" stroke="#0284c7" strokeWidth={1.5} dot={false} />
-      <RechartsLine type="monotone" dataKey="clientRttMs" stroke="#dc2626" strokeWidth={1.5} dot={false} />
+      <RechartsTooltip contentStyle={CHART_TOOLTIP_STYLE} />
+      <RechartsLine type="monotone" dataKey="dbLatencyMs" stroke={CHART_COLORS.primary} strokeWidth={1.5} dot={false} />
+      <RechartsLine type="monotone" dataKey="serverProcessingMs" stroke={CHART_COLORS.secondary} strokeWidth={1.5} dot={false} />
+      <RechartsLine type="monotone" dataKey="clientRttMs" stroke={CHART_COLORS.quinary} strokeWidth={1.5} dot={false} />
     </RechartsLineChart>
   </ResponsiveContainer>
 );

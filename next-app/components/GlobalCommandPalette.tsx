@@ -252,6 +252,7 @@ export default function GlobalCommandPalette() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={handleInputKeyDown}
+              aria-label="Search pages, subscribers, phone numbers, and invoices"
               placeholder="Search pages, subscribers, phone numbers, invoices…"
               className="h-14 border-0 px-0 text-base shadow-none focus-visible:ring-0"
               role="combobox"

@@ -104,7 +104,7 @@ const ActiveAlertsTab: React.FC<Props> = ({
             <Card key={alert.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className={`p-2 rounded-full ${getSeverityBgColor(alert.severity)}`}>
                       <AlertTriangle className={`h-4 w-4 ${getSeverityColor(alert.severity)}`} />
                     </div>
@@ -113,7 +113,7 @@ const ActiveAlertsTab: React.FC<Props> = ({
                       <CardDescription>{alert.message}</CardDescription>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline" className={getSeverityColor(alert.severity)}>
                       {alert.severity}
                     </Badge>
@@ -155,7 +155,7 @@ const ActiveAlertsTab: React.FC<Props> = ({
                 </div>
                 
                 {!alert.resolved && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {!alert.acknowledged && (
                       <Button
                         variant="outline"

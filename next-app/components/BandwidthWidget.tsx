@@ -55,23 +55,30 @@ const BandwidthWidget: React.FC = () => {
 
   if (error) {
     return (
-      <Card className="hover:shadow-lg transition-shadow border-red-200 bg-red-50">
+      <Card className="hover:shadow-lg transition-shadow border-destructive/30 bg-destructive/5 dark:border-destructive/20 dark:bg-destructive/10">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-red-700">Bandwidth Monitor</CardTitle>
-            <WifiOff className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-medium text-destructive">Bandwidth Monitor</CardTitle>
+            <WifiOff className="h-4 w-4 text-destructive" />
           </div>
-          <CardDescription className="text-red-600">Connection Error</CardDescription>
+          <CardDescription className="text-destructive/80">Connection Error</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-red-600">Unable to connect to MikroTik router</p>
+          <p className="text-sm text-destructive/80">Unable to connect to MikroTik router</p>
         </CardContent>
       </Card>
     );
   }
 
   if (!metrics) {
-    return <div>No metric data available</div>;
+    return (
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Bandwidth Monitor</CardTitle>
+          <CardDescription>No metric data available</CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   const { bandwidth, system } = metrics;

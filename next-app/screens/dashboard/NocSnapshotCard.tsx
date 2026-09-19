@@ -64,7 +64,7 @@ const NocSnapshotCard: React.FC<Props> = ({
   onSelectRejectBucket,
 }) => {
   return (
-    <Card className="rounded-lg border-border shadow-none lg:col-span-4">
+    <Card className="lg:col-span-4">
       <CardHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -83,6 +83,7 @@ const NocSnapshotCard: React.FC<Props> = ({
             type="number"
             min={1}
             max={100}
+            aria-label="Reject alert threshold percentage"
             value={rejectAlertThreshold}
             onChange={(e) => {
               const next = Number(e.target.value);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { ExternalInvoice } from '@/types/api';
 import { notify } from '@/lib/notify';
@@ -160,11 +160,30 @@ const sendReminder = async (invoiceId: number): Promise<ApiResponse<{ ok: boolea
     return response.data;
 };
 
+type EmailInvoiceVariables = {
+    invoiceId: number;
+    /** Optional override; defaults to the subscriber's email on file. */
+    to?: string;
+    note?: string;
+    /** Absolute link to the printable invoice, included in the email body. */
+    printUrl?: string;
+};
+
+const emailInvoice = async (
+    variables: EmailInvoiceVariables
+): Promise<ApiResponse<{ ok: boolean; to: string[]; subject: string }>> => {
+    const response = await apiClient.post(`/invoices/external/${variables.invoiceId}/email`, {
+        to: variables.to || undefined,
+        note: variables.note || undefined,
+        printUrl: variables.printUrl || undefined,
+    });
+    return response.data;
+};
+
 type UpdateInvoiceVariables = {
     invoiceId: number;
     invoiceData: Partial<ExternalInvoice>;
 };
-
 type BulkUpdateResult = {
     updatedIds: number[];
     failed: Array<{ id: number; reason: string }>;
@@ -207,6 +226,10 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         queryKey: ['externalInvoices', currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue],
         queryFn: () => fetchExternalInvoices(currentPage, pageSize, search, from, to, status, ageBucket, graceDays, sortBy, sortDir, missing, payDue),
         enabled,
+        // Keep the previous page visible while the next one loads (no loading flash on paging),
+        // and avoid redundant refetches for filters that were just fetched.
+        placeholderData: keepPreviousData,
+        staleTime: 15_000,
     });
 
     const updateInvoiceMutation = useMutation<ApiResponse<ExternalInvoice>, Error, UpdateInvoiceVariables>({
@@ -296,6 +319,24 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         },
     });
 
+    const emailInvoiceMutation = useMutation<
+        ApiResponse<{ ok: boolean; to: string[]; subject: string }>,
+        Error,
+        EmailInvoiceVariables
+    >({
+        mutationFn: emailInvoice,
+        onSuccess: (response) => {
+            const recipients = response?.data?.to?.join(", ") || "the subscriber";
+            notify.success("Invoice emailed", `Sent to ${recipients}.`);
+        },
+        onError: (error: unknown) => {
+            const message =
+                (error as any)?.response?.data?.message ||
+                (error instanceof Error ? error.message : "Could not send the invoice email.");
+            notify.error("Email failed", message);
+        },
+    });
+
     const sharePaidInvoiceMutation = useMutation({
         mutationFn: async (invoiceId: number) => {
             if (!isFeatureEnabled("whatsapp-remind")) {
@@ -346,6 +387,7 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
         deleteInvoiceMutation,
         bulkDeleteInvoicesMutation,
         sendReminderMutation,
+        emailInvoiceMutation,
         sharePaidInvoiceMutation,
         bulkUpdateInvoicesMutation,
     };

@@ -9,18 +9,22 @@ import { notify } from "@/lib/notify";
 import {
   DollarSign,
   TrendingUp,
-  CreditCard,
   Users,
   Download,
   RefreshCw,
   ArrowUpRight,
-  ArrowDownRight,
   PieChart as PieIcon,
   ShieldCheck,
   Receipt,
-  Wallet,
 } from "lucide-react";
 import { fetchRevenueInsights, type RevenueInsightsDto } from "@/api/analytics";
+
+const reliabilityTone = (ratio: number) =>
+  ratio >= 90
+    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+    : ratio >= 50
+    ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+    : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300";
 
 export default function RevenueInsights() {
   const [months, setMonths] = useState(6);
@@ -79,7 +83,7 @@ export default function RevenueInsights() {
           title="Revenue & Profit Insights"
           subtitle="Enterprise ISP billing analytics, collection efficiency, ARPU, and cash flow reconciliation"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-muted/60 p-1 rounded-lg border text-xs">
             {[3, 6, 12].map((m) => (
               <button
@@ -306,7 +310,9 @@ export default function RevenueInsights() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!data?.statusBreakdown?.length ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">No invoices recorded.</div>
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                {loading ? "Loading…" : "No invoices recorded."}
+              </div>
             ) : (
               data.statusBreakdown.map((item) => {
                 const totalInvoiced = summary?.grossInvoiced || 1;
@@ -343,58 +349,98 @@ export default function RevenueInsights() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Subscriber</TableHead>
-                  <TableHead className="text-xs text-center">Invoices</TableHead>
-                  <TableHead className="text-xs text-right">Total Billed</TableHead>
-                  <TableHead className="text-xs text-right">Cash Paid</TableHead>
-                  <TableHead className="text-xs text-right">Payment Reliability</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!data?.topSpenders?.length ? (
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
-                      No subscriber spending records found.
-                    </TableCell>
+                    <TableHead className="text-xs">Subscriber</TableHead>
+                    <TableHead className="text-xs text-center">Invoices</TableHead>
+                    <TableHead className="text-xs text-right">Total Billed</TableHead>
+                    <TableHead className="text-xs text-right">Cash Paid</TableHead>
+                    <TableHead className="text-xs text-right">Payment Reliability</TableHead>
                   </TableRow>
-                ) : (
-                  data.topSpenders.map((s) => {
-                    const ratio = s.totalBilled > 0 ? Math.round((s.totalPaid / s.totalBilled) * 100) : 100;
-                    return (
-                      <TableRow key={s.username}>
-                        <TableCell className="py-2.5">
-                          <div className="font-semibold text-xs text-foreground">{s.fullName}</div>
-                          <div className="font-mono text-[11px] text-muted-foreground">@{s.username}</div>
-                        </TableCell>
-                        <TableCell className="py-2.5 text-center text-xs font-mono">{s.invoicesCount}</TableCell>
-                        <TableCell className="py-2.5 text-right font-mono font-medium text-xs">
-                          ${s.totalBilled.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="py-2.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                          ${s.totalPaid.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="py-2.5 text-right">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              ratio >= 90
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                                : ratio >= 50
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                                : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                            }`}
-                          >
-                            {ratio}% Paid
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {!data?.topSpenders?.length ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-xs text-muted-foreground">
+                        {loading ? "Loading…" : "No subscriber spending records found."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    data.topSpenders.map((s) => {
+                      const ratio = s.totalBilled > 0 ? Math.round((s.totalPaid / s.totalBilled) * 100) : 100;
+                      return (
+                        <TableRow key={s.username}>
+                          <TableCell className="py-2.5">
+                            <div className="font-semibold text-xs text-foreground">{s.fullName}</div>
+                            <div className="font-mono text-[11px] text-muted-foreground">@{s.username}</div>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-center text-xs font-mono">{s.invoicesCount}</TableCell>
+                          <TableCell className="py-2.5 text-right font-mono font-medium text-xs">
+                            ${s.totalBilled.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="py-2.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                            ${s.totalPaid.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="py-2.5 text-right">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${reliabilityTone(ratio)}`}
+                            >
+                              {ratio}% Paid
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="space-y-3 md:hidden">
+              {loading ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">Loading…</div>
+              ) : !data?.topSpenders?.length ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
+                  No subscriber spending records found.
+                </div>
+              ) : (
+                data.topSpenders.map((s) => {
+                  const ratio = s.totalBilled > 0 ? Math.round((s.totalPaid / s.totalBilled) * 100) : 100;
+                  return (
+                    <div key={s.username} className="space-y-2 rounded-lg border border-border/60 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-semibold text-foreground">{s.fullName}</div>
+                          <div className="truncate font-mono text-[11px] text-muted-foreground">@{s.username}</div>
+                        </div>
+                        <span
+                          className={`inline-flex shrink-0 items-center px-2 py-0.5 rounded text-[10px] font-semibold ${reliabilityTone(ratio)}`}
+                        >
+                          {ratio}% Paid
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <div className="text-muted-foreground">Invoices</div>
+                          <div className="font-mono">{s.invoicesCount}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Billed</div>
+                          <div className="font-mono">${s.totalBilled.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Paid</div>
+                          <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            ${s.totalPaid.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

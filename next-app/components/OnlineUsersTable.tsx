@@ -52,6 +52,10 @@ import QueryState from "@/components/QueryState";
 import ActionConfirmDialog from "@/components/ActionConfirmDialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import FilterPills from "@/components/FilterPills";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toCsv, downloadTextFile } from "@/lib/csv";
+import { notify } from "@/lib/notify";
 
 import {
     Clock,
@@ -63,6 +67,7 @@ import {
     Wifi,
     HardDrive,
     Activity,
+    Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/api/client";
@@ -454,7 +459,9 @@ const MobileCard: React.FC<{
     canDisconnect: boolean;
     manageReason: string;
     disconnectReason: string;
-}> = React.memo(({ user, onAction, canManageRadiusUsers, canResetDailyQuota, canResetMonthlyQuota, canDisconnect, manageReason, disconnectReason }) => {
+    selected: boolean;
+    onToggleSelected: (username: string, checked: boolean) => void;
+}> = React.memo(({ user, onAction, canManageRadiusUsers, canResetDailyQuota, canResetMonthlyQuota, canDisconnect, manageReason, disconnectReason, selected, onToggleSelected }) => {
     const fup = isFupUser(user);
     return (
     <Card
@@ -467,6 +474,11 @@ const MobileCard: React.FC<{
         <CardHeader className="border-b border-border/50 bg-muted/15 pb-2 pl-4 pt-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
+                    <Checkbox
+                        checked={selected}
+                        onCheckedChange={(v) => onToggleSelected(user.session_username, Boolean(v))}
+                        aria-label={`Select ${user.session_username}`}
+                    />
                     <div className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold",
                         getSessionAccentClass(user)
@@ -545,6 +557,8 @@ const TableRows = function TableRows({
     canDisconnect,
     manageReason,
     disconnectReason,
+    selectedUsernames,
+    onToggleSelected,
 }: {
     users: OnlineUser[];
     onAction: (a: string, u: string) => void;
@@ -554,6 +568,8 @@ const TableRows = function TableRows({
     canDisconnect: boolean;
     manageReason: string;
     disconnectReason: string;
+    selectedUsernames: Set<string>;
+    onToggleSelected: (username: string, checked: boolean) => void;
 }) {
     return (
         <>
@@ -567,6 +583,11 @@ const TableRows = function TableRows({
                     <TableCell className={cn("px-2 py-2 align-middle", getSessionFirstCellClasses())}>
                         <SessionStatusStripe user={u} />
                         <div className="relative flex items-center gap-2 min-w-0 pl-1">
+                            <Checkbox
+                                checked={selectedUsernames.has(u.session_username)}
+                                onCheckedChange={(v) => onToggleSelected(u.session_username, Boolean(v))}
+                                aria-label={`Select ${u.session_username}`}
+                            />
                             <div className={cn(
                                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold",
                                 getSessionAccentClass(u)
@@ -667,13 +688,25 @@ const DesktopTable: React.FC<{
     canDisconnect: boolean;
     manageReason: string;
     disconnectReason: string;
-}> = React.memo(({ users, onAction, canManageRadiusUsers, canResetDailyQuota, canResetMonthlyQuota, canDisconnect, manageReason, disconnectReason }) => (
+    selectedUsernames: Set<string>;
+    onToggleSelected: (username: string, checked: boolean) => void;
+    onToggleSelectAll: (checked: boolean) => void;
+}> = React.memo(({ users, onAction, canManageRadiusUsers, canResetDailyQuota, canResetMonthlyQuota, canDisconnect, manageReason, disconnectReason, selectedUsernames, onToggleSelected, onToggleSelectAll }) => (
     <Card className="overflow-hidden border border-border/60 bg-card p-1 shadow-none">
         <div className="max-h-[70vh] overflow-auto rounded-md">
         <Table className="border-separate border-spacing-x-0 border-spacing-y-1 text-xs">
             <TableHeader className="sticky top-0 z-10">
                 <TableRow className="border-none bg-muted/70 shadow-none hover:bg-muted/70">
-                    <TableHead className="rounded-l-md bg-transparent px-2 py-2 text-[10px] font-semibold uppercase tracking-wide min-w-[140px]">User</TableHead>
+                    <TableHead className="rounded-l-md bg-transparent px-2 py-2 text-[10px] font-semibold uppercase tracking-wide min-w-[140px]">
+                        <span className="flex items-center gap-2">
+                            <Checkbox
+                                checked={users.length > 0 && users.every((u) => selectedUsernames.has(u.session_username))}
+                                onCheckedChange={(v) => onToggleSelectAll(Boolean(v))}
+                                aria-label="Select all sessions"
+                            />
+                            User
+                        </span>
+                    </TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[6.5rem]">MAC</TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[4.5rem]">Profile</TableHead>
                     <TableHead className="bg-transparent px-2 py-2 text-[11px] font-semibold w-[4.5rem]">Status</TableHead>
@@ -695,6 +728,8 @@ const DesktopTable: React.FC<{
                     canDisconnect={canDisconnect}
                     manageReason={manageReason}
                     disconnectReason={disconnectReason}
+                    selectedUsernames={selectedUsernames}
+                    onToggleSelected={onToggleSelected}
                 />
             </TableBody>
         </Table>
@@ -748,9 +783,9 @@ const OnlineUsersTable: React.FC<Props> = ({
     } = useOnlineUsers(search, 1, 100);
     //search,
 
-    const [confirm, setConfirm] = useState<
-        null | { action: "reset-quota" | "reset-monthly" | "reset-mac" | "disconnect"; username: string }
-    >(null);
+    type BulkAction = "reset-quota" | "reset-monthly" | "reset-mac" | "disconnect";
+    const [confirm, setConfirm] = useState<null | { action: BulkAction; usernames: string[] }>(null);
+    const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(() => new Set());
     const [detailUsername, setDetailUsername] = useState<string | null>(null);
 
     const sessionDetailQuery = useQuery({
@@ -779,22 +814,22 @@ const OnlineUsersTable: React.FC<Props> = ({
                 (data?.data ?? []).find((u) => u.session_username === username)?.profile_profile_name;
 
             if (action === "reset-quota") {
-                setConfirm({ action: "reset-quota", username });
+                setConfirm({ action: "reset-quota", usernames: [username] });
                 return;
             }
 
             if (action === "reset-monthly") {
-                setConfirm({ action: "reset-monthly", username });
+                setConfirm({ action: "reset-monthly", usernames: [username] });
                 return;
             }
 
             if (action === "reset-mac") {
-                setConfirm({ action: "reset-mac", username });
+                setConfirm({ action: "reset-mac", usernames: [username] });
                 return;
             }
 
             if (action === "disconnect") {
-                setConfirm({ action: "disconnect", username });
+                setConfirm({ action: "disconnect", usernames: [username] });
                 return;
             }
 
@@ -839,11 +874,15 @@ const OnlineUsersTable: React.FC<Props> = ({
     // View state persistence disabled (no localStorage)
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [fupOnly, setFupOnly] = useState<boolean>(false);
+    const [profileFilter, setProfileFilter] = useState<string>("all");
+    const [nasFilter, setNasFilter] = useState<string>("all");
     const [sortKey, setSortKey] = useState<SortKey>("lastUpdateDesc");
 
     const clearFilters = useCallback(() => {
         setStatusFilter("all");
         setFupOnly(false);
+        setProfileFilter("all");
+        setNasFilter("all");
         // keep sortKey as-is; sorting doesn’t hide rows
     }, [setStatusFilter, setFupOnly]);
 
@@ -879,6 +918,24 @@ const OnlineUsersTable: React.FC<Props> = ({
         );
     }, [rows]);
 
+    const profileOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const u of rows) {
+            const p = String(u.profile_profile_name ?? "").trim();
+            if (p) set.add(p);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [rows]);
+
+    const nasOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const u of rows) {
+            const label = String(u.session_nas_name || u.session_nas_ip || "").trim();
+            if (label) set.add(label);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [rows]);
+
     const displayRows = useMemo(() => {
         let out = rows;
         if (statusFilter !== "all") {
@@ -890,6 +947,12 @@ const OnlineUsersTable: React.FC<Props> = ({
         }
         if (fupOnly) {
             out = out.filter((u) => isFupUser(u));
+        }
+        if (profileFilter !== "all") {
+            out = out.filter((u) => String(u.profile_profile_name ?? "") === profileFilter);
+        }
+        if (nasFilter !== "all") {
+            out = out.filter((u) => String(u.session_nas_name || u.session_nas_ip || "") === nasFilter);
         }
 
         const num = (s: any) => {
@@ -917,9 +980,57 @@ const OnlineUsersTable: React.FC<Props> = ({
         });
 
         return sorted;
-    }, [rows, statusFilter, fupOnly, sortKey]);
+    }, [rows, statusFilter, fupOnly, profileFilter, nasFilter, sortKey]);
 
-    const hasClientFilters = fupOnly || statusFilter !== "all" || Boolean(String(search ?? "").trim());
+    const handleExportCsv = useCallback(() => {
+        const rowsForCsv = displayRows.map((u) => ({
+            username: u.session_username,
+            fullName: u.userDetails_full_name ?? "",
+            mac: u.session_mac_address ?? "",
+            profile: u.profile_profile_name ?? "",
+            originalProfile: u.original_profile_name ?? "",
+            status: u.session_status ?? "",
+            fup: isFupUser(u) ? "FUP" : "OK",
+            uptimeSeconds: u.session_session_time ?? "",
+            lastUpdate: u.session_last_update ?? "",
+            dailyUsed: u.real_time_data_usage ?? "",
+            dailyQuota: u.profile_daily_quota ?? "",
+            monthlyUsed: u.monthly_usage ?? "",
+            monthlyQuota: u.profile_monthly_quota ?? "",
+            nasName: u.session_nas_name ?? "",
+            nasIp: u.session_nas_ip ?? "",
+        }));
+        const csv = toCsv(rowsForCsv, [
+            "username", "fullName", "mac", "profile", "originalProfile", "status", "fup",
+            "uptimeSeconds", "lastUpdate", "dailyUsed", "dailyQuota", "monthlyUsed", "monthlyQuota",
+            "nasName", "nasIp",
+        ]);
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        downloadTextFile(`live-sessions-${stamp}.csv`, csv, "text/csv;charset=utf-8");
+        notify.success("Export ready", `${rowsForCsv.length} sessions exported.`);
+    }, [displayRows]);
+
+    const toggleSelected = useCallback((username: string, checked: boolean) => {
+        setSelectedUsernames((prev) => {
+            const next = new Set(prev);
+            if (checked) next.add(username);
+            else next.delete(username);
+            return next;
+        });
+    }, []);
+
+    const toggleSelectAll = useCallback((checked: boolean) => {
+        setSelectedUsernames((prev) => {
+            const next = new Set(prev);
+            for (const u of displayRows) {
+                if (checked) next.add(u.session_username);
+                else next.delete(u.session_username);
+            }
+            return next;
+        });
+    }, [displayRows]);
+
+    const hasClientFilters = fupOnly || statusFilter !== "all" || profileFilter !== "all" || nasFilter !== "all" || Boolean(String(search ?? "").trim());
     const isTrulyEmpty = rows.length === 0 && !hasClientFilters;
     const isNoMatches = rows.length > 0 && displayRows.length === 0;
 
@@ -1010,44 +1121,38 @@ const OnlineUsersTable: React.FC<Props> = ({
                             : "Reset daily quota?"
                 }
                 description={
-                    confirm?.action === "disconnect"
-                        ? `This will send a CoA disconnect for ${confirm?.username}.`
-                        : confirm?.action === "reset-mac"
-                          ? `This will clear the stored MAC binding for ${confirm?.username}.`
-                          : confirm?.action === "reset-monthly"
-                            ? `This will reset the monthly traffic counters for ${confirm?.username}.`
-                            : `This will reset the daily quota counters for ${confirm?.username}.`
+                    (() => {
+                        const n = confirm?.usernames.length ?? 0;
+                        const target = n === 1 ? confirm?.usernames[0] : `${n} sessions`;
+                        if (confirm?.action === "disconnect") return `This will send a CoA disconnect for ${target}.`;
+                        if (confirm?.action === "reset-mac") return `This will clear the stored MAC binding for ${target}.`;
+                        if (confirm?.action === "reset-monthly") return `This will reset the monthly traffic counters for ${target}.`;
+                        return `This will reset the daily quota counters for ${target}.`;
+                    })()
                 }
                 confirmText={confirm?.action === "disconnect" ? "Disconnect" : "Confirm"}
                 confirmTone={confirm?.action === "disconnect" ? "destructive" : "default"}
                 onConfirm={async () => {
                     if (!confirm) return;
-                    const username = confirm.username;
+                    const { action, usernames } = confirm;
+
+                    let failed = 0;
+                    for (const username of usernames) {
+                        try {
+                            if (action === "reset-quota") await resetDailyUserQuotaMutation.mutateAsync({ username });
+                            else if (action === "reset-monthly") await resetMonthlyUserQuotaMutation.mutateAsync({ username });
+                            else if (action === "reset-mac") await resetMacAddressMutation.mutateAsync({ username });
+                            else if (action === "disconnect") await disconnectUserSessionMutation.mutateAsync({ username });
+                        } catch {
+                            failed += 1;
+                        }
+                    }
 
                     try {
-                        if (confirm.action === "reset-quota") {
-                            await resetDailyUserQuotaMutation.mutateAsync({ username });
-                            await refetch();
-                            return;
-                        }
-
-                        if (confirm.action === "reset-monthly") {
-                            await resetMonthlyUserQuotaMutation.mutateAsync({ username });
-                            await refetch();
-                            return;
-                        }
-
-                        if (confirm.action === "reset-mac") {
-                            await resetMacAddressMutation.mutateAsync({ username });
-                            await refetch();
-                            return;
-                        }
-
-                        if (confirm.action === "disconnect") {
-                            await disconnectUserSessionMutation.mutateAsync({ username });
-                            await refetch();
-                        }
+                        await refetch();
                     } finally {
+                        if (failed > 0) notify.error("Bulk action", `${failed} of ${usernames.length} failed.`);
+                        setSelectedUsernames(new Set());
                         // Ensure the dialog closes even if refetch/mutations hang or throw.
                         setConfirm(null);
                     }
@@ -1079,8 +1184,8 @@ const OnlineUsersTable: React.FC<Props> = ({
                 className="mb-2 rounded-lg border border-border/60 bg-card"
                 right={
                     <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <Label className="text-xs text-muted-foreground">Status</Label>
+                        <div className="flex items-center gap-2" role="group" aria-labelledby="online-users-status-label">
+                            <Label id="online-users-status-label" className="text-xs text-muted-foreground">Status</Label>
                             <FilterPills
                                 value={statusFilter}
                                 onChange={(v) => setStatusFilter(v as StatusFilter)}
@@ -1096,9 +1201,9 @@ const OnlineUsersTable: React.FC<Props> = ({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Label className="text-xs text-muted-foreground">Sort</Label>
+                            <Label htmlFor="online-users-sort" className="text-xs text-muted-foreground">Sort</Label>
                             <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
-                                <SelectTrigger className="h-8 w-[180px]">
+                                <SelectTrigger id="online-users-sort" className="h-8 w-[180px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1117,14 +1222,56 @@ const OnlineUsersTable: React.FC<Props> = ({
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div className="flex items-center gap-2">
-                                            <Label className="text-xs text-muted-foreground">FUP only</Label>
-                                            <Switch checked={fupOnly} onCheckedChange={setFupOnly} />
+                                            <Label htmlFor="online-users-fup-only" className="text-xs text-muted-foreground">FUP only</Label>
+                                            <Switch id="online-users-fup-only" checked={fupOnly} onCheckedChange={setFupOnly} />
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent>Show only users currently in fallback/FUP.</TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         </div>
+
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="online-users-profile" className="text-xs text-muted-foreground">Profile</Label>
+                            <Select value={profileFilter} onValueChange={setProfileFilter}>
+                                <SelectTrigger id="online-users-profile" className="h-8 w-[170px]">
+                                    <SelectValue placeholder="All profiles" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All profiles</SelectItem>
+                                    {profileOptions.map((p) => (
+                                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="online-users-nas" className="text-xs text-muted-foreground">NAS</Label>
+                            <Select value={nasFilter} onValueChange={setNasFilter}>
+                                <SelectTrigger id="online-users-nas" className="h-8 w-[170px]">
+                                    <SelectValue placeholder="All NAS" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All NAS</SelectItem>
+                                    {nasOptions.map((n) => (
+                                        <SelectItem key={n} value={n}>{n}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            onClick={handleExportCsv}
+                            disabled={displayRows.length === 0}
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            Export CSV
+                        </Button>
                     </div>
                 }
             />
@@ -1139,6 +1286,44 @@ const OnlineUsersTable: React.FC<Props> = ({
                 />
             ) : null}
 
+            {selectedUsernames.size > 0 ? (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                    <span className="text-xs font-medium">{selectedUsernames.size} selected</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            disabled={!canDisconnect}
+                            onClick={() => setConfirm({ action: "disconnect", usernames: [...selectedUsernames] })}
+                        >
+                            <Power className="h-3.5 w-3.5" /> Disconnect
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            disabled={!canResetDailyQuota}
+                            onClick={() => setConfirm({ action: "reset-quota", usernames: [...selectedUsernames] })}
+                        >
+                            <RotateCw className="h-3.5 w-3.5" /> Reset daily
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs"
+                            disabled={!canResetMonthlyQuota}
+                            onClick={() => setConfirm({ action: "reset-monthly", usernames: [...selectedUsernames] })}
+                        >
+                            <RotateCw className="h-3.5 w-3.5" /> Reset monthly
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setSelectedUsernames(new Set())}>
+                            Clear
+                        </Button>
+                    </div>
+                </div>
+            ) : null}
+
             {/* Desktop */}
             <div className="hidden md:block">
                 <DesktopTable
@@ -1150,6 +1335,9 @@ const OnlineUsersTable: React.FC<Props> = ({
                     canDisconnect={canDisconnect}
                     manageReason={manageReason}
                     disconnectReason={disconnectReason}
+                    selectedUsernames={selectedUsernames}
+                    onToggleSelected={toggleSelected}
+                    onToggleSelectAll={toggleSelectAll}
                 />
             </div>
 
@@ -1166,6 +1354,8 @@ const OnlineUsersTable: React.FC<Props> = ({
                         canDisconnect={canDisconnect}
                         manageReason={manageReason}
                         disconnectReason={disconnectReason}
+                        selected={selectedUsernames.has(u.session_username)}
+                        onToggleSelected={toggleSelected}
                     />
                 ))}
             </div>

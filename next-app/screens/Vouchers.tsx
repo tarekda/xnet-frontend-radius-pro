@@ -7,24 +7,16 @@ import {
   Plus,
   Printer,
   KeyRound,
-  RefreshCw,
   Search,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   DollarSign,
   Layers,
   Sparkles,
   Ban,
-  Filter,
-  Eye,
-  CreditCard,
-  QrCode,
   Download,
   Copy,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import IconActionButton from "@/components/IconActionButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,7 +49,7 @@ import { notify } from "@/lib/notify";
 import { apiClient } from "@/api/client";
 import { useProfiles } from "@/hooks/useProfiles";
 import { useAuth } from "@/context/AuthContext";
-import { can } from "@/lib/permissions";
+import QueryState from "@/components/QueryState";
 
 export interface VoucherBatch {
   id: string;
@@ -94,7 +86,7 @@ export interface VoucherCard {
 
 export default function Vouchers() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  useAuth();
   const profilesQuery = useProfiles();
   const profiles = profilesQuery.data?.data ?? [];
 
@@ -120,16 +112,12 @@ export default function Vouchers() {
   const batchesQuery = useQuery({
     queryKey: ["vouchers", "batches"],
     queryFn: async (): Promise<VoucherBatch[]> => {
-      try {
-        const { data } = await apiClient.get("/vouchers/batches");
-        return data?.data ?? [];
-      } catch {
-        return [];
-      }
+      const { data } = await apiClient.get("/vouchers/batches");
+      return data?.data ?? [];
     },
   });
 
-  const batches = batchesQuery.data ?? [];
+  const batches = useMemo(() => batchesQuery.data ?? [], [batchesQuery.data]);
 
   // Auto-select first batch if none selected
   React.useEffect(() => {
@@ -143,14 +131,10 @@ export default function Vouchers() {
     queryKey: ["vouchers", "cards", selectedBatchId, searchQuery, statusFilter],
     queryFn: async (): Promise<{ batch: VoucherBatch; cards: VoucherCard[] } | null> => {
       if (!selectedBatchId) return null;
-      try {
-        const { data } = await apiClient.get(`/vouchers/batches/${selectedBatchId}`, {
-          params: { search: searchQuery, status: statusFilter },
-        });
-        return data?.data ?? null;
-      } catch {
-        return null;
-      }
+      const { data } = await apiClient.get(`/vouchers/batches/${selectedBatchId}`, {
+        params: { search: searchQuery, status: statusFilter },
+      });
+      return data?.data ?? null;
     },
     enabled: Boolean(selectedBatchId),
   });
@@ -162,12 +146,8 @@ export default function Vouchers() {
   const metricsQuery = useQuery({
     queryKey: ["vouchers", "metrics"],
     queryFn: async () => {
-      try {
-        const { data } = await apiClient.get("/vouchers/metrics");
-        return data?.data ?? null;
-      } catch {
-        return null;
-      }
+      const { data } = await apiClient.get("/vouchers/metrics");
+      return data?.data ?? null;
     },
   });
 
@@ -320,6 +300,13 @@ export default function Vouchers() {
       />
 
       {/* KPI Cards */}
+      <QueryState
+        isLoading={metricsQuery.isLoading}
+        error={metricsQuery.error}
+        onRetry={() => metricsQuery.refetch()}
+        skeletonType="card"
+        errorTitle="Failed to load voucher metrics"
+      >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/60 shadow-xs">
           <CardContent className="p-4 flex items-center justify-between">
@@ -381,6 +368,7 @@ export default function Vouchers() {
           </CardContent>
         </Card>
       </div>
+      </QueryState>
 
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -393,13 +381,21 @@ export default function Vouchers() {
             </Badge>
           </div>
 
-          <div className="space-y-2">
-            {batches.length === 0 ? (
+          <QueryState
+            isLoading={batchesQuery.isLoading}
+            error={batchesQuery.error}
+            isEmpty={!batchesQuery.isLoading && !batchesQuery.error && batches.length === 0}
+            onRetry={() => batchesQuery.refetch()}
+            skeletonType="card"
+            errorTitle="Failed to load voucher batches"
+            empty={
               <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">
                 No voucher batches found. Click &quot;Generate Batch&quot; to create your first set!
               </Card>
-            ) : (
-              batches.map((b) => {
+            }
+          >
+            <div className="space-y-2">
+              {batches.map((b) => {
                 const isSelected = b.id === selectedBatchId;
                 const pct = b.totalCount > 0 ? Math.round((b.usedCount / b.totalCount) * 100) : 0;
                 return (
@@ -445,9 +441,9 @@ export default function Vouchers() {
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          </QueryState>
         </div>
 
         {/* Right column: Cards Table & Details */}
@@ -520,6 +516,16 @@ export default function Vouchers() {
 
               {/* Table */}
               <CardContent className="p-0">
+                <QueryState
+                  isLoading={cardsQuery.isLoading}
+                  error={cardsQuery.error}
+                  isEmpty={!cardsQuery.isLoading && !cardsQuery.error && currentCards.length === 0}
+                  onRetry={() => cardsQuery.refetch()}
+                  skeletonType="table"
+                  errorTitle="Failed to load voucher cards"
+                  emptyTitle="No voucher cards found"
+                  emptyDescription="Try adjusting the search or status filter."
+                >
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-muted/40">
@@ -612,6 +618,7 @@ export default function Vouchers() {
                     </TableBody>
                   </Table>
                 </div>
+                </QueryState>
               </CardContent>
             </Card>
           ) : (

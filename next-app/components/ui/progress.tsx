@@ -22,24 +22,24 @@ function Progress({
     <ProgressPrimitive.Root
       data-slot="progress"
       className={cn(
-        "bg-primary/20 relative  w-[150px] overflow-hidden rounded-full",
+        "bg-primary/20 relative h-2.5 w-full overflow-hidden rounded-full",
         className
       )}
       {...props}
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className={cn("h-full w-full flex-1 transition-all", indicatorClassName ?? "bg-orange-500")}
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
-      >
-        {(showPercentage || text) && (
-          <div className="absolute left-[220px] inset-0 flex items-center justify-center">
-            <span className="text-[8px] text-back font-semibold whitespace-nowrap">
-              {text || `${Math.round(value || 0)}%`}
-            </span>
-          </div>
+        className={cn(
+          "h-full w-full flex-1 rounded-full transition-all duration-300",
+          indicatorClassName ?? "bg-primary"
         )}
-      </ProgressPrimitive.Indicator>
+        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      />
+      {(showPercentage || text) && (
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-primary-foreground mix-blend-difference">
+          {text || `${Math.round(value || 0)}%`}
+        </span>
+      )}
     </ProgressPrimitive.Root>
   )
 }

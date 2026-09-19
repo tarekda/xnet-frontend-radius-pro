@@ -32,6 +32,9 @@ export interface OnlineUser {
   is_monthly_exceeded?: number;
   monthly_usage_pct?: number;
   userDetails_full_name: string;
+  /** NAS device that terminated the session (returned by the online-users endpoint). */
+  session_nas_ip?: string | null;
+  session_nas_name?: string | null;
   is_fallback: number;
 }
 

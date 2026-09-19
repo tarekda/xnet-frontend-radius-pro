@@ -161,6 +161,7 @@ export const ImportUsersDialog = ({
           <Input
             type="file"
             accept=".csv,text/csv"
+            aria-label="CSV file to import"
             onChange={(e) => void handleFile(e.target.files?.item(0) ?? null)}
             disabled={isImporting}
           />

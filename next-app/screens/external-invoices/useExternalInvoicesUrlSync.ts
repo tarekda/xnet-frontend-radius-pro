@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { SetURLSearchParams } from "@/navigation/urlSearchParams";
 import type { DateRange } from "react-day-picker";
 import { getCurrentMonthDateRange } from "@/lib/externalInvoiceDateUtils";
+import { EXTERNAL_INVOICE_MAX_PAGE_SIZE } from "@/components/DesktopTable";
 
 type UseExternalInvoicesUrlSyncParams = {
   defaultPageSize: number;
@@ -42,39 +43,35 @@ export function useExternalInvoicesUrlSync({
     return { from, to };
   }, [searchParams]);
 
-  // Initialize state from URL/localStorage.
+  // Initialize state from the URL only. Filters used to be restored from
+  // localStorage, which silently re-applied a status/date/search filter the
+  // operator had forgotten about — the list then looked unfiltered while rows
+  // were quietly being excluded. A fresh visit now always starts from the
+  // current billing month with no status filter.
   useEffect(() => {
-    const q = searchParams.get("q") ?? localStorage.getItem("externalInvoices.search") ?? "";
+    const q = searchParams.get("q") ?? "";
     const psStr = searchParams.get("ps") ?? localStorage.getItem("externalInvoices.pageSize") ?? String(defaultPageSize);
-    const ps = parseInt(psStr, 10) || defaultPageSize;
+    // Never restore a page size above the supported cap (older sessions may have stored 200/500).
+    const ps = Math.min(parseInt(psStr, 10) || defaultPageSize, EXTERNAL_INVOICE_MAX_PAGE_SIZE);
     setSearchTerm(q);
     setSearchInput(q);
     setPageSize(ps);
 
-    // Restore from/to/status from localStorage or default to current billing month.
     const urlFrom = searchParams.get("from");
     const urlTo = searchParams.get("to");
-    const urlStatus = searchParams.get("status");
     const isAllTime = searchParams.get("all") === "true" || urlFrom === "all";
 
     if (!isAllTime && (!urlFrom || !urlTo)) {
-      const lsFrom = localStorage.getItem("externalInvoices.from") || undefined;
-      const lsTo = localStorage.getItem("externalInvoices.to") || undefined;
       const currentMonth = getCurrentMonthDateRange();
-      const targetFrom = urlFrom || lsFrom || currentMonth.from;
-      const targetTo = urlTo || lsTo || currentMonth.to;
-      const lsStatus = localStorage.getItem("externalInvoices.status") || undefined;
-
       const next = new URLSearchParams(searchParams);
-      if (!urlFrom && targetFrom) next.set("from", targetFrom);
-      if (!urlTo && targetTo) next.set("to", targetTo);
-      if (!urlStatus && lsStatus) next.set("status", lsStatus);
+      if (!urlFrom && currentMonth.from) next.set("from", currentMonth.from);
+      if (!urlTo && currentMonth.to) next.set("to", currentMonth.to);
       setSearchParams(next, { replace: true } as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist search + page size into URL/localStorage.
+  // Persist the search term + page size into URL/localStorage.
   useEffect(() => {
     setSearchParams(
       (prev) => {
@@ -87,22 +84,8 @@ export function useExternalInvoicesUrlSync({
       },
       { replace: true } as any
     );
-    localStorage.setItem("externalInvoices.search", searchTerm);
     localStorage.setItem("externalInvoices.pageSize", String(pageSize));
   }, [searchTerm, pageSize, setSearchParams]);
-
-  // Persist URL filters to localStorage.
-  useEffect(() => {
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    const status = searchParams.get("status");
-    if (from) localStorage.setItem("externalInvoices.from", from);
-    else localStorage.removeItem("externalInvoices.from");
-    if (to) localStorage.setItem("externalInvoices.to", to);
-    else localStorage.removeItem("externalInvoices.to");
-    if (status) localStorage.setItem("externalInvoices.status", status);
-    else localStorage.removeItem("externalInvoices.status");
-  }, [searchParams]);
 
   // Sync local state from URL (e.g. when applying saved views).
   useEffect(() => {
@@ -114,7 +97,7 @@ export function useExternalInvoicesUrlSync({
     }
     const psParam = searchParams.get("ps");
     if (psParam) {
-      const psNum = parseInt(psParam, 10);
+      const psNum = Math.min(parseInt(psParam, 10), EXTERNAL_INVOICE_MAX_PAGE_SIZE);
       if (!Number.isNaN(psNum) && psNum !== latestStateRef.current.pageSize) {
         setPageSize(psNum);
         setCurrentPage(1);

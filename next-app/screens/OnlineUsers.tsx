@@ -223,7 +223,7 @@ export default function OnlineUsersPage() {
       if (disconnectAfterProfileChange) {
         try {
           await disconnectUserSessionMutation.mutateAsync({ username: profileUsername });
-        } catch (e: any) {
+        } catch {
           // Profile change succeeded, disconnect failed: show a clear message.
           notify.error("Profile updated", "Disconnect failed. User may need manual disconnect.");
         }

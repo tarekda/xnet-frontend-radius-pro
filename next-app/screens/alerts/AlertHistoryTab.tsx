@@ -34,7 +34,7 @@ const AlertHistoryTab: React.FC<Props> = ({ alerts, isLoading, error, onRetry })
           <Card key={alert.id} className="border-border/80 shadow-none">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className={`p-2 rounded-full ${getSeverityBgColor(alert.severity)}`}>
                     <Clock className={`h-4 w-4 ${getSeverityColor(alert.severity)}`} />
                   </div>

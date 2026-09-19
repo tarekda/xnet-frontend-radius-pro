@@ -1,9 +1,19 @@
 "use client";
 
 import React from 'react';
-import NetworkTopology from '@/components/NetworkTopology';
+import dynamic from 'next/dynamic';
 import PageHeader from '@/components/PageHeader';
 import { Network } from 'lucide-react';
+
+// Lazily load the React Flow based topology viewer so its bundle isn't part of the route's initial JS.
+const NetworkTopology = dynamic(() => import('@/components/NetworkTopology'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[60vh] items-center justify-center text-sm text-muted-foreground">
+      Loading topology…
+    </div>
+  ),
+});
 
 export default function TopologyPage() {
   return (

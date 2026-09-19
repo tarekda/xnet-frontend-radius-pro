@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSearchParams } from "@/navigation/urlSearchParams";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +7,6 @@ import PageHeader from "@/components/PageHeader";
 import IconActionButton from "@/components/IconActionButton";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import ExternalInvoicesTable from "@/components/ExternalInvoicesTable";
 import { useExternalInvoices } from "@/hooks/useExternalInvoices";
 import { fetchExternalAgingSummary } from "@/api/invoices";

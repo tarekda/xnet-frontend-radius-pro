@@ -44,6 +44,7 @@ import {
   Mail,
   MessageCircle,
   SlidersHorizontal,
+  Rows3,
   Trash2,
   User,
   XCircle,
@@ -97,7 +98,13 @@ const providerStyles = {
   default: { color: "text-muted-foreground", bg: "bg-muted/70 dark:bg-muted/50" },
 } as const;
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200,500];
+/**
+ * Page-size options for the external invoices table. Capped at 100: mounting every
+ * row is the dominant cost on this screen, so larger pages are not offered.
+ */
+export const EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+export const EXTERNAL_INVOICE_MAX_PAGE_SIZE =
+  EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS[EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS.length - 1];
 
 type Props = {
   invoices: ExternalInvoice[];
@@ -149,7 +156,7 @@ const LINE_KIND_META: Record<PaymentLineKind, { label: string; className: string
   paid: { label: "Paid", className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900" },
 };
 
-const EditableCell = ({ value: initialValue, onSave, placeholder = "Empty" }: { value: any, onSave: (v: string) => void, placeholder?: string }) => {
+const EditableCell = ({ value: initialValue, onSave, placeholder = "Empty", fieldLabel = "value" }: { value: any, onSave: (v: string) => void, placeholder?: string, fieldLabel?: string }) => {
   const [isEditing, setIsEditing] = React.useState(false);
   const [val, setVal] = React.useState(initialValue || "");
   React.useEffect(() => { setVal(initialValue || "") }, [initialValue]);
@@ -158,6 +165,7 @@ const EditableCell = ({ value: initialValue, onSave, placeholder = "Empty" }: { 
     return (
       <Input
         autoFocus
+        aria-label={`Edit ${fieldLabel}`}
         value={val}
         onChange={(e) => setVal(e.target.value)}
         onBlur={() => { setIsEditing(false); if(val !== initialValue) onSave(val); }}
@@ -171,15 +179,17 @@ const EditableCell = ({ value: initialValue, onSave, placeholder = "Empty" }: { 
   }
 
   return (
-    <div 
-      className="group flex items-center gap-1 cursor-text min-h-[28px] hover:bg-muted/50 px-1 rounded transition-colors"
+    <button
+      type="button"
+      aria-label={`Edit ${fieldLabel}`}
+      className="group flex w-full items-center gap-1 cursor-text min-h-[28px] text-left hover:bg-muted/50 px-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
     >
       <span className={!initialValue ? "text-muted-foreground italic text-[11px]" : "text-sm max-w-[200px] truncate block"}>
         {initialValue || placeholder}
       </span>
       <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity shrink-0" />
-    </div>
+    </button>
   );
 };
 
@@ -328,6 +338,7 @@ const DesktopTable: React.FC<Props> = ({
               value={row.original.address} 
               onSave={(val) => onInlineUpdate?.(row.original.id, "address", val)} 
               placeholder="No address"
+              fieldLabel="Address"
             />
           );
         },
@@ -455,6 +466,7 @@ const DesktopTable: React.FC<Props> = ({
                   value={ymd} 
                   onSave={(val) => onInlineUpdate?.(row.original.id, "payDueDate", val)} 
                   placeholder="Set due date"
+                  fieldLabel="pay due date"
                 />
             </div>
           );
@@ -759,9 +771,31 @@ const DesktopTable: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const columnVisibility = table.getState().columnVisibility;
   React.useEffect(() => {
-    localStorage.setItem('extInv.columns', JSON.stringify(table.getState().columnVisibility));
-  }, [table.getState().columnVisibility]);
+    try {
+      localStorage.setItem('extInv.columns', JSON.stringify(columnVisibility));
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [columnVisibility]);
+
+  /* ── row density (persisted) ───────────────────────────── */
+  const [density, setDensity] = React.useState<'comfortable' | 'compact'>(() => {
+    if (typeof window === 'undefined') return 'comfortable';
+    try {
+      return localStorage.getItem('extInv.density') === 'compact' ? 'compact' : 'comfortable';
+    } catch {
+      return 'comfortable';
+    }
+  });
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('extInv.density', density);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [density]);
 
   return (
     <>
@@ -792,6 +826,17 @@ const DesktopTable: React.FC<Props> = ({
                 }}
               >
                 Export view
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setDensity((d) => (d === 'compact' ? 'comfortable' : 'compact'))}
+                title="Toggle row density"
+              >
+                <Rows3 className="h-4 w-4" />
+                {density === 'compact' ? 'Compact' : 'Comfortable'}
               </Button>
 
               <DropdownMenu>
@@ -826,7 +871,11 @@ const DesktopTable: React.FC<Props> = ({
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="py-2 px-2" aria-sort={ariaSortFor(header)}>
+                  <TableHead
+                    key={header.id}
+                    className={cn("px-2", density === 'compact' ? "py-1" : "py-2")}
+                    aria-sort={ariaSortFor(header)}
+                  >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -862,7 +911,10 @@ const DesktopTable: React.FC<Props> = ({
                     onDoubleClick={() => onViewInvoice(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="text-left table-cell">
+                      <TableCell
+                        key={cell.id}
+                        className={cn("text-left table-cell", density === 'compact' && "py-1")}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -974,7 +1026,7 @@ const DesktopTable: React.FC<Props> = ({
           totalPages={totalPages}
           totalItems={totalItems}
           pageSize={pageSize}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          pageSizeOptions={EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS}
           onPageChange={(p) => {
             if (p <= 1) return onFirstPage();
             if (p >= totalPages) return onLastPage();

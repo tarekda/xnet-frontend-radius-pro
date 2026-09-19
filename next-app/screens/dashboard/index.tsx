@@ -577,9 +577,9 @@ const Dashboard: React.FC = () => {
 
           {/* KPI widgets */}
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {orderedDashboardWidgets.map((widget) => (
+            {orderedDashboardWidgets.map((widget, i) => (
+              <div key={widget.key} className={`animate-scale-in stagger-${Math.min(i + 1, 8)}`}>
               <DashboardMiniWidget
-                key={widget.key}
                 title={widget.title}
                 value={widget.value}
                 subtitle={widget.subtitle}
@@ -588,6 +588,7 @@ const Dashboard: React.FC = () => {
                 accentClass={widget.accentClass}
                 glowClass={widget.glowClass}
               />
+              </div>
             ))}
           </div>
 
@@ -679,7 +680,7 @@ const Dashboard: React.FC = () => {
                 fupUsersCount={fupUsersCount}
               />
             ) : (
-              <Card className="w-full min-w-0 rounded-lg border-border shadow-none md:col-span-4">
+              <Card className="w-full min-w-0 md:col-span-4">
                 <CardHeader className="p-4">
                   <CardTitle>Overview</CardTitle>
                   <CardDescription>Key metrics from your assigned widgets above</CardDescription>

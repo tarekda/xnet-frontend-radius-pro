@@ -1,6 +1,5 @@
 import { Client, Message } from "@stomp/stompjs";
 import { toast } from "@/components/ui/use-toast";
-import { apiClient } from "@/api/client";
 import { ingestInboxNotification } from "@/store/notificationInboxStore";
 import { normalizeUserActionsQueuePayload, normalizeUserStatusPayload } from "@/lib/normalizeInboxNotification";
 import { resolvePublicWsUrl } from "@/lib/publicEnv";

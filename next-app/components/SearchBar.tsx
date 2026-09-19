@@ -15,6 +15,8 @@ interface Props {
   debounceMs?: number;
   /** Default: false. Show a Search button on the right. */
   showButton?: boolean;
+  /** Accessible name for the search input. Default: "Search". */
+  ariaLabel?: string;
 }
 
 const SearchBar: React.FC<Props> = React.memo(({ 
@@ -25,6 +27,7 @@ const SearchBar: React.FC<Props> = React.memo(({
   autoSearch = true,
   debounceMs = 350,
   showButton = false,
+  ariaLabel = "Search",
 }) => {
   const [value, setValue] = useState(currentSearchTerm || "");
   const [isFocused, setIsFocused] = useState(false);
@@ -65,6 +68,7 @@ const SearchBar: React.FC<Props> = React.memo(({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          aria-label={ariaLabel}
           placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.target.value)}

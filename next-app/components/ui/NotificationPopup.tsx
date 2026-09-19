@@ -128,7 +128,11 @@ export const NotificationPopup: React.FC<NotificationPopupProps> = ({
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center text-muted-foreground">No notifications</div>
+              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <FaCheckCircle className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm font-medium text-muted-foreground">No notifications</p>
+                <p className="text-xs text-muted-foreground/70">You&apos;re all caught up</p>
+              </div>
             )}
           </div>
 

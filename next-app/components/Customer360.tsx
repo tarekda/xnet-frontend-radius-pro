@@ -15,10 +15,6 @@ import {
   Wallet,
   Award,
   TrendingUp,
-  CheckCircle2,
-  ShieldCheck,
-  Clock,
-  Calendar,
   History,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
@@ -221,7 +217,7 @@ export function Customer360Summary({ user }: { user: User }) {
       Number(usageQuery.data?.bytesIn ?? 0) + Number(usageQuery.data?.bytesOut ?? 0)
   );
 
-  const allInvoices = invoicesQuery.data?.data ?? [];
+  const allInvoices = useMemo(() => invoicesQuery.data?.data ?? [], [invoicesQuery.data?.data]);
   const paidInvoices = useMemo(() => allInvoices.filter((inv) => inv.status === "paid"), [allInvoices]);
   const ltvAmount = useMemo(
     () => paidInvoices.reduce((sum, inv) => sum + Number(inv.amount || 0), 0),
@@ -242,7 +238,7 @@ export function Customer360Summary({ user }: { user: User }) {
 
   return (
     <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      <Card className="border-border/60 shadow-none">
+      <Card className="glass-card card-hover-lift">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Service</span>
@@ -259,7 +255,7 @@ export function Customer360Summary({ user }: { user: User }) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 shadow-none">
+      <Card className="glass-card card-hover-lift">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Usage · 24h</span>
@@ -275,7 +271,7 @@ export function Customer360Summary({ user }: { user: User }) {
       </Card>
 
       {canSeeBilling ? (
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Outstanding</span>
@@ -294,7 +290,7 @@ export function Customer360Summary({ user }: { user: User }) {
       ) : null}
 
       {canSeeWallet ? (
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Wallet</span>
@@ -310,7 +306,7 @@ export function Customer360Summary({ user }: { user: User }) {
 
       {/* Lifetime Value (LTV) Card */}
       {canSeeBilling ? (
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Lifetime Value</span>
@@ -325,7 +321,7 @@ export function Customer360Summary({ user }: { user: User }) {
       ) : null}
 
       {/* Service Quality Score (SQS) Card */}
-      <Card className="border-border/60 shadow-none">
+      <Card className="glass-card card-hover-lift">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Quality Score</span>
@@ -402,19 +398,19 @@ export function CustomerBillingPanel({ username }: { username: string }) {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Invoices</div>
             <div className="mt-1 text-2xl font-semibold tracking-tight">{rows.length}</div>
           </CardContent>
         </Card>
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Open invoices</div>
             <div className="mt-1 text-2xl font-semibold">{openRows.length}</div>
           </CardContent>
         </Card>
-        <Card className="border-border/60 shadow-none">
+        <Card className="glass-card card-hover-lift">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Outstanding</div>
             <div className="mt-1 text-2xl font-semibold">
@@ -424,7 +420,7 @@ export function CustomerBillingPanel({ username }: { username: string }) {
         </Card>
       </div>
 
-      <Card className="border-border/60 shadow-none">
+      <Card className="glass-card card-hover-lift">
         <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/50 p-4">
           <div>
             <CardTitle>Customer invoices</CardTitle>
@@ -762,7 +758,7 @@ export function CustomerWalletPanel({ username }: { username: string }) {
         </DialogContent>
       </Dialog>
 
-      <Card className="border-border/60 shadow-none">
+      <Card className="glass-card card-hover-lift">
         <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/50 p-4">
           <div>
             <CardTitle className="flex items-center gap-2">

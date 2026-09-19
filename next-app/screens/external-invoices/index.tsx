@@ -47,6 +47,11 @@ import {
   PromiseToPayDialog,
 } from "./BulkDialogs";
 
+// Memoize the heavy presentational panels so a row-selection change (which re-renders the
+// screen) doesn't re-run their CountUpNumber animations / trend query.
+const MemoInvoiceMetricsPanel = React.memo(InvoiceMetricsPanel);
+const MemoInvoiceFiltersPanel = React.memo(InvoiceFiltersPanel);
+
 export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standard" | "reconciliation" }) {
   const { t } = useTranslation("screens");
   const { user } = useAuth();
@@ -60,7 +65,6 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     searchTerm,
     searchInput,
     refreshKey,
-    rowSelection,
     pageSize,
     isConfirmBulkPaidOpen,
     isConfirmBulkDeleteOpen,
@@ -79,8 +83,17 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     setIsDateFilterOpen,
     setDraftDateRange,
     incrementRefreshKey,
-    setRowSelection,
   } = useExternalInvoicesPageState(defaultPageSize);
+
+  // Row selection is owned by the table so ticking a checkbox does not re-render this
+  // page (and the whole invoice grid with it). We only mirror the selected invoices
+  // here for the bulk-actions bar and the bulk mutations.
+  const [selectedInvoices, setSelectedInvoices] = useState<ExternalInvoice[]>([]);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
+  const clearSelection = useCallback(() => setSelectionResetKey((k) => k + 1), []);
+  const handleSelectionChange = useCallback((invoices: ExternalInvoice[]) => {
+    setSelectedInvoices(invoices);
+  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const savedViewsKeys = useMemo(
     () => (mode === "reconciliation" ? ["q", "from", "to", "status", "age", "missing", "payDue", "ps", "sort"] : ["q", "from", "to", "status", "missing", "payDue", "ps", "sort"]),
@@ -317,17 +330,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     setCurrentPage(1);
   }, [setCurrentPage, updateSearchParams]);
 
-  const selectedIds = useMemo(() => {
-    return Object.keys(rowSelection)
-      .map((k) => parseInt(k, 10))
-      .filter((n) => Number.isFinite(n) && n > 0);
-  }, [rowSelection]);
-
-  const selectedInvoices = useMemo(() => {
-    const rows = tableData?.rows ?? [];
-    const idSet = new Set(selectedIds);
-    return rows.filter((inv) => idSet.has(inv.id));
-  }, [tableData?.rows, selectedIds]);
+  const selectedIds = useMemo(() => selectedInvoices.map((inv) => inv.id), [selectedInvoices]);
 
   const handleBulkSetPayDue = useCallback(() => {
     if (!bulkPayDueDate || selectedIds.length === 0) return;
@@ -337,11 +340,11 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         onSuccess: () => {
           setIsBulkPayDueOpen(false);
           setBulkPayDueDate("");
-          setRowSelection({});
+          clearSelection();
         },
       }
     );
-  }, [bulkPayDueDate, bulkUpdateInvoicesMutation, selectedIds, setRowSelection]);
+  }, [bulkPayDueDate, bulkUpdateInvoicesMutation, clearSelection, selectedIds]);
 
   const openReminderPreview = useCallback((targets: ExternalInvoice[]) => {
     if (!targets.length) {
@@ -358,6 +361,11 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     setIsReminderDialogOpen(false);
     await sendRemindersMutation.mutateAsync(ids);
   }, [reminderTargets, sendRemindersMutation]);
+
+  const handleSendReminderRequest = useCallback(
+    (invoice: ExternalInvoice) => openReminderPreview([invoice]),
+    [openReminderPreview]
+  );
 
   const handleSetWorkflowStage = useCallback((invoiceId: number, stage: WorkflowStage) => {
     workflowMutation.mutate({ invoiceId, stage });
@@ -405,14 +413,14 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
             setInvoiceAsPaidMutation.mutateAsync({ invoiceId: id, silent: true })
           )
       );
-      setRowSelection({});
+      clearSelection();
       notify.success(MESSAGES.externalInvoices.markingPaidTitle, `${selectedIds.length} invoice(s) marked as paid.`);
     } catch (e: unknown) {
       notify.error("Action failed", e instanceof Error ? e.message : "Some invoices could not be marked as paid.");
     } finally {
       setIsBulkPaidInProgress(false);
     }
-  }, [canPayExternalInvoices, selectedIds, setInvoiceAsPaidMutation, setIsBulkPaidInProgress, setRowSelection]);
+  }, [canPayExternalInvoices, clearSelection, selectedIds, setInvoiceAsPaidMutation, setIsBulkPaidInProgress]);
 
   const handleExportSelected = useCallback(async () => {
     if (!selectedInvoices.length) return;
@@ -462,7 +470,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     if (selectedIds.length === 0) return;
     try {
       const result = await bulkDeleteInvoicesMutation.mutateAsync(selectedIds);
-      setRowSelection({});
+      clearSelection();
 
       if (result.failed.length > 0) {
         const first = result.failed[0];
@@ -476,7 +484,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
     } catch (e: unknown) {
       notify.error(MESSAGES.externalInvoices.deleteFailedTitle, e instanceof Error ? e.message : MESSAGES.common.deleteFailed);
     }
-  }, [bulkDeleteInvoicesMutation, selectedIds, setRowSelection]);
+  }, [bulkDeleteInvoicesMutation, clearSelection, selectedIds]);
 
   const agingSummary = agingSummaryQuery.data;
   const selectedCount = selectedIds.length;
@@ -678,7 +686,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         </Button>
       </div>
 
-      <InvoiceMetricsPanel
+      <MemoInvoiceMetricsPanel
         metrics={metrics}
         isStatsLoading={isStatsLoading}
         canViewTotals={canViewTotals}
@@ -698,7 +706,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         />
       ) : null}
 
-      <InvoiceFiltersPanel
+      <MemoInvoiceFiltersPanel
         isReconciliationMode={isReconciliationMode}
         searchInput={searchInput}
         searchTerm={searchTerm}
@@ -753,7 +761,7 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
           onPromiseToPay={openPromiseDialog}
           onExportSelected={handleExportSelected}
           onDelete={() => setIsConfirmBulkDeleteOpen(true)}
-          onClearSelection={() => setRowSelection({})}
+          onClearSelection={clearSelection}
         />
       )}
 
@@ -766,11 +774,12 @@ export function ExternalInvoicesPageImpl({ mode = "standard" }: { mode?: "standa
         reconciliationFlags={reconciliationFlagsMap}
         rowPredicate={rowPredicate}
         onSetWorkflowStage={handleSetWorkflowStage}
-        onSendReminderRequest={(invoice) => openReminderPreview([invoice])}
+        onSendReminderRequest={handleSendReminderRequest}
         key={refreshKey}
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
+        onSelectionChange={handleSelectionChange}
+        selectionResetKey={selectionResetKey}
         hideBulkActions={true}
+        hideMetrics={true}
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
         totalItems={tableData?.total || 0}

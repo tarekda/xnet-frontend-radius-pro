@@ -73,6 +73,14 @@
     "title": "Servidores de acceso (NAS)",
     "subtitle": "Gestione entradas y configuración de NAS"
   },
+  "reports": {
+    "title": "Informes",
+    "subtitle": "Genere y exporte informes operativos, de facturación y de cobros."
+  },
+  "tickets": {
+    "title": "Tickets de soporte",
+    "subtitle": "Incidencias de abonados, asignación y seguimiento de SLA."
+  },
   "paymentDue": {
     "title": "Pagos vencidos",
     "subtitle": "Facturas externas impagadas o pendientes con fecha de vencimiento. Los elementos vencidos y próximos también aparecen en la campana de notificaciones (sin duplicados)."

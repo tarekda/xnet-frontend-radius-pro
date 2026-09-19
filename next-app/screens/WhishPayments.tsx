@@ -170,7 +170,7 @@ export default function WhishPaymentsPage() {
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3">
             <Select value={status} onValueChange={(v: any) => setStatus(v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter by claim status" className="w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -181,6 +181,7 @@ export default function WhishPaymentsPage() {
             </Select>
             <Input
               className="max-w-sm"
+              aria-label="Search Whish claims by username, reference, or invoice number"
               placeholder="Search username, reference, invoice #"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -188,6 +189,7 @@ export default function WhishPaymentsPage() {
             <div className="flex flex-wrap gap-2">
               <Input
                 className="max-w-xs font-mono"
+                aria-label="Whish reference to auto-match"
                 placeholder="Paste Whish ref to auto-match"
                 value={lookupRef}
                 onChange={(e) => setLookupRef(e.target.value)}

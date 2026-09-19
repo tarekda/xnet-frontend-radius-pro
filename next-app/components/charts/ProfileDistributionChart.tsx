@@ -9,8 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { User } from "@/types/api";
-
-const PIE_PALETTE = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
+import { getChartPalette, CHART_TOOLTIP_STYLE } from "@/lib/chartTheme";
 
 /** Pie chart of users per profile. Loaded via next/dynamic to keep recharts out of the main bundle. */
 const ProfileDistributionChart = ({ users }: { users: User[] }) => {
@@ -21,12 +20,13 @@ const ProfileDistributionChart = ({ users }: { users: User[] }) => {
       return acc;
     }, {} as Record<string, number>);
 
+    const palette = getChartPalette();
     return Object.entries(profileStats)
       .sort((a, b) => b[1] - a[1])
       .map(([name, value], index) => ({
         name,
         value,
-        fill: PIE_PALETTE[index % PIE_PALETTE.length],
+        fill: palette[index % palette.length],
       }));
   }, [users]);
 
@@ -51,12 +51,7 @@ const ProfileDistributionChart = ({ users }: { users: User[] }) => {
               ))}
             </Pie>
             <RechartsTooltip
-              contentStyle={{
-                backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                border: '1px solid rgba(75, 85, 99, 0.5)',
-                borderRadius: '8px',
-                color: 'white'
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
           </RechartsPieChart>
         </ResponsiveContainer>

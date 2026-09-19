@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import PageHeader from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { useCollectorBreakdown, useCollectedInvoicesList, useCollectedMetrics } from '@/hooks/useInvoices';
 import { useSearchParams } from "@/navigation/urlSearchParams";
 import { Calendar, DollarSign, Users, X } from 'lucide-react';
@@ -59,6 +58,58 @@ const Collections: React.FC = () => {
     const reconciled = parseMysqlBool(inv.cashReconciled);
     return pm === 'cash' && !reconciled;
   };
+
+  const renderPaymentMethod = (inv: CollectedInvoicesList['data'][number]) => {
+    if (
+      String(inv.paymentMethod ?? "").toLowerCase() === "wallet" ||
+      String((inv as any).paymentProvider ?? "").toLowerCase() === "wallet"
+    ) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-emerald-700 dark:text-emerald-400 font-medium">Own wallet</span>
+          {(inv as any).paymentReference ? (
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {(inv as any).paymentReference}
+            </span>
+          ) : null}
+        </div>
+      );
+    }
+    return inv.paymentMethod ?? "-";
+  };
+
+  const renderReconciled = (inv: CollectedInvoicesList['data'][number]) => (
+    <div className="flex flex-wrap items-center gap-2">
+      {parseMysqlBool(inv.cashReconciled) ? (
+        <>
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <span className="text-sm text-emerald-700">Yes</span>
+        </>
+      ) : (
+        <>
+          <XCircle className="h-4 w-4 text-slate-400" />
+          <span className="text-sm text-slate-600">No</span>
+        </>
+      )}
+      {inv.reconciledAt ? (
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {new Date(inv.reconciledAt).toLocaleString()}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const renderRowActions = (inv: CollectedInvoicesList['data'][number]) => (
+    <TableRowActions
+      actions={[
+        {
+          label: 'Set Reconciled',
+          onClick: () => onReconcile(inv.id),
+          disabled: !canReconcile(inv),
+        },
+      ]}
+    />
+  );
 
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -213,7 +264,7 @@ const Collections: React.FC = () => {
               <TableToolbar
                 label={`Invoices: ${(collectedList?.total ?? 0).toLocaleString()} • Page ${page} / ${(collectedList?.totalPages ?? 1)} • Page total: ${(collectedList?.pageTotalAmount ?? 0).toFixed(2)}`}
               />
-              <div className="overflow-x-auto">
+              <div className="hidden overflow-x-auto md:block">
                 <div className="min-w-[980px]">
                   <Table>
                     <TableHeader>
@@ -236,61 +287,56 @@ const Collections: React.FC = () => {
                           <TableCell>{inv?.username ?? '-'}</TableCell>
                           <TableCell>{inv?.fullName ?? '-'}</TableCell>
                           <TableCell>{inv.amount?.toFixed(2)}</TableCell>
-                          <TableCell>
-                            {String(inv.paymentMethod ?? "").toLowerCase() === "wallet" ||
-                            String((inv as any).paymentProvider ?? "").toLowerCase() === "wallet" ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                                  Own wallet
-                                </span>
-                                {(inv as any).paymentReference ? (
-                                  <span className="font-mono text-[11px] text-muted-foreground">
-                                    {(inv as any).paymentReference}
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : (
-                              inv.paymentMethod ?? "-"
-                            )}
-                          </TableCell>
+                          <TableCell>{renderPaymentMethod(inv)}</TableCell>
                           <TableCell>{inv.collectedBy ?? '-'}</TableCell>
                           <TableCell>{inv.collectedAt ? new Date(inv.collectedAt).toLocaleString() : '-'}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {parseMysqlBool(inv.cashReconciled) ? (
-                                <>
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                  <span className="text-sm text-emerald-700">Yes</span>
-                                </>
-                              ) : (
-                                <>
-                                  <XCircle className="h-4 w-4 text-slate-400" />
-                                  <span className="text-sm text-slate-600">No</span>
-                                </>
-                              )}
-                              {inv.reconciledAt ? (
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {new Date(inv.reconciledAt).toLocaleString()}
-                                </span>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <TableRowActions
-                              actions={[
-                                {
-                                  label: 'Set Reconciled',
-                                  onClick: () => onReconcile(inv.id),
-                                  disabled: !canReconcile(inv),
-                                },
-                              ]}
-                            />
-                          </TableCell>
+                          <TableCell>{renderReconciled(inv)}</TableCell>
+                          <TableCell>{renderRowActions(inv)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
+              </div>
+              <div className="space-y-3 md:hidden">
+                {collectedList?.data?.map((inv: CollectedInvoicesList['data'][number]) => (
+                  <Card key={inv.id} className="border-border/60 shadow-none">
+                    <CardContent className="space-y-3 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold">{inv.fullName ?? '-'}</div>
+                          <div className="truncate font-mono text-xs text-muted-foreground">
+                            @{inv.username ?? '-'} · #{inv.id}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="font-semibold">{inv.amount?.toFixed(2)}</div>
+                          <div className="text-xs text-muted-foreground">Amount</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Payment</div>
+                          <div className="truncate">{renderPaymentMethod(inv)}</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Collected by</div>
+                          <div className="truncate">{inv.collectedBy ?? '-'}</div>
+                        </div>
+                        <div className="col-span-2 min-w-0">
+                          <div className="text-xs text-muted-foreground">Collected at</div>
+                          <div className="truncate">
+                            {inv.collectedAt ? new Date(inv.collectedAt).toLocaleString() : '-'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                        <div className="min-w-0">{renderReconciled(inv)}</div>
+                        {renderRowActions(inv)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
               <TablePager
                 currentPage={page}

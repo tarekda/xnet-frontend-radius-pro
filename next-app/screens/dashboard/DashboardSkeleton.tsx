@@ -8,7 +8,7 @@ const DashboardSkeleton = () => (
     {/* Stats Grid Skeleton */}
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {[...Array(5)].map((_, i) => (
-        <Card key={i} className="rounded-lg border-border shadow-none">
+        <Card key={i}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3.5 pb-2">
             <Skeleton className="h-4 w-[100px]" />
             <Skeleton className="h-4 w-4 rounded-full" />
@@ -28,7 +28,7 @@ const DashboardSkeleton = () => (
 
     {/* System Health Skeleton */}
     <div className="grid w-full min-w-0 gap-3 md:grid-cols-2 lg:grid-cols-7">
-      <Card className="rounded-lg border-border shadow-none md:col-span-4">
+      <Card className="md:col-span-4">
         <CardHeader className="border-b border-border p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -52,7 +52,7 @@ const DashboardSkeleton = () => (
       </Card>
 
       {/* Recent Activity Skeleton */}
-      <Card className="rounded-lg border-border shadow-none md:col-span-3">
+      <Card className="md:col-span-3">
         <CardHeader className="border-b border-border p-4">
           <div className="flex items-center justify-between">
             <div>

@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -35,14 +36,10 @@ import {
   Search,
   PowerOff,
   Activity,
-  ArrowUpDown,
-  Radio,
-  Server,
   Filter,
   ShieldCheck,
-  HelpCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface LeakageAuditRecord {
   id: number;
@@ -91,11 +88,13 @@ export default function RevenueLeakageDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("detected");
+  const [remediateAllOpen, setRemediateAllOpen] = useState(false);
 
   // 1. Fetch Executive Summary KPIs
   const {
     data: summary,
     isLoading: isSummaryLoading,
+    isError: isSummaryError,
     refetch: refetchSummary,
   } = useQuery<LeakageSummary>({
     queryKey: ["revenueLeakageSummary"],
@@ -165,7 +164,7 @@ export default function RevenueLeakageDashboard() {
       const res = await apiClient.post(`/revenue-leakage/remediate/${id}`);
       return res.data;
     },
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenueLeakageSummary"] });
       queryClient.invalidateQueries({ queryKey: ["revenueLeakageAudits"] });
       toast({
@@ -213,6 +212,22 @@ export default function RevenueLeakageDashboard() {
     return [];
   }, [auditsData]);
 
+  const applyKpiFilter = (type: string, status: string) => {
+    setTypeFilter(type);
+    setStatusFilter(status);
+  };
+
+  const handleKpiKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    type: string,
+    status: string
+  ) => {
+    if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      applyKpiFilter(type, status);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -221,7 +236,7 @@ export default function RevenueLeakageDashboard() {
         subtitle="Autonomous cross-reconciliation of live MikroTik hardware sessions against FreeRADIUS accounting and billing invoices."
         icon={ShieldAlert}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -249,11 +264,7 @@ export default function RevenueLeakageDashboard() {
 
             <Button
               size="sm"
-              onClick={() => {
-                if (confirm("Are you sure you want to terminate ALL detected ghost and unpaid sessions on MikroTik?")) {
-                  remediateAllMutation.mutate();
-                }
-              }}
+              onClick={() => setRemediateAllOpen(true)}
               disabled={remediateAllMutation.isPending || (summary?.totalActiveLeaks || 0) === 0}
               className="flex items-center gap-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white shadow-md shadow-rose-500/20"
             >
@@ -264,15 +275,30 @@ export default function RevenueLeakageDashboard() {
         }
       />
 
+      {isSummaryError && (
+        <Card className="border-destructive/40 bg-destructive/5 shadow-none">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Failed to load the revenue leakage summary.
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetchSummary()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI Cards Grid (Clickable to Filter Table) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Card 1: Revenue at Risk */}
         <Card
-          onClick={() => {
-            setTypeFilter("ALL");
-            setStatusFilter("detected");
-          }}
-          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-rose-500/20 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:shadow-md hover:scale-[1.01] ${
+          role="button"
+          tabIndex={0}
+          onClick={() => applyKpiFilter("ALL", "detected")}
+          onKeyDown={(e) => handleKpiKeyDown(e, "ALL", "detected")}
+          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-rose-500/20 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             typeFilter === "ALL" && statusFilter === "detected" ? "ring-2 ring-rose-500 shadow-sm" : ""
           }`}
         >
@@ -286,10 +312,14 @@ export default function RevenueLeakageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-rose-700 dark:text-rose-300">
-              ${(Number(summary?.totalEstimatedLossUsd) || 0).toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {isSummaryLoading ? (
+                <Skeleton className="h-7 w-28" />
+              ) : (
+                `$${(Number(summary?.totalEstimatedLossUsd) || 0).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
               <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0" />
@@ -300,11 +330,11 @@ export default function RevenueLeakageDashboard() {
 
         {/* Card 2: Ghost Sessions */}
         <Card
-          onClick={() => {
-            setTypeFilter("GHOST_STALE_SESSION");
-            setStatusFilter("detected");
-          }}
-          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent hover:shadow-md hover:scale-[1.01] ${
+          role="button"
+          tabIndex={0}
+          onClick={() => applyKpiFilter("GHOST_STALE_SESSION", "detected")}
+          onKeyDown={(e) => handleKpiKeyDown(e, "GHOST_STALE_SESSION", "detected")}
+          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             typeFilter === "GHOST_STALE_SESSION" ? "ring-2 ring-purple-500 shadow-sm" : ""
           }`}
         >
@@ -318,7 +348,7 @@ export default function RevenueLeakageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-purple-700 dark:text-purple-300">
-              {summary?.activeGhostCount || 0}
+              {isSummaryLoading ? <Skeleton className="h-7 w-12" /> : summary?.activeGhostCount || 0}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
               Router online, missing in radacct
@@ -328,11 +358,11 @@ export default function RevenueLeakageDashboard() {
 
         {/* Card 3: Expired / Overdue Online */}
         <Card
-          onClick={() => {
-            setTypeFilter("EXPIRED_UNPAID_ONLINE");
-            setStatusFilter("detected");
-          }}
-          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:shadow-md hover:scale-[1.01] ${
+          role="button"
+          tabIndex={0}
+          onClick={() => applyKpiFilter("EXPIRED_UNPAID_ONLINE", "detected")}
+          onKeyDown={(e) => handleKpiKeyDown(e, "EXPIRED_UNPAID_ONLINE", "detected")}
+          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             typeFilter === "EXPIRED_UNPAID_ONLINE" ? "ring-2 ring-amber-500 shadow-sm" : ""
           }`}
         >
@@ -346,7 +376,7 @@ export default function RevenueLeakageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-amber-700 dark:text-amber-300">
-              {summary?.unpaidOnlineCount || 0}
+              {isSummaryLoading ? <Skeleton className="h-7 w-12" /> : summary?.unpaidOnlineCount || 0}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
               Past-due subscribers browsing
@@ -356,11 +386,11 @@ export default function RevenueLeakageDashboard() {
 
         {/* Card 4: Speed Profile Misalignment */}
         <Card
-          onClick={() => {
-            setTypeFilter("PROFILE_SPEED_MISALIGNMENT");
-            setStatusFilter("detected");
-          }}
-          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent hover:shadow-md hover:scale-[1.01] ${
+          role="button"
+          tabIndex={0}
+          onClick={() => applyKpiFilter("PROFILE_SPEED_MISALIGNMENT", "detected")}
+          onKeyDown={(e) => handleKpiKeyDown(e, "PROFILE_SPEED_MISALIGNMENT", "detected")}
+          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             typeFilter === "PROFILE_SPEED_MISALIGNMENT" ? "ring-2 ring-blue-500 shadow-sm" : ""
           }`}
         >
@@ -374,7 +404,7 @@ export default function RevenueLeakageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-blue-700 dark:text-blue-300">
-              {summary?.speedMisalignmentCount || 0}
+              {isSummaryLoading ? <Skeleton className="h-7 w-12" /> : summary?.speedMisalignmentCount || 0}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
               DB throttled, full speed on router
@@ -384,11 +414,11 @@ export default function RevenueLeakageDashboard() {
 
         {/* Card 5: Remediated Leaks */}
         <Card
-          onClick={() => {
-            setTypeFilter("ALL");
-            setStatusFilter("remediated");
-          }}
-          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:shadow-md hover:scale-[1.01] ${
+          role="button"
+          tabIndex={0}
+          onClick={() => applyKpiFilter("ALL", "remediated")}
+          onKeyDown={(e) => handleKpiKeyDown(e, "ALL", "remediated")}
+          className={`relative overflow-hidden cursor-pointer transition-all duration-200 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             statusFilter === "remediated" ? "ring-2 ring-emerald-500 shadow-sm" : ""
           }`}
         >
@@ -402,7 +432,7 @@ export default function RevenueLeakageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-              {summary?.remediatedCount || 0}
+              {isSummaryLoading ? <Skeleton className="h-7 w-12" /> : summary?.remediatedCount || 0}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
               Successfully disconnected
@@ -675,6 +705,29 @@ export default function RevenueLeakageDashboard() {
           </Table>
         </div>
       </Card>
+
+      <AlertDialog open={remediateAllOpen} onOpenChange={setRemediateAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm action</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to terminate ALL detected ghost and unpaid sessions on MikroTik?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                remediateAllMutation.mutate();
+                setRemediateAllOpen(false);
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

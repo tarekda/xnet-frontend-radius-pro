@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import { 
   LineChart, 
   Line, 
@@ -38,7 +40,7 @@ import {
   Wifi,
   Globe,
   LineChart as LineChartIcon,
-  Loader2,
+  BarChart3,
   DollarSign,
   AlertCircle,
 } from 'lucide-react';
@@ -59,13 +61,16 @@ const Analytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState('24h');
   
   // Fetch data using hooks
-  const { data: chartData, isLoading: chartLoading, refetch: refetchChart } = useAnalyticsData(timeRange);
-  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useAnalyticsMetrics();
-  const { data: authData, isLoading: authLoading } = useAuthDistribution();
-  const { data: geographicData, isLoading: geoLoading } = useGeographicData();
-  const { data: peakHoursData, isLoading: peakLoading } = usePeakHoursData();
+  const { data: chartData, isLoading: chartLoading, isError: chartError, refetch: refetchChart } = useAnalyticsData(timeRange);
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = useAnalyticsMetrics();
+  const { data: authData, isLoading: authLoading, isError: authError, refetch: refetchAuth } = useAuthDistribution();
+  const { data: geographicData, isLoading: geoLoading, isError: geoError, refetch: refetchGeo } = useGeographicData();
+  const { data: peakHoursData, isLoading: peakLoading, isError: peakError, refetch: refetchPeak } = usePeakHoursData();
   const onlineMetrics = useOnlineMetrics();
   const bandwidthQuery = useBandwidthMetrics();
+
+  // Surface a single inline error card when any core analytics query fails.
+  const coreQueryError = chartError || metricsError || authError || geoError || peakError;
 
   // Live series for this page (active users + rx/tx rate)
   const [activeUsersSeries, setActiveUsersSeries] = useState<Array<{ time: string; activeUsers: number }>>([]);
@@ -142,6 +147,9 @@ const Analytics: React.FC = () => {
   const handleRefresh = () => {
     refetchChart();
     refetchMetrics();
+    refetchAuth();
+    refetchGeo();
+    refetchPeak();
     bandwidthQuery.refetch();
     trendQuery.refetch();
     agingQuery.refetch();
@@ -163,9 +171,13 @@ const Analytics: React.FC = () => {
     return null;
   };
 
-  const LoadingSpinner = () => (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-8 w-8 animate-spin" />
+  const ChartSkeleton = () => (
+    <div className="space-y-3 p-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-[120px]" />
+        <Skeleton className="h-4 w-[60px]" />
+      </div>
+      <Skeleton className="h-[200px] w-full rounded-lg" />
     </div>
   );
 
@@ -189,7 +201,7 @@ const Analytics: React.FC = () => {
           </Select>
         )}
         actions={(
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <IconActionButton
               label="Refresh"
               onClick={handleRefresh}
@@ -204,6 +216,21 @@ const Analytics: React.FC = () => {
         )}
       />
 
+      {coreQueryError && (
+        <Card className="border-destructive/40 shadow-none">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Failed to load some analytics data. Charts may be incomplete.
+            </div>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Key Metrics */}
       <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -211,7 +238,7 @@ const Analytics: React.FC = () => {
           value={currentActiveUsers.toLocaleString()}
           icon={<Users className="h-4 w-4" />}
           footer={(
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
               {activeUsersGrowth >= 0 ? (
                 <TrendingUp className={`h-3 w-3 ${getGrowthColor(activeUsersGrowth)}`} />
               ) : (
@@ -232,11 +259,11 @@ const Analytics: React.FC = () => {
           footer={
             bandwidthQuery.isLoading ? null : (
               <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   {rxGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(rxGrowth)}`} />}
                   <span className={getGrowthColor(rxGrowth)}>{rxGrowth > 0 ? "+" : ""}{rxGrowth.toFixed(1)}% Rx</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                   {txGrowth >= 0 ? <TrendingUp className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} /> : <TrendingDown className={`h-3 w-3 ${getGrowthColor(txGrowth)}`} />}
                   <span className={getGrowthColor(txGrowth)}>{txGrowth > 0 ? "+" : ""}{txGrowth.toFixed(1)}% Tx</span>
                 </div>
@@ -251,7 +278,7 @@ const Analytics: React.FC = () => {
           icon={<Shield className="h-4 w-4" />}
           footer={
             metricsLoading ? null : (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 <TrendingUp className={`h-3 w-3 ${getGrowthColor(metrics?.authRateGrowth || 0)}`} />
                 <span className={getGrowthColor(metrics?.authRateGrowth || 0)}>
                   {metrics?.authRateGrowth && metrics.authRateGrowth > 0 ? "+" : ""}{metrics?.authRateGrowth || 0}% from last hour
@@ -267,7 +294,7 @@ const Analytics: React.FC = () => {
           icon={<AlertTriangle className="h-4 w-4" />}
           footer={
             metricsLoading ? null : (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 <TrendingDown className={`h-3 w-3 ${getGrowthColor(metrics?.failedAttemptsGrowth || 0)}`} />
                 <span className={getGrowthColor(metrics?.failedAttemptsGrowth || 0)}>
                   {metrics?.failedAttemptsGrowth && metrics.failedAttemptsGrowth > 0 ? "+" : ""}{metrics?.failedAttemptsGrowth || 0}% from last hour
@@ -312,7 +339,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {activeUsersSeries.length < 2 ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={activeUsersSeries}>
@@ -342,7 +369,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {bandwidthSeries.length < 2 ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={bandwidthSeries}>
@@ -384,7 +411,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {authLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : authData && Array.isArray(authData) && authData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -407,9 +434,11 @@ const Analytics: React.FC = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 )}
               </CardContent>
             </Card>
@@ -421,7 +450,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {chartLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : chartData && Array.isArray(chartData) && chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={chartData}>
@@ -435,9 +464,11 @@ const Analytics: React.FC = () => {
                     </ComposedChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 )}
               </CardContent>
             </Card>
@@ -453,7 +484,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {geoLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : geographicData && Array.isArray(geographicData) && geographicData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -476,9 +507,11 @@ const Analytics: React.FC = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 )}
               </CardContent>
             </Card>
@@ -490,7 +523,7 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {geoLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : geographicData && Array.isArray(geographicData) && geographicData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={geographicData} layout="horizontal">
@@ -502,9 +535,11 @@ const Analytics: React.FC = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 )}
               </CardContent>
             </Card>
@@ -519,7 +554,7 @@ const Analytics: React.FC = () => {
             </CardHeader>
             <CardContent>
               {peakLoading ? (
-                <LoadingSpinner />
+                <ChartSkeleton />
               ) : peakHoursData && Array.isArray(peakHoursData) && peakHoursData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={peakHoursData}>
@@ -532,9 +567,11 @@ const Analytics: React.FC = () => {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-64">
-                  <p className="text-muted-foreground">No data available</p>
-                </div>
+                <EmptyState
+                  icon={BarChart3}
+                  title="No data available"
+                  description="Try adjusting the time range or check back later."
+                />
               )}
             </CardContent>
           </Card>
@@ -601,11 +638,13 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {trendQuery.isLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : revenueTrendData.length === 0 ? (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <p>No billing data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No billing data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={revenueTrendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -640,11 +679,13 @@ const Analytics: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {agingQuery.isLoading ? (
-                  <LoadingSpinner />
+                  <ChartSkeleton />
                 ) : agingBuckets.length === 0 ? (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <p>No aging data available</p>
-                  </div>
+                  <EmptyState
+                    icon={BarChart3}
+                    title="No aging data available"
+                    description="Try adjusting the time range or check back later."
+                  />
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={agingBuckets} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

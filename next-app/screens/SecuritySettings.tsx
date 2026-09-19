@@ -108,6 +108,7 @@ export default function SecuritySettingsScreen() {
               <p className="text-xs text-muted-foreground break-all">{setup.otpauthUrl}</p>
               <Input
                 placeholder="Enter 6-digit code"
+                aria-label="Authenticator code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
               />
@@ -132,11 +133,13 @@ export default function SecuritySettingsScreen() {
               <Input
                 type="password"
                 placeholder="Current password"
+                aria-label="Current password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <Input
                 placeholder="Current MFA code"
+                aria-label="Current MFA code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
               />

@@ -4,8 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import SearchBar from "@/components/SearchBar";
 import FilterPills from "@/components/FilterPills";
 import SavedViews from "@/components/SavedViews";
-import { Filter } from "lucide-react";
+import { BarChart3, Filter, LayoutGrid, List } from "lucide-react";
 import type { SavedViewState } from "@/lib/savedViews";
+import type { ViewMode } from "./usersPageReducer";
+
+const VIEW_MODE_OPTIONS: Array<{ value: ViewMode; label: string; icon: React.ElementType }> = [
+  { value: "table", label: "Table", icon: List },
+  { value: "cards", label: "Cards", icon: LayoutGrid },
+  { value: "analytics", label: "Analytics", icon: BarChart3 },
+];
 
 export const UsersFiltersPanel = ({
   searchQuery,
@@ -22,6 +29,8 @@ export const UsersFiltersPanel = ({
   applySavedViewState,
   onViewSaved,
   onViewDeleted,
+  viewMode,
+  onViewModeChange,
 }: {
   searchQuery: string;
   onSearch: (term: string) => void;
@@ -37,6 +46,8 @@ export const UsersFiltersPanel = ({
   applySavedViewState: (state: SavedViewState) => void;
   onViewSaved: (name: string) => void;
   onViewDeleted: (name: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }) => {
   // Press "/" anywhere to jump to the search box.
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -132,7 +143,29 @@ export const UsersFiltersPanel = ({
                 </Button>
               </div>
             </div>
-            <div className="order-2 hidden min-w-0 flex-1 items-center justify-end md:flex">
+            <div className="order-2 flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+              <div
+                role="group"
+                aria-label="View mode"
+                className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/40 p-1"
+              >
+                {VIEW_MODE_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={viewMode === option.value ? "secondary" : "ghost"}
+                    size="sm"
+                    aria-pressed={viewMode === option.value}
+                    className={`h-7 gap-1.5 rounded-lg px-3 text-xs font-medium${
+                      option.value === "table" ? " hidden md:inline-flex" : ""
+                    }`}
+                    onClick={() => onViewModeChange(option.value)}
+                  >
+                    <option.icon className="h-3.5 w-3.5" />
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
               <div>
                 <SavedViews
                   storageKey="users.views"

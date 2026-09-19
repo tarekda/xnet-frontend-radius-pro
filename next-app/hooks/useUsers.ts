@@ -40,6 +40,13 @@ interface UserMutationData {
 type UserListFilters = {
   accountStatus?: string;
   connectivityStatus?: string;
+  /** Profile name to match (exact, case-insensitive). */
+  profile?: string;
+  quotaExceeded?: boolean;
+  hasMacAddress?: boolean;
+  hasContactInfo?: boolean;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
 };
 
 const fetchUsers = async (
@@ -55,6 +62,12 @@ const fetchUsers = async (
       : filters.connectivityStatus === 'offline'
         ? { online: false }
         : {}),
+    ...(filters.profile && filters.profile !== 'all' ? { profile: filters.profile } : {}),
+    ...(filters.quotaExceeded ? { quotaExceeded: true } : {}),
+    ...(filters.hasMacAddress ? { hasMacAddress: true } : {}),
+    ...(filters.hasContactInfo ? { hasContactInfo: true } : {}),
+    ...(filters.sortBy ? { sortBy: filters.sortBy } : {}),
+    ...(filters.sortDir ? { sortDir: filters.sortDir } : {}),
   };
   if (searchQuery) {
     const response = await apiClient.get<UsersApiResponse>('/radius/users/search', {
@@ -95,7 +108,7 @@ const useUsers = (initialPage = 1, pageSize = 10, filters: UserListFilters = {})
   const queryClient = useQueryClient();
 
   const usersQuery = useQuery<UsersApiResponse, Error>({
-    queryKey: ['users', currentPage, pageSize, searchQuery, filters.accountStatus ?? '', filters.connectivityStatus ?? ''],
+    queryKey: ['users', currentPage, pageSize, searchQuery, filters.accountStatus ?? '', filters.connectivityStatus ?? '', filters.profile ?? '', filters.quotaExceeded ? 'quota' : '', filters.hasMacAddress ? 'mac' : '', filters.hasContactInfo ? 'contact' : '', filters.sortBy ?? '', filters.sortDir ?? ''],
     queryFn: () => fetchUsers(currentPage, pageSize, searchQuery, filters),
   });
 

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Minus, Plus, Wallet } from "lucide-react";
+import { ArrowLeft, Loader2, Minus, Plus, RefreshCw, Wallet } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -260,6 +260,7 @@ export default function WalletLedgerPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. john.doe"
+              aria-label="Username"
               className="w-48"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -322,10 +323,19 @@ export default function WalletLedgerPage() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading ledger…
             </div>
+          ) : query.isError ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <span>Failed to load the wallet ledger.</span>
+              <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No wallet entries found.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[900px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
@@ -373,6 +383,34 @@ export default function WalletLedgerPage() {
                 </tbody>
               </table>
             </div>
+            <div className="space-y-3 md:hidden">
+              {rows.map((e) => (
+                <div key={e.id} className="space-y-2 rounded-lg border border-border/60 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant={e.entryType === "credit" ? "success" : "outline"}>{e.entryType}</Badge>
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatWhen(e.createdAt)}
+                    </span>
+                  </div>
+                  <div className="font-medium">{e.username}</div>
+                  <div
+                    className={`text-lg font-semibold ${
+                      e.entryType === "credit" ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"
+                    }`}
+                  >
+                    {e.entryType === "credit" ? "+" : "−"}
+                    {formatMoney(e.amount, e.currency)}
+                  </div>
+                  <div className="text-sm">
+                    <div>{refLabel(e)}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">WALLET-{e.id}</div>
+                  </div>
+                  {e.note ? <div className="break-words text-sm text-muted-foreground">{e.note}</div> : null}
+                  <div className="text-xs text-muted-foreground">By {e.createdBy || "—"}</div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
 
           {(query.data?.totalPages ?? 1) > 1 ? (

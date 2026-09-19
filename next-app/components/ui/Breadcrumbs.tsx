@@ -33,7 +33,10 @@ function resolveBreadcrumbHref(pathnames: string[], index: number): string {
   return `/${pathnames.slice(0, index + 1).join("/")}`;
 }
 
-const Breadcrumb: React.FC = () => {
+const Breadcrumb: React.FC<{ onToggleCopilot?: () => void; isCopilotOpen?: boolean }> = ({
+  onToggleCopilot,
+  isCopilotOpen,
+}) => {
   const pathname = usePathname();
   const pathnames = pathname.split("/").filter(Boolean);
 
@@ -85,7 +88,7 @@ const Breadcrumb: React.FC = () => {
           })}
         </ol>
       </nav>
-      <TopBarActions />
+      <TopBarActions onToggleCopilot={onToggleCopilot} isCopilotOpen={isCopilotOpen} />
     </div>
   );
 };

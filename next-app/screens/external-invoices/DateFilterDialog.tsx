@@ -1,5 +1,5 @@
 import type { DateRange } from "react-day-picker";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -67,21 +67,34 @@ export const DateFilterDialog = ({
           />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => applyPreset("today")}>
+            <button
+              type="button"
+              className={`${badgeVariants({ variant: "outline" })} cursor-pointer hover:bg-accent`}
+              onClick={() => applyPreset("today")}
+            >
               Today
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => applyPreset("last7d")}>
+            </button>
+            <button
+              type="button"
+              className={`${badgeVariants({ variant: "outline" })} cursor-pointer hover:bg-accent`}
+              onClick={() => applyPreset("last7d")}
+            >
               Last 7 Days
-            </Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => applyPreset("last30d")}>
+            </button>
+            <button
+              type="button"
+              className={`${badgeVariants({ variant: "outline" })} cursor-pointer hover:bg-accent`}
+              onClick={() => applyPreset("last30d")}
+            >
               Last 30 Days
-            </Badge>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Month</span>
             <Input
               type="month"
+              aria-label="Month"
               className="w-[160px]"
               value={monthValue}
               onChange={(e) => {

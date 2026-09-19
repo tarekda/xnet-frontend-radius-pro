@@ -53,6 +53,9 @@ export const FleetMetricsPanel = ({
     }),
     [fleet?.trends]
   );
+  // Without the fleet endpoint the counts below come from the loaded page only —
+  // say so rather than presenting page-scoped numbers as fleet-wide.
+  const usingPageFallback = !fleet && !isLoading;
 
   return (
     <Card className="overflow-hidden border-border/80 shadow-none">
@@ -62,6 +65,14 @@ export const FleetMetricsPanel = ({
             <div className="flex shrink-0 items-center gap-2">
               <UsersIcon className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-semibold">Fleet metrics</span>
+              {usingPageFallback ? (
+                <span
+                  className="rounded-md border border-amber-400/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                  title="Fleet-wide metrics are unavailable, so the counts shown cover the current page only."
+                >
+                  this page only
+                </span>
+              ) : null}
             </div>
             {metricsCollapsed ? (
               isLoading && !fleet ? (
@@ -79,6 +90,7 @@ export const FleetMetricsPanel = ({
                       value: fleet?.total ?? metrics.total,
                       icon: UsersIcon,
                       onClick: onClearAllFilters,
+                      hint: usingPageFallback ? "Current page only" : "All users in scope",
                     },
                     {
                       key: "online",
@@ -86,6 +98,7 @@ export const FleetMetricsPanel = ({
                       value: fleet?.online ?? metrics.online,
                       icon: Wifi,
                       onClick: () => onQuickFilter("online"),
+                      hint: usingPageFallback ? "Current page only" : "Live sessions across all users",
                     },
                     {
                       key: "suspended",
@@ -93,6 +106,7 @@ export const FleetMetricsPanel = ({
                       value: fleet?.byStatus?.suspended ?? metrics.suspended,
                       icon: UserX,
                       onClick: () => onQuickFilter("suspended"),
+                      hint: usingPageFallback ? "Current page only" : "All suspended users",
                     },
                     {
                       key: "quota",
@@ -100,6 +114,7 @@ export const FleetMetricsPanel = ({
                       value: fleet?.monthlyExceeded ?? metrics.quotaExceeded,
                       icon: Gauge,
                       onClick: onQuotaFilter,
+                      hint: usingPageFallback ? "Current page only" : "All users over their monthly quota",
                     },
                     {
                       key: "expiring",
@@ -107,12 +122,14 @@ export const FleetMetricsPanel = ({
                       value: metrics.expiringSoon,
                       icon: Clock,
                       onClick: () => onQuickFilter("expiring_soon"),
+                      hint: "Current page only (within the next 3 days)",
                     },
                   ].map((item) => (
                     <button
                       key={item.key}
                       type="button"
                       onClick={item.onClick}
+                      title={item.hint}
                       className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
                     >
                       <item.icon className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -219,7 +236,7 @@ export const FleetMetricsPanel = ({
                   <StatCard
                     label="Expiring soon"
                     value={<CountUpNumber value={metrics.expiringSoon} />}
-                    sublabel="Within next 3 days"
+                    sublabel="Within next 3 days · this page"
                     onClick={() => onQuickFilter("expiring_soon")}
                     icon={
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">

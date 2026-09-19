@@ -1,7 +1,6 @@
 "use client";
 
 import CommandPalette from "@/components/CommandPalette";
-import CopilotFloatingWidget from "@/components/CopilotFloatingWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import KeyboardShortcutsDialog from "@/components/KeyboardShortcutsDialog";
 import { Toaster } from "@/components/ui/toaster";
@@ -59,7 +58,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                         <KeyboardShortcutsDialog />
                         <CommandPalette />
                         {children}
-                        <CopilotFloatingWidget />
                         <DownloadQueueDock />
                         <WhatsAppInboundPaymentDock />
                       </WhatsAppInboundPaymentProvider>

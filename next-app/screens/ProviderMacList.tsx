@@ -83,7 +83,7 @@ export default function ProviderMacListPage() {
     enabled: hasAccess && Boolean(billingMonth),
   });
 
-  const providers = providersQuery.data ?? [];
+  const providers = useMemo(() => providersQuery.data ?? [], [providersQuery.data]);
   useEffect(() => {
     if (!providers.length) {
       setProvider("");

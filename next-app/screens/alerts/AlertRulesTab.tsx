@@ -54,7 +54,7 @@ const AlertRulesTab: React.FC<Props> = ({
           <Card key={rule.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className={`p-2 rounded-full ${getSeverityBgColor(rule.severity)}`}>
                     <Bell className={`h-4 w-4 ${getSeverityColor(rule.severity)}`} />
                   </div>
@@ -63,19 +63,19 @@ const AlertRulesTab: React.FC<Props> = ({
                     <CardDescription>{rule.description}</CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={rule.enabled ? "default" : "secondary"}>
                     {rule.enabled ? "Active" : "Disabled"}
                   </Badge>
                   <Badge variant="outline" className={getSeverityColor(rule.severity)}>
                     {rule.severity}
                   </Badge>
-                  <Button variant="ghost" size="sm" onClick={() => onEditRule(rule)}>
+                  <Button variant="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={() => onEditRule(rule)}>
                     <Edit className="h-4 w-4" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" aria-label={`Delete ${rule.name}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>

@@ -3,9 +3,9 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarClock, Search, Filter, Download, ArrowUpRight,
-  AlertTriangle, DollarSign, Clock, RefreshCw, Send, CheckCircle2,
-  FileText, ShieldAlert, ArrowRight, User
+  Search, Download,
+  RefreshCw, Send, CheckCircle2,
+  User
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/api/client";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/PageHeader";
+import QueryState from "@/components/QueryState";
 
 export interface AgingBucketTotal {
   count: number;
@@ -91,7 +92,7 @@ export default function AgingReport() {
   const [selectedBucket, setSelectedBucket] = useState<string>("all");
   const [graceDays, setGraceDays] = useState<number>(7);
 
-  const { data, isLoading, refetch } = useQuery<AgingSummaryResponse>({
+  const { data, isLoading, error, refetch } = useQuery<AgingSummaryResponse>({
     queryKey: ["invoices", "aging-summary", graceDays],
     queryFn: async () => {
       const resp = await apiClient.get("/invoices/external/aging-summary", {
@@ -102,15 +103,15 @@ export default function AgingReport() {
     staleTime: 30000,
   });
 
-  const bucketTotals = data?.bucketTotals ?? {
+  const bucketTotals = useMemo(() => data?.bucketTotals ?? {
     current: { count: 0, amount: 0 },
     "1_30": { count: 0, amount: 0 },
     "31_60": { count: 0, amount: 0 },
     "61_90": { count: 0, amount: 0 },
     "90_plus": { count: 0, amount: 0 },
-  };
+  }, [data?.bucketTotals]);
 
-  const rows = data?.overdueRows ?? [];
+  const rows = useMemo(() => data?.overdueRows ?? [], [data?.overdueRows]);
 
   // Categorize row bucket if not already assigned
   const categorizedRows = useMemo(() => {
@@ -168,7 +169,7 @@ export default function AgingReport() {
         title="Accounts Receivable Aging Report"
         subtitle="Track unpaid invoice aging buckets, credit exposure, and collection delinquency across all subscriber accounts."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
               <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
               Refresh
@@ -242,6 +243,7 @@ export default function AgingReport() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search subscriber, username, or invoice ID..."
+            aria-label="Search subscriber, username, or invoice ID"
             className="pl-9 h-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -264,7 +266,7 @@ export default function AgingReport() {
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               variant={selectedBucket === "all" ? "secondary" : "ghost"}
               size="sm"
@@ -303,19 +305,23 @@ export default function AgingReport() {
         </CardHeader>
 
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
-              Calculating aging buckets and receivables…
-            </div>
-          ) : filteredRows.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground">
-              <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2 opacity-60" />
-              <p className="font-semibold text-sm">No overdue invoices found</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {searchTerm ? "Try searching with different terms." : "All customer accounts are in good standing."}
-              </p>
-            </div>
-          ) : (
+          <QueryState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={!isLoading && !error && filteredRows.length === 0}
+            onRetry={() => refetch()}
+            loading={<div className="py-16 text-center text-muted-foreground text-sm">Calculating aging buckets and receivables…</div>}
+            errorTitle="Failed to load aging report"
+            empty={
+              <div className="py-16 text-center text-muted-foreground">
+                <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2 opacity-60" />
+                <p className="font-semibold text-sm">No overdue invoices found</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {searchTerm ? "Try searching with different terms." : "All customer accounts are in good standing."}
+                </p>
+              </div>
+            }
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -398,7 +404,7 @@ export default function AgingReport() {
                 </tbody>
               </table>
             </div>
-          )}
+          </QueryState>
         </CardContent>
       </Card>
     </div>

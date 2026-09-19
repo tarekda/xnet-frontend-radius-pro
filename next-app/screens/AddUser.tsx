@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProfiles, type Profile } from "@/hooks/useProfiles";
 import useUsers, { AccountStatus } from "@/hooks/useUsers";
-import { ArrowLeft, UserPlus, Eye, EyeOff, HardDrive, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, UserPlus, Eye, EyeOff, HardDrive, Calendar, DollarSign, Loader2 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { useTranslation } from "react-i18next";
 
@@ -27,12 +27,22 @@ const PlanCard: React.FC<{
   const price = profile.price ?? 0;
   return (
     <Card
-      className={`cursor-pointer border-border/80 shadow-none transition-[border-color,background-color] ${
+      role="radio"
+      aria-checked={selected}
+      aria-label={`${profile.profileName} plan`}
+      tabIndex={0}
+      className={`cursor-pointer border-border/80 shadow-none transition-[border-color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
         selected
           ? "border-primary bg-secondary"
           : "hover:border-primary/35 hover:bg-muted/30"
       }`}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <CardHeader className="p-4 pb-2">
         <CardTitle className="text-sm font-semibold">{profile.profileName}</CardTitle>
@@ -61,6 +71,8 @@ const PlanCard: React.FC<{
   );
 };
 
+type FieldErrors = { plan?: string; username?: string; password?: string };
+
 export default function AddUserPage() {
   const { t } = useTranslation("screens");
   const router = useRouter();
@@ -80,18 +92,20 @@ export default function AddUserPage() {
   const [email, setEmail] = useState("");
   const [expiresAtLocal, setExpiresAtLocal] = useState("");
   const [expiryFramedIp, setExpiryFramedIp] = useState("");
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const profileId = selectedProfileId ? parseInt(selectedProfileId, 10) : -1;
-    if (profileId < 1) {
-      notify.error("Select a plan", "Please choose a plan for the user.");
-      return;
-    }
-    if (!username.trim() || password.length < 8) {
-      notify.error("Password required", "Username and a password of at least 8 characters are required.");
-      return;
-    }
+
+    // Validate inline so the offending field is highlighted, not just a toast.
+    const nextErrors: FieldErrors = {};
+    if (profileId < 1) nextErrors.plan = "Choose a plan for this user.";
+    if (!username.trim()) nextErrors.username = "Username is required.";
+    if (password.length < 8) nextErrors.password = "Password must be at least 8 characters.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     createUserMutation.mutate(
       {
         username,
@@ -141,6 +155,9 @@ export default function AddUserPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Select a plan to assign to this user. Each plan includes daily and monthly quotas.
               </p>
+              {errors.plan ? (
+                <p className="mt-1 text-xs font-medium text-destructive" role="alert">{errors.plan}</p>
+              ) : null}
             </div>
             {profilesLoading ? (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -158,13 +175,16 @@ export default function AddUserPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Choose a plan">
                 {profiles.map((p) => (
                   <PlanCard
                     key={p.id}
                     profile={p}
                     selected={selectedProfileId === String(p.id)}
-                    onSelect={() => setSelectedProfileId(String(p.id ?? ""))}
+                    onSelect={() => {
+                      setSelectedProfileId(String(p.id ?? ""));
+                      setErrors((prev) => ({ ...prev, plan: undefined }));
+                    }}
                   />
                 ))}
               </div>
@@ -185,10 +205,21 @@ export default function AddUserPage() {
                     <Input
                       id="username"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        setErrors((prev) => ({ ...prev, username: undefined }));
+                      }}
                       placeholder="e.g. john_doe"
                       required
+                      aria-invalid={Boolean(errors.username)}
+                      aria-describedby={errors.username ? "username-error" : undefined}
+                      className={errors.username ? "border-destructive focus-visible:ring-destructive" : undefined}
                     />
+                    {errors.username ? (
+                      <p id="username-error" role="alert" className="text-xs font-medium text-destructive">
+                        {errors.username}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -197,10 +228,15 @@ export default function AddUserPage() {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setErrors((prev) => ({ ...prev, password: undefined }));
+                        }}
                         placeholder="••••••••"
                         required
-                        className="flex-1"
+                        aria-invalid={Boolean(errors.password)}
+                        aria-describedby={errors.password ? "password-error" : undefined}
+                        className={`flex-1 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       />
                       <Button
                         type="button"
@@ -212,6 +248,11 @@ export default function AddUserPage() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
+                    {errors.password ? (
+                      <p id="password-error" role="alert" className="text-xs font-medium text-destructive">
+                        {errors.password}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -311,7 +352,8 @@ export default function AddUserPage() {
                 </div>
 
                 <div className="flex gap-3 border-t border-border/70 pt-4">
-                  <Button type="submit" disabled={createUserMutation.isPending || !selectedProfileId}>
+                  <Button type="submit" disabled={createUserMutation.isPending}>
+                    {createUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {createUserMutation.isPending ? "Creating..." : "Create user"}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => router.push("/users/list")}>

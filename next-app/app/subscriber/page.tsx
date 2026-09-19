@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +25,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Alert from "@/components/ui/Alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Wifi,
   Lock,
@@ -162,6 +173,13 @@ function SubscriberPortalContent() {
   const [whishReference, setWhishReference] = useState("");
   const [reportAmount, setReportAmount] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [partialPayConfirmOpen, setPartialPayConfirmOpen] = useState(false);
+  const [pendingPartialPayInv, setPendingPartialPayInv] = useState<{
+    id: number;
+    totalAmount?: number;
+    amount?: number;
+    remainingDue?: number;
+  } | null>(null);
   const [voucherPin, setVoucherPin] = useState("");
   const [redeemingVoucher, setRedeemingVoucher] = useState(false);
   const [isBuyVoucherOpen, setIsBuyVoucherOpen] = useState(false);
@@ -476,14 +494,21 @@ function SubscriberPortalContent() {
       return;
     }
     const willPartial = bal + 1e-9 < due;
-    if (
-      willPartial &&
-      !window.confirm(
-        `Your balance (${formatMoney(bal, provider?.currency || "USD")}) is less than the remaining due (${formatMoney(due, provider?.currency || "USD")}). Pay what you can now?`
-      )
-    ) {
+    if (willPartial) {
+      setPendingPartialPayInv(inv);
+      setPartialPayConfirmOpen(true);
       return;
     }
+    await executeWalletPay(inv);
+  };
+
+  const executeWalletPay = async (inv: {
+    id: number;
+    totalAmount?: number;
+    amount?: number;
+    remainingDue?: number;
+  }) => {
+    if (!headers) return;
     setWalletPayingId(inv.id);
     setError(null);
     setNotice(null);
@@ -597,6 +622,7 @@ function SubscriberPortalContent() {
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     className="pl-9"
+                    aria-label="Username"
                     placeholder="Username"
                     autoComplete="username"
                     value={username}
@@ -609,6 +635,7 @@ function SubscriberPortalContent() {
                   <Input
                     className="pl-9"
                     type="password"
+                    aria-label="Password"
                     placeholder="Password"
                     autoComplete="current-password"
                     value={password}
@@ -767,6 +794,7 @@ function SubscriberPortalContent() {
               <Input
                 value={voucherPin}
                 onChange={(e) => setVoucherPin(e.target.value.toUpperCase())}
+                aria-label="Voucher PIN"
                 placeholder="Voucher PIN (e.g. XNET-8921-9012)"
                 className="font-mono text-sm tracking-wider font-semibold uppercase bg-background"
                 disabled={redeemingVoucher}
@@ -914,10 +942,12 @@ function SubscriberPortalContent() {
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                   <div className="shrink-0 rounded-2xl border bg-white p-3 shadow-sm">
                     {!qrBroken ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={qrImageUrl}
                         alt={provider?.qrLabel || "Whish payment QR"}
+                        width={176}
+                        height={176}
+                        unoptimized
                         className="h-44 w-44 object-contain"
                         onError={() => setQrBroken(true)}
                       />
@@ -1158,10 +1188,12 @@ function SubscriberPortalContent() {
                   <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
                     <div className="mx-auto rounded-2xl border bg-white p-3 shadow-sm dark:bg-white">
                       {!qrBroken ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={qrImageUrl}
                           alt={provider?.qrLabel || "Whish payment QR"}
+                          width={192}
+                          height={192}
+                          unoptimized
                           className="h-44 w-44 object-contain sm:h-48 sm:w-48"
                           onError={() => setQrBroken(true)}
                         />
@@ -1432,6 +1464,33 @@ function SubscriberPortalContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={partialPayConfirmOpen} onOpenChange={setPartialPayConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm action</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPartialPayInv
+                ? `Your balance (${formatMoney(Number(me?.walletBalance ?? 0), provider?.currency || "USD")}) is less than the remaining due (${formatMoney(Number(pendingPartialPayInv.remainingDue ?? pendingPartialPayInv.totalAmount ?? pendingPartialPayInv.amount ?? 0), provider?.currency || "USD")}). Pay what you can now?`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingPartialPayInv) {
+                  void executeWalletPay(pendingPartialPayInv);
+                }
+                setPartialPayConfirmOpen(false);
+                setPendingPartialPayInv(null);
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -208,52 +208,81 @@ export default function AuditLogPage() {
               No audit events match these filters.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[900px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Actor</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Details</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map(({ entry, actor, targets, action, title, detail }) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {formatTimestamp(entry.timestamp)}
-                      </TableCell>
-                      <TableCell className="font-medium">{actor}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono font-normal">
-                          {action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {targets.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {targets.slice(0, 3).map((target) => (
-                              <Button key={target} variant="link" size="sm" className="h-auto p-0" asChild>
-                                <Link href={`/users/${encodeURIComponent(target)}`}>{target}</Link>
-                              </Button>
-                            ))}
-                            {targets.length > 3 ? <Badge variant="secondary">+{targets.length - 3}</Badge> : null}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[360px]">
-                        <div className="font-medium">{title}</div>
-                        {detail ? <div className="truncate text-xs text-muted-foreground">{detail}</div> : null}
-                      </TableCell>
+            <>
+              <div className="hidden overflow-x-auto rounded-lg border md:block">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>When</TableHead>
+                      <TableHead>Actor</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Details</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map(({ entry, actor, targets, action, title, detail }) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {formatTimestamp(entry.timestamp)}
+                        </TableCell>
+                        <TableCell className="font-medium">{actor}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono font-normal">
+                            {action}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {targets.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {targets.slice(0, 3).map((target) => (
+                                <Button key={target} variant="link" size="sm" className="h-auto p-0" asChild>
+                                  <Link href={`/users/${encodeURIComponent(target)}`}>{target}</Link>
+                                </Button>
+                              ))}
+                              {targets.length > 3 ? <Badge variant="secondary">+{targets.length - 3}</Badge> : null}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[360px]">
+                          <div className="font-medium">{title}</div>
+                          {detail ? <div className="truncate text-xs text-muted-foreground">{detail}</div> : null}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="space-y-3 md:hidden">
+                {rows.map(({ entry, actor, targets, action, title, detail }) => (
+                  <div key={entry.id} className="space-y-2 rounded-lg border p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium">{actor}</div>
+                      <div className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+                        {formatTimestamp(entry.timestamp)}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="font-mono font-normal">
+                      {action}
+                    </Badge>
+                    <div className="font-medium">{title}</div>
+                    {detail ? <div className="text-xs text-muted-foreground">{detail}</div> : null}
+                    {targets.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {targets.slice(0, 3).map((target) => (
+                          <Button key={target} variant="link" size="sm" className="h-auto p-0" asChild>
+                            <Link href={`/users/${encodeURIComponent(target)}`}>{target}</Link>
+                          </Button>
+                        ))}
+                        {targets.length > 3 ? <Badge variant="secondary">+{targets.length - 3}</Badge> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

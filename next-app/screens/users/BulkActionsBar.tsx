@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import IconActionButton from "@/components/IconActionButton";
 import { useAuth } from "@/context/AuthContext";
 import { canAny } from "@/lib/permissions";
-import { Download, RefreshCw, Trash2, UserCheck, UserX } from "lucide-react";
+import { CalendarPlus, Download, RefreshCw, Trash2, UserCheck, UserX } from "lucide-react";
 import type { User } from "@/types/api";
 
 export const BulkActionsBar = ({
@@ -47,6 +47,13 @@ export const BulkActionsBar = ({
 
         {selectedUsers.size > 0 && (
           <div className="flex w-full flex-wrap gap-1.5 sm:w-auto sm:ml-4">
+            <IconActionButton
+              label={!canManageUsers ? manageUsersReason : "Renew selected subscriptions by 1 month"}
+              onClick={() => onBulkAction("renew")}
+              disabled={!canManageUsers || isBulkActionInProgress}
+              icon={<CalendarPlus className="h-4 w-4" />}
+              className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+            />
             <IconActionButton
               label={!canManageUsers ? manageUsersReason : "Suspend selected users"}
               onClick={() => onBulkAction("suspend")}

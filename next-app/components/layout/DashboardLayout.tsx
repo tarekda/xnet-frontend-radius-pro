@@ -9,7 +9,7 @@ import SystemHealthStrip from "@/components/SystemHealthStrip";
 import ExternalInvoicePayDueInboxSync from "@/components/ExternalInvoicePayDueInboxSync";
 import GlobalCommandPalette from "@/components/GlobalCommandPalette";
 import { RadiusCopilot } from "@/components/RadiusCopilot";
-import { Bot } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { density } = useAppPreferences();
@@ -17,6 +17,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  // The drawer declares aria-modal, so keyboard focus must not escape into the page behind it.
+  useFocusTrap(drawerRef, drawerMounted);
 
   // Handle smooth open/close with CSS transition
   const openCopilot = () => {
@@ -81,36 +85,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <GlobalCommandPalette />
           <div className="w-full">
-            <Breadcrumb />
+            <Breadcrumb onToggleCopilot={toggleCopilot} isCopilotOpen={copilotOpen} />
             <div className="w-full">{children}</div>
           </div>
         </main>
       </div>
 
-      {/* Floating AI Copilot FAB — breathing glow pulse */}
-      <div className="fixed bottom-5 right-5 z-40">
-        <button
-          type="button"
-          id="radius-copilot-fab"
-          onClick={toggleCopilot}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-full text-white text-xs font-bold",
-            "bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500",
-            "hover:from-indigo-500 hover:to-sky-400",
-            "border border-indigo-400/40",
-            "hover:scale-105 active:scale-95 transition-all duration-200",
-            "animate-glow-pulse",
-            copilotOpen && "from-indigo-700 to-sky-600 scale-105"
-          )}
-          title="Open Radius AI Network Ops Copilot"
-          aria-expanded={copilotOpen}
-          aria-controls="radius-copilot-drawer"
-        >
-          <Bot className="w-4 h-4 text-white" />
-          <span className="font-semibold tracking-wide">AI Copilot</span>
-          <span className={cn("w-2 h-2 rounded-full", copilotOpen ? "bg-sky-300" : "bg-emerald-400 animate-pulse")} />
-        </button>
-      </div>
+      {/* The launcher now lives in the header action row (see TopBarActions). */}
 
       {/* Backdrop overlay */}
       {drawerMounted && (
@@ -128,13 +109,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {drawerMounted && (
         <div
           id="radius-copilot-drawer"
+          ref={drawerRef}
           role="dialog"
           aria-modal="true"
           aria-label="Radius AI Copilot"
+          tabIndex={-1}
           className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-lg",
             "bg-[#080c14]/95 border-l border-slate-800 shadow-2xl backdrop-blur-xl",
-            "flex flex-col",
+            "flex flex-col outline-none",
             "transition-transform duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
             drawerVisible ? "translate-x-0" : "translate-x-full"
           )}

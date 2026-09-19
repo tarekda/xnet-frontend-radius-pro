@@ -15,14 +15,13 @@ import {
   FaServer,
   FaUserShield,
   FaBell,
-  FaChevronDown,
   FaChevronRight,
 } from 'react-icons/fa';
 import { useSidebar } from './Sidebar.context';
 import { useIsMobile } from '../../../hooks/use-mobile';
 import { Button } from '../button';
 import { cn } from '@/lib/utils';
-import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket, Radio, Clock, TrendingUp, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket, Radio, Clock, TrendingUp, CheckCircle2, ShieldAlert, FileBarChart, LifeBuoy } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from '@/lib/permissions';
 import { getAppVersionInfo } from '@/lib/version';
@@ -105,6 +104,9 @@ const Sidebar: React.FC = () => {
     </div>
   );
 
+  // NOTE: SidebarContent is invoked as a plain function (see `{SidebarContent()}` below), not rendered
+  // as a component, so its hooks live on Sidebar and the exhaustive-deps rule misclassifies
+  // Sidebar-scoped values (pathname/isMobile/isCollapsed) as outer scope. Those deps are intentional.
   const SidebarContent = () => {
     const { user } = useAuth();
     const [navQuery, setNavQuery] = useState<string>("");
@@ -127,7 +129,7 @@ const Sidebar: React.FC = () => {
 
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [isMobile, isCollapsed]);
+    }, [isMobile, isCollapsed]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const canSeeLiveSessions = useMemo(
       () => canAny(user, ["users.online.view", "reseller.users.view"]),
@@ -211,17 +213,17 @@ const Sidebar: React.FC = () => {
     const isUsersRoute = useMemo(() => {
       const p = pathname || "";
       return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit") || p.startsWith("/external-users");
-    }, [pathname]);
+    }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const isSystemRoute = useMemo(() => {
       const p = pathname || "";
       return p.startsWith("/nas") || p.startsWith("/settings") || p.startsWith("/integrations");
-    }, [pathname]);
+    }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const isAdminRoute = useMemo(() => {
       const p = pathname || "";
       return p.startsWith("/analytics") || p.startsWith("/alerts") || p.startsWith("/expenses") || p.startsWith("/auth-users") || p.startsWith("/backups") || p.startsWith("/access");
-    }, [pathname]);
+    }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const isBillingRoute = useMemo(() => {
       const p = pathname || "";
@@ -238,7 +240,7 @@ const Sidebar: React.FC = () => {
         p.startsWith("/revenue-leakage") ||
         p.startsWith("/admin/company-wallet")
       );
-    }, [pathname]);
+    }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [isUsersGroupOpen, setIsUsersGroupOpen] = useState<boolean>(isUsersRoute);
     const [isSystemGroupOpen, setIsSystemGroupOpen] = useState<boolean>(isSystemRoute);
@@ -263,12 +265,14 @@ const Sidebar: React.FC = () => {
       { to: '/', label: 'Home', icon: FaHome, navPerm: "ui.sidebar.home.show" },
       { to: '/dashboard', label: 'Dashboard', icon: FaTachometerAlt, navPerm: "ui.sidebar.dashboard.show" },
       { to: '/noc', label: 'NOC Wallboard', icon: Radio, navPerm: "ui.sidebar.dashboard.show" },
+      { to: '/tickets', label: 'Support Tickets', icon: LifeBuoy, perm: 'support.tickets.view', navPerm: "ui.sidebar.support.tickets.show" },
       { to: '/about', label: 'About & Help', icon: CircleHelp, navPerm: "ui.sidebar.home.show" },
     ];
 
     const adminItems = [
       { to: '/analytics', label: 'Analytics', icon: BarChart3, perm: 'admin.analytics.view', navPerm: "ui.sidebar.admin.analytics.show", feature: "analytics" },
       { to: '/analytics/revenue', label: 'Revenue Insights', icon: TrendingUp, perm: 'admin.analytics.view', navPerm: "ui.sidebar.admin.analytics.show", feature: "analytics" },
+      { to: '/reports', label: 'Reports', icon: FileBarChart, perm: 'admin.reports.view', navPerm: "ui.sidebar.admin.reports.show" },
       { to: '/alerts', label: 'Alerts', icon: FaBell, perm: 'admin.alerts.view', navPerm: "ui.sidebar.admin.alerts.show", feature: "alerts" },
       { to: '/expenses', label: 'Expenses', icon: Receipt, perm: 'admin.expenses.view', navPerm: "ui.sidebar.admin.expenses.show" },
       { to: '/auth-users', label: 'Auth Users', icon: FaUserShield, perm: 'admin.authUsers.manage', navPerm: "ui.sidebar.admin.authUsers.show" },
@@ -402,12 +406,6 @@ const Sidebar: React.FC = () => {
         billingItemsFiltered.push(_billingRaw[i]);
       }
     }
-
-    const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-      <div className={cn("px-4 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45", !isMobile && isCollapsed && "hidden")}>
-        {children}
-      </div>
-    );
 
     const NavItem = (props: {
       to: string;
@@ -814,6 +812,14 @@ const Sidebar: React.FC = () => {
       )}
 
       {/* Sidebar Container */}
+      {/* Mobile backdrop overlay */}
+      {isMobile && isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity duration-200"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <div
         id="sidebar"
         className={cn(

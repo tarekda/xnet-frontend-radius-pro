@@ -58,7 +58,7 @@ export default function GlobalTrafficMap() {
       globeEl.current.controls().autoRotateSpeed = 0.5;
       globeEl.current.pointOfView({ lat: 25, lng: 35, altitude: 2 });
     }
-  }, [globeEl.current]);
+  }, []);
 
   if (!isClient || !Globe) {
     return (

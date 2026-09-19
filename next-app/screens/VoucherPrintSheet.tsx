@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Printer, ArrowLeft, Wifi, ShieldCheck, QrCode } from "lucide-react";
+import { Printer, ArrowLeft, Wifi, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import type { VoucherBatch, VoucherCard } from "./Vouchers";
 
 export default function VoucherPrintSheet() {
@@ -30,6 +30,59 @@ export default function VoucherPrintSheet() {
   const handlePrint = () => {
     window.print();
   };
+
+  if (batchQuery.isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm">Loading voucher print sheet…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (batchQuery.isError) {
+    return (
+      <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 text-center shadow-md">
+          <AlertTriangle className="mx-auto h-10 w-10 text-red-500 mb-3" />
+          <h2 className="text-base font-semibold">Failed to load voucher batch</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {batchQuery.error?.message || "The voucher batch could not be loaded."}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" onClick={() => router.push("/vouchers")}>
+              <ArrowLeft className="h-4 w-4 mr-1.5" />
+              Back to Vouchers
+            </Button>
+            <Button onClick={() => batchQuery.refetch()}>
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!batch) {
+    return (
+      <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 text-center shadow-md">
+          <Printer className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+          <h2 className="text-base font-semibold">No voucher batch found</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            The requested voucher batch does not exist or has no print data.
+          </p>
+          <Button variant="outline" className="mt-5" onClick={() => router.push("/vouchers")}>
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back to Vouchers
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 p-4 sm:p-8 print:p-0 print:bg-white print:text-black">
@@ -83,7 +136,7 @@ export default function VoucherPrintSheet() {
                 : "sm:grid-cols-2 md:grid-cols-3 print:grid-cols-3"
           }`}
         >
-          {cards.map((card, idx) => (
+          {cards.map((card) => (
             <div
               key={card.id}
               className="relative rounded-xl border-2 border-neutral-300 dark:border-neutral-700 print:border-black bg-white dark:bg-neutral-950 p-4 shadow-sm flex flex-col justify-between overflow-hidden print:shadow-none print:break-inside-avoid"

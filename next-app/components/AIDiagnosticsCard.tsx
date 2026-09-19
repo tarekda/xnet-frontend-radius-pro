@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, CheckCircle2, RefreshCw, Zap, ShieldAlert, Wifi } from "lucide-react";
+import { Sparkles, AlertTriangle, CheckCircle2, RefreshCw, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

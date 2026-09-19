@@ -1,5 +1,6 @@
 // ExternalInvoicesTable.tsx
 import React from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "@/navigation/urlSearchParams";
 import {
     OnChangeFn,
@@ -11,10 +12,9 @@ import { useExternalInvoices, type InvoiceMetrics } from "@/hooks/useExternalInv
 
 // import { Button } from "@/components/ui/button"; // not used here
 import ExternalInvoiceCard from "@/components/ExternalInvoiceCard";
-import ExternalInvoiceDetailView from "@/components/ExternalInvoiceDetailView";
-import DesktopTable from "@/components/DesktopTable"; // <— the TanStack table you wrote earlier
+import DesktopTable, { EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS } from "@/components/DesktopTable"; // <— the TanStack table you wrote earlier
 import type { ExternalInvoice } from "@/types/api";
-import { groupExternalInvoices, type ExternalInvoiceGroup } from "@/lib/externalInvoiceGrouping";
+import { groupExternalInvoices, mergePinnedRows, type ExternalInvoiceGroup, type PinnedInvoiceRow } from "@/lib/externalInvoiceGrouping";
 import type { ReconciliationFlag, WorkflowStage } from "@/lib/externalInvoiceInsights";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -22,7 +22,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/context/AuthContext";
 import { can } from "@/lib/permissions";
 import EmptyState from "@/components/EmptyState";
-import { FileText, TrendingUp, DollarSign, Receipt, AlertCircle, Trash2, Calendar, Edit3, X } from "lucide-react";
+import { FileText, TrendingUp, DollarSign, Receipt, AlertCircle, Trash2, Calendar, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -30,7 +30,13 @@ import TablePager from "@/components/TablePager";
 import QueryState from "@/components/QueryState";
 import { useExternalInvoiceRealtimeSync } from "@/hooks/useExternalInvoiceRealtimeSync";
 import { getCurrentMonthDateRange } from "@/lib/externalInvoiceDateUtils";
-import BillingMonthSelector from "@/components/BillingMonthSelector";
+
+// The detail view pulls in a heavy dialog/tabs/calendar tree. Load it on demand so
+// opening the invoices list stays cheap.
+const ExternalInvoiceDetailView = dynamic(
+    () => import("@/components/ExternalInvoiceDetailView"),
+    { ssr: false }
+);
 
 const initialPage = 1;
 
@@ -63,6 +69,16 @@ type Props = {
     /** When provided, the empty state offers a "Clear filters" action. */
     onClearFilters?: () => void;
     hasActiveFilters?: boolean;
+    /** When true, suppress this component's built-in KPI cards (the parent renders its own). */
+    hideMetrics?: boolean;
+    /**
+     * Notifies the parent whenever the selected invoices change. Lets containers offer
+     * bulk actions without controlling the selection (which would re-render the page
+     * on every checkbox tick).
+     */
+    onSelectionChange?: (invoices: ExternalInvoice[]) => void;
+    /** Increment to clear the current selection (used once a bulk action completes). */
+    selectionResetKey?: number;
     /**
      * Notifies the parent whenever the table's data changes, so containers can
      * derive metrics/selection info without mounting a duplicate query.
@@ -89,6 +105,9 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     totalItems,
     onClearFilters,
     hasActiveFilters = false,
+    hideMetrics = false,
+    onSelectionChange,
+    selectionResetKey = 0,
     onDataLoaded,
 }) => {
     const { user } = useAuth();
@@ -106,7 +125,8 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const missingParam = (searchParams.get('missing') === 'all' ? undefined : searchParams.get('missing')) || undefined;
     const payDueParam = (searchParams.get('payDue') === 'all' ? undefined : searchParams.get('payDue')) || undefined;
 
-    const handleSelectMonthRange = React.useCallback((from: string, to: string) => {
+    // Kept as a hook call to preserve hook ordering; the callback is currently unused.
+    React.useCallback((from: string, to: string) => {
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.set("from", from);
@@ -171,6 +191,28 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         prevFilterKeyRef.current = filterKey;
     }, [filterKey, setCurrentPage]);
 
+    /* ── just-paid rows held in place ───────────────────────── */
+    // A row that gets settled stops matching an active status filter, so the
+    // post-pay refetch would drop it and shift every row below it up. Hold such
+    // rows at their previous position (rendered as paid) until the filters
+    // change, the operator pages away, or the page is refreshed — the parent
+    // remounts this component on Refresh, which clears the pins.
+    const [pinnedPaid, setPinnedPaid] = React.useState<PinnedInvoiceRow[]>([]);
+    const pinViewKey = [search, filterKey, searchParams.get('sort') ?? ''].join('|');
+    const prevPinViewKeyRef = React.useRef(pinViewKey);
+    React.useEffect(() => {
+        if (prevPinViewKeyRef.current === pinViewKey) return;
+        prevPinViewKeyRef.current = pinViewKey;
+        setPinnedPaid([]);
+    }, [pinViewKey]);
+
+    // The latest rendered grouping, readable from mutation callbacks that were
+    // created earlier in this render pass than the grouping itself.
+    const groupedRowsRef = React.useRef<{
+        rows: ExternalInvoice[];
+        groups?: Map<number, ExternalInvoiceGroup>;
+    }>({ rows: [] });
+
     const onDataLoadedRef = React.useRef(onDataLoaded);
     onDataLoadedRef.current = onDataLoaded;
     React.useEffect(() => {
@@ -197,13 +239,41 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({});
     const [selectedInvoice, setSelected] = React.useState<ExternalInvoice | null>(null);
     const [invoiceToDelete, setInvoiceToDelete] = React.useState<number | null>(null);
-    const [bulkUpdateDueDate, setBulkUpdateDueDate] = React.useState<string | null>(null);
+    // Kept as a hook call to preserve hook ordering; state is currently unused.
+    React.useState<string | null>(null);
     const { toast } = useToast();
     
 
     // Use external row selection if provided, otherwise use internal
     const rowSelection = externalRowSelection ?? internalRowSelection;
     const setRowSelection = externalOnRowSelectionChange ?? setInternalRowSelection;
+
+    // Clear the selection when the parent bumps selectionResetKey (e.g. after a bulk action).
+    const isInitialResetRef = React.useRef(true);
+    React.useEffect(() => {
+        if (isInitialResetRef.current) {
+            isInitialResetRef.current = false;
+            return;
+        }
+        setRowSelection({});
+    }, [selectionResetKey, setRowSelection]);
+
+    // Report the selected invoices upward so containers can offer bulk actions without
+    // owning (and thus re-rendering on) the selection state.
+    const selectedIds = React.useMemo(
+        () =>
+            Object.keys(rowSelection)
+                .map((k) => parseInt(k, 10))
+                .filter((n) => Number.isFinite(n) && n > 0),
+        [rowSelection]
+    );
+    const onSelectionChangeRef = React.useRef(onSelectionChange);
+    onSelectionChangeRef.current = onSelectionChange;
+    React.useEffect(() => {
+        if (!onSelectionChangeRef.current) return;
+        const idSet = new Set(selectedIds);
+        onSelectionChangeRef.current((data?.data.data ?? []).filter((inv) => idSet.has(inv.id)));
+    }, [selectedIds, data]);
 
     /* ── table callbacks in hook‑friendly types ────────────── */
     const onSortingChange: OnChangeFn<SortingState> = (u) => setSorting(u);
@@ -214,7 +284,31 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         if (!canPay) return;
         const prev = (data?.data.data ?? []).find((x) => x.id === id)?.status || 'pending';
         setInvoiceAsPaidMutation.mutate({ invoiceId: id, silent: true }, {
-            onSuccess: () => {
+            onSuccess: (result) => {
+                // Pin the affected row before the refetch drops it from a filtered list.
+                const { rows: displayed, groups } = groupedRowsRef.current;
+                const index = displayed.findIndex(
+                    (row) =>
+                        row.id === id ||
+                        (groups?.get(row.id)?.lines ?? []).some((line) => line.invoice.id === id)
+                );
+                const shown = index >= 0 ? displayed[index] : undefined;
+                if (shown) {
+                    const settled = result?.data;
+                    setPinnedPaid((pins) => [
+                        ...pins.filter((pin) => pin.row.id !== shown.id),
+                        {
+                            page: currentPage,
+                            index,
+                            row: {
+                                ...shown,
+                                ...(settled && settled.id === shown.id ? settled : null),
+                                status: 'paid',
+                                remainingDue: 0,
+                            },
+                        },
+                    ]);
+                }
                 refetch();
                 toast({
                     title: `Invoice #${id} marked as paid`,
@@ -279,14 +373,13 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         updateInvoiceMutation.mutate({ invoiceId: id, invoiceData: { [field]: value } as Partial<ExternalInvoice> });
     };
 
+    const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+    const [bulkDeleteIds, setBulkDeleteIds] = React.useState<number[]>([]);
     const handleBulkDelete = () => {
         const ids = Object.keys(rowSelection).map(Number);
         if (ids.length === 0) return;
-        if (confirm(`Are you sure you want to delete ${ids.length} invoices?`)) {
-            bulkDeleteInvoicesMutation.mutate(ids, {
-                onSuccess: () => setRowSelection({})
-            });
-        }
+        setBulkDeleteIds(ids);
+        setBulkDeleteOpen(true);
     };
 
     const handleBulkUpdatePayDueDate = () => {
@@ -336,6 +429,15 @@ const ExternalInvoicesTable: React.FC<Props> = ({
         ? rows.filter((r) => r.status === statusForFilter)
         : rows;
     const visibleRows = rowPredicate ? filteredRows.filter((r) => rowPredicate(r)) : filteredRows;
+
+    // Re-insert just-paid rows the refetch removed, at their previous position, so
+    // settling one invoice doesn't reshuffle the page under the operator. Only the
+    // page on screen is considered, so paging away hides (and later drops) the pin.
+    const rowsWithPinned = React.useMemo(
+        () => mergePinnedRows(visibleRows, pinnedPaid, currentPage),
+        [visibleRows, pinnedPaid, currentPage]
+    );
+
     const pages = data?.data.totalPages ?? 1;
     const computedTotalItems = totalItems ?? data?.data.total ?? 0;
 
@@ -344,9 +446,9 @@ const ExternalInvoicesTable: React.FC<Props> = ({
     const groupingEnabled = !reconciliationMode;
     const { groupedRows, groupsById } = React.useMemo(() => {
         if (!groupingEnabled) {
-            return { groupedRows: visibleRows, groupsById: undefined as Map<number, ExternalInvoiceGroup> | undefined };
+            return { groupedRows: rowsWithPinned, groupsById: undefined as Map<number, ExternalInvoiceGroup> | undefined };
         }
-        const groups = groupExternalInvoices(visibleRows);
+        const groups = groupExternalInvoices(rowsWithPinned);
         const map = new Map<number, ExternalInvoiceGroup>();
         const rows: ExternalInvoice[] = [];
         for (const g of groups) {
@@ -354,13 +456,15 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             rows.push(g.primary);
         }
         return { groupedRows: rows, groupsById: map };
-    }, [groupingEnabled, visibleRows]);
+    }, [groupingEnabled, rowsWithPinned]);
+
+    groupedRowsRef.current = { rows: groupedRows, groups: groupsById };
 
     return (
         <QueryState
             isLoading={isLoading}
             error={error}
-            isEmpty={visibleRows.length === 0}
+            isEmpty={rowsWithPinned.length === 0}
             onRetry={() => refetch()}
             loading={
                 <div className="min-w-[768px] overflow-hidden rounded-lg border border-border/60 bg-card">
@@ -423,7 +527,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
             errorTitle="Failed to load invoices"
         >
             {/* Metrics Overview */}
-            {data?.data?.metrics && (
+            {!hideMetrics && data?.data?.metrics && (
                 <motion.div 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -536,7 +640,7 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                 totalPages={pages}
                 totalItems={computedTotalItems}
                 pageSize={pageSize}
-                pageSizeOptions={[10, 20, 50, 100, 200, 500]}
+                pageSizeOptions={EXTERNAL_INVOICE_PAGE_SIZE_OPTIONS}
                 onPageChange={(p: number) => setCurrentPage(p)}
                 onPageSizeChange={(n: number) => {
                     onPageSizeChange?.(n);
@@ -565,6 +669,31 @@ const ExternalInvoicesTable: React.FC<Props> = ({
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm action</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete {bulkDeleteIds.length} invoices?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                bulkDeleteInvoicesMutation.mutate(bulkDeleteIds, {
+                                    onSuccess: () => setRowSelection({})
+                                });
+                                setBulkDeleteOpen(false);
+                            }}
+                        >
+                            Continue
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

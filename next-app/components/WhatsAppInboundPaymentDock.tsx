@@ -8,10 +8,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   ArrowRight,
   Receipt,
-  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

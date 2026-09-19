@@ -36,6 +36,8 @@ function confirmTitle(confirmAction: ConfirmActionState): string {
           return `Activate ${n} users?`;
         case "reset-mac":
           return `Reset MAC for ${n} users?`;
+        case "renew":
+          return `Renew ${n} subscriptions?`;
         default:
           return `Assign profile to ${n} users?`;
       }
@@ -177,6 +179,20 @@ export const UsersConfirmDialog = ({
             await refetch();
             clearSelection();
             notify.success("Bulk action", `${deleted} users deleted.`);
+            return;
+          }
+
+          if (confirmAction.action === "renew") {
+            const results = await Promise.allSettled(usernames.map((u) => renewSubscription(u, 1)));
+            const renewed = results.filter((r) => r.status === "fulfilled").length;
+            const failed = results.length - renewed;
+            await refetch();
+            clearSelection();
+            if (failed > 0) {
+              notify.error("Bulk renew partial", `Renewed ${renewed}, failed ${failed}.`);
+            } else {
+              notify.success("Bulk action", `${renewed} subscription(s) renewed by 1 month.`);
+            }
             return;
           }
         } catch (e: any) {

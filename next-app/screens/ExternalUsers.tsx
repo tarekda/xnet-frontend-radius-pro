@@ -4,14 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
-  CheckCircle2,
   ChevronRight,
   CloudDownload,
   Copy,
   Download,
   ExternalLink,
   Layers,
-  Phone,
   RefreshCw,
   Search,
   Users,
@@ -37,7 +35,6 @@ import {
   fetchExternalUserProviders,
   type ExternalUser,
   type ExternalUserProvider,
-  type ProviderMeta,
   type ProviderResult,
 } from "@/api/externalUsers";
 
@@ -194,6 +191,8 @@ function DetailRow({
         <button
           type="button"
           onClick={onCopy}
+          aria-label={`Copy ${label}`}
+          title={`Copy ${label}`}
           className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <Copy className="h-3.5 w-3.5" />
@@ -294,7 +293,7 @@ export default function ExternalUsersPage() {
       map.get(key)!.push(u);
     }
     return Array.from(map.entries())
-      .filter(([_, users]) => {
+      .filter(([, users]) => {
         const providers = new Set(users.map(x => x.provider));
         return providers.size > 1;
       })
@@ -489,6 +488,7 @@ export default function ExternalUsersPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              aria-label="Search external users by username, name, or phone"
               className="pl-9 pr-9 h-10"
               placeholder="Search by username, name, phone…"
               value={search}
@@ -629,8 +629,16 @@ export default function ExternalUsersPage() {
                   return (
                     <tr
                       key={`${user.provider}-${user.username}-${idx}`}
-                      className="group cursor-pointer transition-colors hover:bg-muted/30"
+                      role="button"
+                      tabIndex={0}
+                      className="group cursor-pointer transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       onClick={() => setSelectedUser(user)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedUser(user);
+                        }
+                      }}
                     >
                       {/* User */}
                       <td className="px-4 py-3">

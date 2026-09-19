@@ -225,16 +225,16 @@ export default function ExternalInvoicesDunningPage() {
             </CardHeader>
             <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Grace days</Label>
-                <Input type="number" min={0} value={dunningGraceDays} onChange={(e) => setDunningGraceDays(Math.max(0, Number(e.target.value || 0)))} />
+                <Label htmlFor="dunning-grace-days" className="text-xs text-muted-foreground">Grace days</Label>
+                <Input id="dunning-grace-days" type="number" min={0} value={dunningGraceDays} onChange={(e) => setDunningGraceDays(Math.max(0, Number(e.target.value || 0)))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Max invoices</Label>
-                <Input type="number" min={1} max={500} value={dunningMaxCount} onChange={(e) => setDunningMaxCount(Math.min(500, Math.max(1, Number(e.target.value || 1))))} />
+                <Label htmlFor="dunning-max-count" className="text-xs text-muted-foreground">Max invoices</Label>
+                <Input id="dunning-max-count" type="number" min={1} max={500} value={dunningMaxCount} onChange={(e) => setDunningMaxCount(Math.min(500, Math.max(1, Number(e.target.value || 1))))} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Min amount ($)</Label>
-                <Input type="number" min={0} value={dunningMinAmount} onChange={(e) => setDunningMinAmount(Math.max(0, Number(e.target.value || 0)))} />
+                <Label htmlFor="dunning-min-amount" className="text-xs text-muted-foreground">Min amount ($)</Label>
+                <Input id="dunning-min-amount" type="number" min={0} value={dunningMinAmount} onChange={(e) => setDunningMinAmount(Math.max(0, Number(e.target.value || 0)))} />
               </div>
             </CardContent>
           </Card>
@@ -248,34 +248,34 @@ export default function ExternalInvoicesDunningPage() {
             </CardHeader>
             <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">2nd reminder day</Label>
-                <Input type="number" min={0} value={dunningSecondReminderDay} onChange={(e) => setDunningSecondReminderDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.secondReminder ? "border-red-500 focus-visible:ring-red-500" : undefined} />
+                <Label htmlFor="dunning-second-reminder-day" className="text-xs text-muted-foreground">2nd reminder day</Label>
+                <Input id="dunning-second-reminder-day" type="number" min={0} value={dunningSecondReminderDay} onChange={(e) => setDunningSecondReminderDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.secondReminder ? "border-red-500 focus-visible:ring-red-500" : undefined} />
                 {stageIssues.secondReminder && (
                   <p className="text-xs text-red-600 dark:text-red-400">{stageIssues.secondReminder}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Throttle day</Label>
-                <Input type="number" min={0} value={dunningThrottleDay} onChange={(e) => setDunningThrottleDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.throttle ? "border-red-500 focus-visible:ring-red-500" : undefined} />
+                <Label htmlFor="dunning-throttle-day" className="text-xs text-muted-foreground">Throttle day</Label>
+                <Input id="dunning-throttle-day" type="number" min={0} value={dunningThrottleDay} onChange={(e) => setDunningThrottleDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.throttle ? "border-red-500 focus-visible:ring-red-500" : undefined} />
                 {stageIssues.throttle && (
                   <p className="text-xs text-red-600 dark:text-red-400">{stageIssues.throttle}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Suspend day</Label>
-                <Input type="number" min={0} value={dunningSuspendDay} onChange={(e) => setDunningSuspendDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.suspend ? "border-red-500 focus-visible:ring-red-500" : undefined} />
+                <Label htmlFor="dunning-suspend-day" className="text-xs text-muted-foreground">Suspend day</Label>
+                <Input id="dunning-suspend-day" type="number" min={0} value={dunningSuspendDay} onChange={(e) => setDunningSuspendDay(Math.max(0, Number(e.target.value || 0)))} className={stageIssues.suspend ? "border-red-500 focus-visible:ring-red-500" : undefined} />
                 {stageIssues.suspend && (
                   <p className="text-xs text-red-600 dark:text-red-400">{stageIssues.suspend}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Throttle profile</Label>
+                <Label htmlFor="dunning-throttle-profile" className="text-xs text-muted-foreground">Throttle profile</Label>
                 <Select
                   value={String(dunningThrottleProfileId)}
                   onValueChange={(value) => setDunningThrottleProfileId(Number(value) || 0)}
                   disabled={profilesQuery.isLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="dunning-throttle-profile">
                     <SelectValue placeholder={profilesQuery.isLoading ? "Loading..." : "Select profile"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -307,16 +307,16 @@ export default function ExternalInvoicesDunningPage() {
             </CardHeader>
             <CardContent className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">As-of date (simulation)</Label>
+                <Label htmlFor="dunning-as-of-date" className="text-xs text-muted-foreground">As-of date (simulation)</Label>
                 <div className="flex items-center gap-2">
-                  <Input type="date" value={dunningAsOfDate} onChange={(e) => setDunningAsOfDate(e.target.value)} />
+                  <Input id="dunning-as-of-date" type="date" value={dunningAsOfDate} onChange={(e) => setDunningAsOfDate(e.target.value)} />
                   <Button variant="outline" type="button" onClick={() => setDunningAsOfDate("")} className="shrink-0">
                     Use Today
                   </Button>
                 </div>
               </div>
-              <div className="space-y-3">
-                <Label className="text-xs text-muted-foreground">Run only actions</Label>
+              <div className="space-y-3" role="group" aria-labelledby="dunning-actions-label">
+                <Label id="dunning-actions-label" className="text-xs text-muted-foreground">Run only actions</Label>
                 <div className="flex flex-wrap gap-4 pt-1">
                   <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer">
                     <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4" checked={dunningActionFilter.includes("remind")} onChange={(e) => toggleDunningAction("remind", e.target.checked)} />

@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/lib/chartTheme";
 
 export type LiveTrafficPoint = {
   time: string;
@@ -22,9 +23,9 @@ const LiveTrafficChart = ({ data }: { data: LiveTrafficPoint[] }) => {
       <LineChart data={data}>
         <XAxis dataKey="time" hide />
         <YAxis width={60} />
-        <RechartsTooltip />
-        <Line type="monotone" dataKey="downKbps" stroke="#2563eb" dot={false} name="Down (KB/s)" />
-        <Line type="monotone" dataKey="upKbps" stroke="#16a34a" dot={false} name="Up (KB/s)" />
+        <RechartsTooltip contentStyle={CHART_TOOLTIP_STYLE} />
+        <Line type="monotone" dataKey="downKbps" stroke={CHART_COLORS.primary} dot={false} name="Down (KB/s)" />
+        <Line type="monotone" dataKey="upKbps" stroke={CHART_COLORS.tertiary} dot={false} name="Up (KB/s)" />
       </LineChart>
     </ResponsiveContainer>
   );

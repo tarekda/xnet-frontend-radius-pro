@@ -4,7 +4,7 @@ import EmptyState from "@/components/EmptyState";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 type Props = {
   isLoading: boolean;
