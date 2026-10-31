@@ -39,8 +39,19 @@ const IMPORT_SOURCES: Array<{
 ];
 
 function requestErrorMessage(error: unknown, fallback: string): string {
-  const responseMessage = (error as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+  const axiosError = error as {
+    code?: string;
+    message?: string;
+    response?: { data?: { message?: unknown } };
+  };
+  const responseMessage = axiosError?.response?.data?.message;
   if (typeof responseMessage === 'string' && responseMessage.trim()) return responseMessage;
+  if (axiosError?.code === 'ECONNABORTED' || /timeout/i.test(String(axiosError?.message || ''))) {
+    return 'The provider took too long to respond. Retry in a moment.';
+  }
+  if (!axiosError?.response && axiosError?.message) {
+    return axiosError.message;
+  }
   return error instanceof Error && error.message ? error.message : fallback;
 }
 

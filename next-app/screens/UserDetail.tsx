@@ -32,7 +32,7 @@ import { canAny } from "@/lib/permissions";
 import type { User } from "@/types/api";
 import type { DateRange } from "react-day-picker";
 import { monthlyCycleSummary } from "@/lib/quotaCycle";
-import { ArrowLeft, History, Settings, Trash2, KeyRound, Activity, Download, RefreshCw, FileText, Wallet, Loader2, Save, Undo2, UserX, User as UserIcon, Wifi, Shield, Calendar, Gauge, Check, Copy, Phone, Mail, MapPin, Clock, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, History, Settings, Trash2, KeyRound, Activity, Download, RefreshCw, FileText, Wallet, Loader2, Save, Undo2, UserX, User as UserIcon, Wifi, Shield, Calendar, Gauge, Check, Copy, Phone, Mail, MapPin, Clock, Eye, EyeOff, Lock, ScrollText } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -313,7 +313,7 @@ export default function UserDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [confirm, setConfirm] = useState<
-    null | { kind: "reset-quota" | "reset-mac" | "disconnect" | "delete-user" }
+    null | { kind: "reset-quota" | "reset-mac" | "disconnect" | "apply-rate-limit" | "delete-user" }
   >(null);
 
   const resetQuotaMutation = useMutation({
@@ -380,6 +380,21 @@ export default function UserDetailPage() {
         e?.response?.data?.message ?? e?.response?.data?.error ?? e?.message ?? "Request failed";
       notify.error("Renew failed", String(msg));
     },
+  });
+
+  const applyRateLimitMutation = useMutation({
+    mutationFn: async () =>
+      apiClient.post(`/radius/users/${encodeURIComponent(username)}/apply-rate-limit`),
+    onSuccess: () => {
+      notify.success("Rate limit pushed", "Current profile queue was sent via CoA.");
+      qc.invalidateQueries({ queryKey: ["onlineUsers"] });
+      qc.invalidateQueries({ queryKey: ["userDetail", username] });
+    },
+    onError: (e: any) =>
+      notify.error(
+        "CoA failed",
+        e?.response?.data?.message ?? e?.message ?? "Failed to apply rate-limit."
+      ),
   });
 
   const disconnectMutation = useMutation({
@@ -627,6 +642,8 @@ export default function UserDetailPage() {
             ? "Delete user?"
             : confirm?.kind === "disconnect"
               ? "Disconnect session?"
+              : confirm?.kind === "apply-rate-limit"
+                ? "Push current rate-limit?"
               : confirm?.kind === "reset-mac"
                 ? "Reset MAC address?"
                 : "Reset daily quota?"
@@ -636,6 +653,8 @@ export default function UserDetailPage() {
             ? `This will permanently delete ${username}.`
             : confirm?.kind === "disconnect"
               ? `This will send a CoA disconnect for ${username}.`
+              : confirm?.kind === "apply-rate-limit"
+                ? `This will send a CoA Change-of-Authorization with the current profile queue for ${username}.`
               : confirm?.kind === "reset-mac"
                 ? `This will clear the stored MAC binding for ${username}.`
                 : `This will reset daily quota counters for ${username}.`
@@ -646,6 +665,7 @@ export default function UserDetailPage() {
           if (!confirm) return;
           if (confirm.kind === "reset-quota") return void (await resetQuotaMutation.mutateAsync());
           if (confirm.kind === "reset-mac") return void (await resetMacMutation.mutateAsync());
+          if (confirm.kind === "apply-rate-limit") return void (await applyRateLimitMutation.mutateAsync());
           if (confirm.kind === "disconnect") return void (await disconnectMutation.mutateAsync());
           if (confirm.kind === "delete-user") return void (await deleteUserMutation.mutateAsync());
         }}
@@ -726,6 +746,13 @@ export default function UserDetailPage() {
               onClick={() => router.push(`/users/${encodeURIComponent(username)}/sessions`)}
               icon={<History className="h-4 w-4" />}
             />
+            {canAny(authUser, ["users.online.view", "reseller.users.view"]) ? (
+              <IconActionButton
+                label="Packet Audit"
+                to={`/radius-packet-audit?user=${encodeURIComponent(username)}`}
+                icon={<ScrollText className="h-4 w-4" />}
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -1158,6 +1185,9 @@ export default function UserDetailPage() {
               </Button>
               <Button variant="outline" onClick={() => setConfirm({ kind: "reset-mac" })} disabled={!username}>
                 Reset MAC
+              </Button>
+              <Button variant="outline" onClick={() => setConfirm({ kind: "apply-rate-limit" })} disabled={!username}>
+                Apply rate-limit now
               </Button>
               <Button variant="destructive" onClick={() => setConfirm({ kind: "disconnect" })} disabled={!username}>
                 Disconnect (CoA)

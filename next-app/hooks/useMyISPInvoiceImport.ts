@@ -38,7 +38,11 @@ function buildProviderImportBody(params: Pick<ProviderImportParams, 'billingMont
 export function useProviderImportPreview() {
   return useMutation({
     mutationFn: async ({ source, billingMonth, usernames, partialImport }: Pick<ProviderImportParams, 'source' | 'billingMonth' | 'usernames' | 'partialImport'>) => {
-      const response = await apiClient.post<PreviewResponse>(`/invoices/${source}/preview`, buildProviderImportBody({ billingMonth, usernames, partialImport }));
+      const response = await apiClient.post<PreviewResponse>(
+        `/invoices/${source}/preview`,
+        buildProviderImportBody({ billingMonth, usernames, partialImport }),
+        { timeout: 120_000 }
+      );
       return response.data.data;
     },
   });
@@ -47,7 +51,11 @@ export function useProviderImportPreview() {
 export function useProviderInvoiceImport() {
   return useMutation({
     mutationFn: async ({ source, billingMonth, payDueDayOffset, usernames, partialImport }: ProviderImportParams) => {
-      const response = await apiClient.post<ImportResponse>(`/invoices/${source}/import`, buildProviderImportBody({ billingMonth, payDueDayOffset, usernames, partialImport }));
+      const response = await apiClient.post<ImportResponse>(
+        `/invoices/${source}/import`,
+        buildProviderImportBody({ billingMonth, payDueDayOffset, usernames, partialImport }),
+        { timeout: 120_000 }
+      );
       return response.data;
     },
   });

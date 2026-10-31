@@ -771,7 +771,10 @@ html.dark .bg-grid-pattern {
 
 /* ─── Geist Mono — override Tailwind font-mono ──────────────────────── */
 :root {
-  --font-mono: var(--font-geist-mono, ui-monospace, "SF Mono", "Fira Code", monospace);
+  --font-inter: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-geist-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+  --font-arabic: "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+  --font-mono: var(--font-geist-mono);
 }
 .font-mono {
   font-family: var(--font-mono);
@@ -802,6 +805,10 @@ html.dark .bg-grid-pattern {
 }
 .btn-glow-primary:hover::after {
   transform: translateX(100%);
+}
+
+html[dir="rtl"] body {
+  font-family: var(--font-arabic), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* ─── Sidebar active accent glow ────────────────────────────────────── */

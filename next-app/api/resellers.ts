@@ -115,6 +115,11 @@ export async function fetchResellerCommission(resellerId: number): Promise<Resel
   return data?.data as ResellerCommissionDto;
 }
 
+export async function fetchMyResellerCommission(): Promise<ResellerCommissionDto> {
+  const { data } = await apiClient.get("/reseller/commission");
+  return data?.data as ResellerCommissionDto;
+}
+
 export async function payoutResellerCommission(
   resellerId: number,
   input: { amount: number; note?: string }

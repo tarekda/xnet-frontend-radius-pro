@@ -1,0 +1,171 @@
+{
+  "home": {
+    "greeting_morning": "صباح الخير",
+    "greeting_afternoon": "مساء الخير",
+    "greeting_evening": "مساء الخير",
+    "subtitle": "{{date}} — هذا ما يحدث على شبكتك."
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "صحة الشبكة والجلسات والفواتير والتنبيهات في مكان واحد."
+  },
+  "users": {
+    "title": "إدارة المشتركين",
+    "subtitle": "إدارة الحسابات ومراقبة الاتصال والعمليات الجماعية.",
+    "subtitle_loading": "نظام إدارة ومراقبة المشتركين"
+  },
+  "sessions": {
+    "title": "الجلسات الحالية",
+    "subtitle": "جلسات RADIUS النشطة مع حصص يومية وشهرية",
+    "subtitle_loading": "مراقبة جلسات RADIUS النشطة"
+  },
+  "profiles": {
+    "title": "باقات الشبكة",
+    "subtitle": "إدارة السرعة والحصص والأسعار."
+  },
+  "invoices": {
+    "title": "فواتير خارجية",
+    "title_reconciliation": "مطابقة الفواتير",
+    "subtitle": "بحث وتحصيل وتذكير واتساب للفواتير الخارجية.",
+    "subtitle_reconciliation": "اكتشاف التكرار والاختلافات والمدفوعات المفقودة."
+  },
+  "addUser": {
+    "title": "إضافة مشترك",
+    "subtitle": "إنشاء مشترك جديد وتعيين باقة"
+  },
+  "access": {
+    "title": "الأدوار والصلاحيات",
+    "subtitle": "إدارة صلاحيات الأدوار والاستثناءات",
+    "subtitle_forbidden": "ليست لديك صلاحية إدارة الأذونات."
+  },
+  "about": {
+    "title": "حول RADIUS Pro",
+    "subtitle": "منصة إدارة خادم RADIUS"
+  },
+  "changePassword": {
+    "title": "تغيير كلمة المرور",
+    "subtitle": "حدّث كلمة المرور.",
+    "subtitle_first_login": "أول دخول يتطلب تغيير كلمة المرور."
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "subtitle": "الصفحة التي تبحث عنها غير موجودة."
+  },
+  "forbidden": {
+    "title": "الوصول مرفوض",
+    "subtitle": "ليست لديك صلاحية عرض هذه الصفحة.",
+    "subtitle_path": "ليست لديك صلاحية عرض: {{path}}"
+  },
+  "authFailures": {
+    "title": "فشل المصادقة",
+    "subtitle": "محاولات الدخول الفاشلة مع تصفية زمنية وتصدير"
+  },
+  "packetAudit": {
+    "title": "تدقيق الحزم",
+    "subtitle": "حزم RADIUS المرسلة والمستلمة — العرض الافتراضي هو تسجيل الدخول؛ اختر Accounting لرسائل المحاسبة"
+  },
+  "userSessions": {
+    "title": "جلسات المشترك",
+    "subtitle": "سجل الجلسات",
+    "subtitle_for": "سجل الجلسات لـ {{username}}"
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "subtitle": "مؤشرات أداء RADIUS ونشاط المشتركين."
+  },
+  "nas": {
+    "title": "خوادم الوصول (NAS)",
+    "subtitle": "إدارة أجهزة NAS"
+  },
+  "reports": {
+    "title": "التقارير",
+    "subtitle": "إنشاء وتصدير تقارير التشغيل والفواتير والتحصيل."
+  },
+  "tickets": {
+    "title": "تذاكر الدعم",
+    "subtitle": "مشاكل المشتركين والتعيين وتتبع SLA."
+  },
+  "paymentDue": {
+    "title": "مستحق الدفع",
+    "subtitle": "فواتير غير مدفوعة بتاريخ استحقاق."
+  },
+  "authUsers": {
+    "title": "مستخدمو النظام",
+    "subtitle": "إدارة حسابات الدخول"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "أدخل بياناتك للوصول إلى حسابك"
+  },
+  "dunning": {
+    "title": "مركز التحصيل",
+    "subtitle": "تذكير وتقييد وتعليق للفواتير المتأخرة"
+  },
+  "backups": {
+    "title": "النسخ الاحتياطي",
+    "subtitle": "تشغيل وتنزيل نسخ قاعدة البيانات / MikroTik",
+    "subtitle_forbidden": "ليست لديك صلاحية النسخ الاحتياطي."
+  },
+  "collections": {
+    "title": "التحصيلات",
+    "subtitle": "مراقبة الفواتير المحصّلة والنقد حسب المحصّل."
+  },
+  "expenses": {
+    "title": "المصروفات",
+    "subtitle": "تتبع المصروفات التشغيلية."
+  },
+  "invoiceUpload": {
+    "title": "رفع فاتورة",
+    "subtitle": "استيراد فواتير خارجية ثم المطابقة حسب المشترك والشهر"
+  },
+  "resellers": {
+    "title": "الموزّعون",
+    "subtitle": "إنشاء وتمويل حسابات الموزّعين",
+    "subtitle_forbidden": "ممنوع"
+  },
+  "generatedInvoices": {
+    "title": "الفواتير",
+    "subtitle": "عرض وإدارة الفواتير المُنشأة"
+  },
+  "alerts": {
+    "title": "التنبيهات",
+    "subtitle": "مراقبة المقاييس وإشعارات العتبات."
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "subtitle": "إعدادات خادم RADIUS والتفضيلات"
+  },
+  "subscriber": {
+    "title": "بوابة المشترك",
+    "sign_in": "تسجيل الدخول",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "login": "دخول",
+    "logging_in": "جاري الدخول…",
+    "logout": "خروج",
+    "refresh": "تحديث",
+    "wallet": "المحفظة",
+    "usage": "الاستهلاك",
+    "invoices": "الفواتير",
+    "sessions": "الجلسات",
+    "no_invoices": "لا فواتير بعد.",
+    "pay_wallet": "ادفع من المحفظة",
+    "pay_whish": "شحن عبر ويش",
+    "pay_renew": "ادفع وجدّد",
+    "paying": "جاري الدفع…",
+    "creating": "جاري الإنشاء…",
+    "claims": "حالات الدفع عبر ويش",
+    "claim_pending": "قيد المراجعة",
+    "claim_confirmed": "مؤكد",
+    "claim_rejected": "مرفوض",
+    "due": "الاستحقاق",
+    "paid": "مدفوع",
+    "from_wallet": "من المحفظة",
+    "partial_paid": "مدفوع جزئياً {{amount}}",
+    "remaining": "المتبقي {{amount}}",
+    "open_total": "مجموع الفواتير المفتوحة {{amount}}",
+    "session_expired": "انتهت الجلسة — سجّل الدخول مجدداً",
+    "login_failed": "فشل تسجيل الدخول",
+    "whish_reported": "تم الإبلاغ عن الدفع. بعد موافقة الموظف يُضاف المبلغ إلى محفظتك."
+  }
+}

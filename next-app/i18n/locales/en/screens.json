@@ -60,6 +60,10 @@
     "title": "Auth Failures",
     "subtitle": "Failed authentication attempts with time-range drilldown and export"
   },
+  "packetAudit": {
+    "title": "Packet Audit",
+    "subtitle": "RADIUS packets sent and received — Auth (login) is the default; switch to Accounting for interim updates"
+  },
   "userSessions": {
     "title": "User Sessions",
     "subtitle": "Session history",
@@ -130,5 +134,38 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your RADIUS server configurations and preferences"
+  },
+  "subscriber": {
+    "title": "Subscriber portal",
+    "sign_in": "Sign in",
+    "username": "Username",
+    "password": "Password",
+    "login": "Sign in",
+    "logging_in": "Signing in…",
+    "logout": "Sign out",
+    "refresh": "Refresh",
+    "wallet": "Wallet",
+    "usage": "Usage",
+    "invoices": "Invoices",
+    "sessions": "Sessions",
+    "no_invoices": "No invoices yet.",
+    "pay_wallet": "Pay from wallet",
+    "pay_whish": "Top up via Whish",
+    "pay_renew": "Pay & renew",
+    "paying": "Paying…",
+    "creating": "Creating…",
+    "claims": "Whish claim status",
+    "claim_pending": "Pending review",
+    "claim_confirmed": "Confirmed",
+    "claim_rejected": "Rejected",
+    "due": "Due",
+    "paid": "Paid",
+    "from_wallet": "from wallet",
+    "partial_paid": "Partial {{amount}} paid",
+    "remaining": "remaining {{amount}}",
+    "open_total": "Open invoices total {{amount}}",
+    "session_expired": "Session expired — please sign in again",
+    "login_failed": "Login failed",
+    "whish_reported": "Payment reported. After staff approve, the amount is credited to your wallet."
   }
 }

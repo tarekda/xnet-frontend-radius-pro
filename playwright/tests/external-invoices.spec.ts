@@ -142,7 +142,6 @@ async function signInWithInvoiceMocks(page: Page, options?: { onPay?: (invoiceId
 
   await page.addInitScript(
     ({ user }) => {
-      localStorage.setItem("accessToken", "e2e-token");
       localStorage.setItem("user", JSON.stringify(user));
     },
     { user: FAKE_USER }

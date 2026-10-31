@@ -21,7 +21,7 @@ import { useSidebar } from './Sidebar.context';
 import { useIsMobile } from '../../../hooks/use-mobile';
 import { Button } from '../button';
 import { cn } from '@/lib/utils';
-import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket, Radio, Clock, TrendingUp, CheckCircle2, ShieldAlert, FileBarChart, LifeBuoy } from 'lucide-react';
+import { FileText, Upload, CloudDownload, BarChart3, Receipt, Folder, DollarSign, LogOut, Search, X, AlertCircle, CalendarClock, Smartphone, Wallet, CircleHelp, History, HeartPulse, MessageCircle, Network, Landmark, Ticket, Radio, Clock, TrendingUp, CheckCircle2, ShieldAlert, FileBarChart, LifeBuoy, ScrollText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { can, canAny, COMPANY_WALLET_VIEW_PERMS } from '@/lib/permissions';
 import { getAppVersionInfo } from '@/lib/version';
@@ -212,7 +212,7 @@ const Sidebar: React.FC = () => {
 
     const isUsersRoute = useMemo(() => {
       const p = pathname || "";
-      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit") || p.startsWith("/external-users");
+      return p.startsWith("/users") || p.startsWith("/online-users") || p.startsWith("/profiles") || p.startsWith("/audit") || p.startsWith("/external-users") || p.startsWith("/auth-failures") || p.startsWith("/radius-packet-audit");
     }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const isSystemRoute = useMemo(() => {
@@ -286,6 +286,7 @@ const Sidebar: React.FC = () => {
       { to: '/users/list', label: 'Users', icon: FaUsers, perms: ['users.view', 'reseller.users.view'], navPerm: "ui.sidebar.users.list.show" },
       { to: '/online-users', label: 'Live Sessions', icon: FaUserClock, perms: ['users.online.view', 'reseller.users.view'], navPerm: "ui.sidebar.users.online.show" },
       { to: '/auth-failures', label: 'Auth Failures', icon: FaBell, perms: ['users.online.view', 'reseller.users.view'] },
+      { to: '/radius-packet-audit', label: 'Packet Audit', icon: ScrollText, perms: ['users.online.view', 'reseller.users.view'] },
       { to: '/profiles/list', label: 'Profile Plans', icon: FaCreditCard, perms: ['radius.profiles.view'], navPerm: "ui.sidebar.users.profiles.show" },
       { to: '/audit', label: 'Audit Log', icon: History, perms: ['users.view'], navPerm: "ui.sidebar.users.list.show" },
       { to: '/external-users', label: 'External Users', icon: CloudDownload, perms: ['billing.invoiceUpload.create', 'users.view'] },

@@ -976,7 +976,9 @@ const ExternalInvoiceDetailView: React.FC<Props> = ({
                       setGatewayBusy(true);
                       try {
                         const { data } = await apiClient.post(
-                          `/invoices/external/${editedInvoice.id}/payment-intent`
+                          `/invoices/external/${editedInvoice.id}/payment-intent`,
+                          {},
+                          { timeout: 40_000 }
                         );
                         const url = data?.data?.checkoutUrl;
                         notify.success(

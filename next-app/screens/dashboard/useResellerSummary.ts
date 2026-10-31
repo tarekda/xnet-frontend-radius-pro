@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchResellerMe } from "@/api/resellers";
+import { fetchMyResellerCommission, fetchResellerMe } from "@/api/resellers";
 import { apiClient } from "@/api/client";
 
 /** Reseller dashboard data: wallet balance plus scoped user/online counts. */
@@ -7,6 +7,7 @@ export function useResellerSummary(isReseller: boolean) {
   const [balance, setBalance] = useState<number | null>(null);
   const [userCount, setUserCount] = useState<number | null>(null);
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const [commissionPending, setCommissionPending] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +40,14 @@ export function useResellerSummary(isReseller: boolean) {
       } catch {
         // ignore
       }
+
+      try {
+        const commission = await fetchMyResellerCommission();
+        if (cancelled) return;
+        setCommissionPending(Number(commission.pendingBalance ?? 0));
+      } catch {
+        // ignore
+      }
     })();
 
     return () => {
@@ -46,5 +55,5 @@ export function useResellerSummary(isReseller: boolean) {
     };
   }, [isReseller]);
 
-  return { balance, userCount, onlineCount };
+  return { balance, userCount, onlineCount, commissionPending };
 }

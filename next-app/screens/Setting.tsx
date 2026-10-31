@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import PageHeader from "@/components/PageHeader";
 import { Settings as SettingsIcon, Shield, Tag } from "lucide-react";
@@ -9,15 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTranslation } from 'react-i18next';
-import i18n from '@/i18n/config';
 import { VERSION_LABEL } from '@/constants/version';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 
 const Setting: React.FC = () => {
   const { t } = useTranslation('common');
   const { t: tScreens } = useTranslation('screens');
   const { density, setDensity, showHealthStrip, setShowHealthStrip } = useAppPreferences();
-  const [language, setLanguage] = useState(i18n.language || 'en');
 
   return (
     <div className="w-full space-y-5">
@@ -74,29 +73,10 @@ const Setting: React.FC = () => {
         </div>
 
         <div className="rounded-xl border border-border/80 bg-card p-5 text-card-foreground shadow-none">
-          <h2 className="mb-4 text-base font-semibold">Language</h2>
+          <h2 className="mb-4 text-base font-semibold">{t("language")}</h2>
           <div className="max-w-xs space-y-1.5">
-            <Label htmlFor="language">Display language</Label>
-            <Select
-              value={language}
-              onValueChange={(v) => {
-                setLanguage(v);
-                void i18n.changeLanguage(v);
-                try {
-                  localStorage.setItem('app.lang', v);
-                } catch {
-                  /* ignore */
-                }
-              }}
-            >
-              <SelectTrigger id="language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Español</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="language">{t("language")}</Label>
+            <LanguageSwitcher />
           </div>
         </div>
 

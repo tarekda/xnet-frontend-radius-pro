@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { STAFF_PASSWORD_MIN_LENGTH, validateStaffPassword } from "@/lib/passwordPolicy";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 export default function ChangePasswordPage() {
   const { t } = useTranslation("screens");
@@ -40,7 +41,7 @@ export default function ChangePasswordPage() {
 
       const redirectTo = localStorage.getItem("redirectTo");
       if (redirectTo) localStorage.removeItem("redirectTo");
-      router.replace(redirectTo || "/");
+      router.replace(safeRedirectPath(redirectTo));
     } catch (err: any) {
       notify.error("Change password failed", err?.message || "Failed to change password");
     } finally {

@@ -28,8 +28,9 @@ export type LoginResult =
       message: string;
       data: {
         user: LoginUser;
-        accessToken: string;
-        refreshToken: string;
+        accessToken?: string;
+        refreshToken?: string;
+        cookieSession?: boolean;
       };
     };
 
@@ -37,13 +38,14 @@ const useLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const login = async (email: string, password: string): Promise<LoginResult | null> => {
+  const login = async (email: string, password: string, rememberMe = true): Promise<LoginResult | null> => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await apiClient.post<LoginResult>("/auth/login", {
         username: email,
         password,
+        rememberMe,
       });
       setIsLoading(false);
       if (response.data.success) return response.data;
@@ -59,13 +61,14 @@ const useLogin = () => {
     }
   };
 
-  const verifyMfa = async (mfaToken: string, code: string): Promise<LoginResult | null> => {
+  const verifyMfa = async (mfaToken: string, code: string, rememberMe = true): Promise<LoginResult | null> => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await apiClient.post<LoginResult>("/auth/mfa/verify-login", {
         mfaToken,
         code,
+        rememberMe,
       });
       setIsLoading(false);
       if (response.data.success) return response.data;

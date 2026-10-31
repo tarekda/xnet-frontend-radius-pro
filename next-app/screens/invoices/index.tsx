@@ -94,12 +94,19 @@ const InvoicesComponent: React.FC = () => {
         onRowSelectionChange: setRowSelection,
     });
 
-    const handleBulkSetPaid = () => {
+    const handleBulkSetPaid = async () => {
         const selectedRows = table.getSelectedRowModel().rows;
-        selectedRows.forEach((row) => setInvoiceAsPaidMutation.mutate({ invoiceId: row.original.id, silent: true }));
-        table.resetRowSelection();
-        notify.success("Success", `Marked ${selectedRows.length} invoice(s) as paid.`);
-        refetch();
+        const invoiceIds = selectedRows.map((row) => row.original.id);
+        if (invoiceIds.length === 0) return;
+        try {
+            const { bulkPayInvoices } = await import("@/api/invoices");
+            await bulkPayInvoices(invoiceIds);
+            table.resetRowSelection();
+            notify.success("Success", `Marked ${invoiceIds.length} invoice(s) as paid.`);
+            refetch();
+        } catch (error: unknown) {
+            notify.error("Bulk pay failed", error instanceof Error ? error.message : MESSAGES.common.actionFailed);
+        }
     };
 
     const savedViewsKeys = ["q", "from", "to", "ps", "sort"];

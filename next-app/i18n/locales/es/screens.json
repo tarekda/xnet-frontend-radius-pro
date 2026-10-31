@@ -60,6 +60,10 @@
     "title": "Fallos de autenticación",
     "subtitle": "Intentos de autenticación fallidos con desglose por rango de tiempo y exportación"
   },
+  "packetAudit": {
+    "title": "Auditoría de paquetes",
+    "subtitle": "Paquetes RADIUS enviados y recibidos — Auth (login) por defecto; cambie a Accounting para interinos"
+  },
   "userSessions": {
     "title": "Sesiones de usuario",
     "subtitle": "Historial de sesiones",
@@ -130,5 +134,38 @@
   "settings": {
     "title": "Configuración",
     "subtitle": "Gestione la configuración y preferencias de su servidor RADIUS"
+  },
+  "subscriber": {
+    "title": "Portal del abonado",
+    "sign_in": "Iniciar sesión",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "login": "Entrar",
+    "logging_in": "Entrando…",
+    "logout": "Salir",
+    "refresh": "Actualizar",
+    "wallet": "Billetera",
+    "usage": "Uso",
+    "invoices": "Facturas",
+    "sessions": "Sesiones",
+    "no_invoices": "Aún no hay facturas.",
+    "pay_wallet": "Pagar desde la billetera",
+    "pay_whish": "Recargar con Whish",
+    "pay_renew": "Pagar y renovar",
+    "paying": "Pagando…",
+    "creating": "Creando…",
+    "claims": "Estado del pago Whish",
+    "claim_pending": "En revisión",
+    "claim_confirmed": "Confirmado",
+    "claim_rejected": "Rechazado",
+    "due": "Vence",
+    "paid": "Pagado",
+    "from_wallet": "desde la billetera",
+    "partial_paid": "Parcial {{amount}} pagado",
+    "remaining": "resta {{amount}}",
+    "open_total": "Total de facturas abiertas {{amount}}",
+    "session_expired": "Sesión expirada — inicie sesión de nuevo",
+    "login_failed": "Error al iniciar sesión",
+    "whish_reported": "Pago informado. Tras la aprobación, el monto se acredita en su billetera."
   }
 }

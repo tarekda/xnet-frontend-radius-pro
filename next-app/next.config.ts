@@ -68,8 +68,24 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "connect-src 'self' https: wss: ws:",
+              // Next.js / xlsx need eval only in development source maps.
+              process.env.NODE_ENV === "production"
+                ? "script-src 'self' 'unsafe-inline'"
+                : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              [
+                "connect-src 'self'",
+                "https://api.xnetcloud.tech",
+                "wss://api.xnetcloud.tech",
+                "https://ws.xnetcloud.tech",
+                "wss://ws.xnetcloud.tech",
+                "https://*.ingest.sentry.io",
+                "https://*.sentry.io",
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "ws://localhost:*",
+                "ws://127.0.0.1:*",
+                "wss://localhost:*",
+              ].join(" "),
               "form-action 'self'",
             ].join("; "),
           },

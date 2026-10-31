@@ -2,22 +2,7 @@ import { Client, Message } from "@stomp/stompjs";
 import { toast } from "@/components/ui/use-toast";
 import { ingestInboxNotification } from "@/store/notificationInboxStore";
 import { normalizeUserActionsQueuePayload, normalizeUserStatusPayload } from "@/lib/normalizeInboxNotification";
-import { resolvePublicWsUrl } from "@/lib/publicEnv";
-
-function resolveStompBrokerUrl(): string | null {
-  // Runtime override (Docker env.js) then build-time NEXT_PUBLIC_WS_URL.
-  const runtime =
-    typeof window !== "undefined" && typeof window.__ENV__?.WS_URL === "string"
-      ? window.__ENV__.WS_URL.trim()
-      : "";
-  const explicit = (runtime || resolvePublicWsUrl() || "").replace(/\/$/, "");
-  if (!explicit) {
-    // Do not invent wss://api.../ws — that is the Express JWT socket, not RabbitMQ STOMP.
-    return null;
-  }
-  if (/\/ws$/i.test(explicit)) return explicit;
-  return `${explicit}/ws`;
-}
+import { fetchStompCredentials } from "@/api/stomp";
 
 class WebSocketService {
   private client: Client | null = null;
@@ -31,24 +16,22 @@ class WebSocketService {
   private subscribers: Map<string, ((data: any) => void)[]> = new Map();
   private disabledReason: string | null = null;
 
-  private initializeClient() {
+  private async initializeClient() {
     if (typeof window === "undefined") return;
     if (this.client) return;
 
-    const wsUrl = resolveStompBrokerUrl();
-    if (!wsUrl) {
-      this.disabledReason = "NEXT_PUBLIC_WS_URL / __ENV__.WS_URL not set";
+    const creds = await fetchStompCredentials();
+    if (!creds) {
+      this.disabledReason = "STOMP credentials unavailable (configure RABBITMQ_WEB_USER on the API)";
       console.warn(`STOMP notifications disabled: ${this.disabledReason}`);
       return;
     }
 
-    console.log("Initializing STOMP client with URL:", wsUrl);
-
     this.client = new Client({
-      brokerURL: wsUrl,
+      brokerURL: creds.brokerUrl,
       connectHeaders: {
-        login: "guest",
-        passcode: "guest",
+        login: creds.login,
+        passcode: creds.passcode,
       },
       debug: (str) => {
         if (process.env.NODE_ENV === "development") {
@@ -165,19 +148,23 @@ class WebSocketService {
     if (this.isConnecting || this.client?.connected) return;
 
     this.isConnecting = true;
-    this.initializeClient();
-
-    if (!this.client) {
-      this.isConnecting = false;
-      return;
-    }
-
-    try {
-      this.client.activate();
-    } catch (error) {
-      console.error("STOMP: Connection error", error);
-      this.handleConnectionError();
-    }
+    void this.initializeClient()
+      .then(() => {
+        if (!this.client) {
+          this.isConnecting = false;
+          return;
+        }
+        try {
+          this.client.activate();
+        } catch (error) {
+          console.error("STOMP: Connection error", error);
+          this.handleConnectionError();
+        }
+      })
+      .catch((error) => {
+        console.error("STOMP: Credential fetch error", error);
+        this.handleConnectionError();
+      });
   }
 
   public disconnect() {

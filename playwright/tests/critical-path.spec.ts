@@ -171,7 +171,6 @@ async function seedSession(page: Page) {
   ]);
   await page.addInitScript(
     ({ user }) => {
-      localStorage.setItem("accessToken", "e2e-token");
       localStorage.setItem("user", JSON.stringify(user));
     },
     { user: FAKE_USER }
@@ -187,7 +186,9 @@ test.describe("critical path (mocked API)", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).not.toHaveURL(/\/login/);
-    await expect.poll(async () => page.evaluate(() => localStorage.getItem("accessToken"))).toBe("e2e-token");
+    await expect.poll(async () =>
+      page.evaluate(() => JSON.parse(localStorage.getItem("user") || "null")?.username)
+    ).toBe("e2e-admin");
   });
 
   test("create user posts username, password, and profile then lands on the list", async ({ page }) => {

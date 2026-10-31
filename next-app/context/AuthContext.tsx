@@ -1,12 +1,14 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { AuthUser } from '@/types/api';
-import { apiClient } from '@/api/client';
+import { apiClient, clearAuthStorage } from '@/api/client';
 import { clearTelemetryUser, setTelemetryUser } from '@/lib/telemetry';
+import { websocketService } from '@/services/websocket';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  /** Always null — access tokens live in httpOnly cookies, not JS. Kept for call-site compatibility. */
   accessToken: string | null;
-  login: (user: AuthUser, accessToken: string, rememberMe?: boolean, refreshToken?: string) => void;
+  login: (user: AuthUser, _accessToken?: string | null, rememberMe?: boolean, _refreshToken?: string) => void;
   logout: () => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   user: AuthUser | null;
@@ -16,8 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * Presence-only cookie (no token material) so Next.js middleware can guard
- * routes server-side and avoid flashing protected pages before redirect.
- * The real authorization is still enforced by the backend on every API call.
+ * routes server-side. The real session is the httpOnly cookie on the API host.
  */
 const AUTH_COOKIE = "xnet_auth";
 
@@ -32,44 +33,43 @@ const clearAuthPresenceCookie = () => {
   document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const getStoredAuth = (): { accessToken: string | null; user: AuthUser | null; storage: "local" | "session" | null } => {
-    if (typeof window === "undefined") {
-      return { accessToken: null, user: null, storage: null };
+function readStoredUser(): { user: AuthUser | null; storage: "local" | "session" | null } {
+  if (typeof window === "undefined") return { user: null, storage: null };
+  const localRaw = localStorage.getItem("user");
+  if (localRaw) {
+    try {
+      return { user: JSON.parse(localRaw) as AuthUser, storage: "local" };
+    } catch {
+      /* ignore */
     }
-    const localToken = localStorage.getItem("accessToken");
-    const sessionToken = sessionStorage.getItem("accessToken");
-    const storage: "local" | "session" | null = localToken ? "local" : sessionToken ? "session" : null;
-    const token = localToken ?? sessionToken ?? null;
-    const userRaw =
-      storage === "local"
-        ? localStorage.getItem("user")
-        : storage === "session"
-          ? sessionStorage.getItem("user")
-          : null;
-    const user = userRaw ? (JSON.parse(userRaw) as AuthUser) : null;
-    return { accessToken: token, user, storage };
-  };
+  }
+  const sessionRaw = sessionStorage.getItem("user");
+  if (sessionRaw) {
+    try {
+      return { user: JSON.parse(sessionRaw) as AuthUser, storage: "session" };
+    } catch {
+      /* ignore */
+    }
+  }
+  return { user: null, storage: null };
+}
 
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const storageFor = (rememberMe: boolean) => (rememberMe ? localStorage : sessionStorage);
 
   const [authState, setAuthState] = useState<{
     isAuthenticated: boolean;
-    accessToken: string | null;
     user: AuthUser | null;
     storage: "local" | "session" | null;
   }>(() => {
-    const stored = getStoredAuth();
+    const stored = readStoredUser();
     return {
-      isAuthenticated: stored.accessToken !== null,
-      accessToken: stored.accessToken,
+      isAuthenticated: stored.user !== null,
       user: stored.user,
       storage: stored.storage,
     };
   });
 
-  // Keep the middleware presence cookie in sync with the stored session
-  // (covers sessions that existed before the cookie was introduced).
   useEffect(() => {
     if (authState.isAuthenticated) {
       setAuthPresenceCookie(authState.storage !== "session");
@@ -78,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [authState.isAuthenticated, authState.storage]);
 
-  // Attach user context to telemetry (Sentry), if enabled.
   useEffect(() => {
     const u = authState.user;
     if (!authState.isAuthenticated || !u) {
@@ -93,9 +92,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [authState.isAuthenticated, authState.user]);
 
-  // Keep permissions in sync with the server (new role grants after migrations).
   useEffect(() => {
-    if (!authState.accessToken) return;
+    if (!authState.isAuthenticated) {
+      websocketService.disconnect();
+      return;
+    }
+    websocketService.connect();
+    return () => websocketService.disconnect();
+  }, [authState.isAuthenticated]);
+
+  useEffect(() => {
+    if (!authState.isAuthenticated) return;
 
     let cancelled = false;
     (async () => {
@@ -108,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         store.setItem("user", JSON.stringify(merged));
         setAuthState((prev) => ({ ...prev, user: merged }));
       } catch {
-        // ignore; UI will treat as no permissions and backend will still enforce
+        // interceptor handles 401 → login; ignore other errors
       }
     })();
 
@@ -116,22 +123,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authState.accessToken]);
+  }, [authState.isAuthenticated]);
 
-  const login = (user: AuthUser, accessToken: string, rememberMe: boolean = true, refreshToken?: string) => {
+  const login = (user: AuthUser, _accessToken?: string | null, rememberMe: boolean = true) => {
     const store = storageFor(Boolean(rememberMe));
     const other = store === localStorage ? sessionStorage : localStorage;
 
-    // Ensure we don't keep stale auth in the other storage
     other.removeItem("accessToken");
     other.removeItem("refreshToken");
     other.removeItem("user");
-
-    store.setItem("accessToken", accessToken);
-    if (refreshToken) store.setItem("refreshToken", refreshToken);
+    store.removeItem("accessToken");
+    store.removeItem("refreshToken");
     store.setItem("user", JSON.stringify(user));
     setAuthPresenceCookie(Boolean(rememberMe));
-    setAuthState({ isAuthenticated: true, accessToken, user: user, storage: rememberMe ? "local" : "session" });
+    setAuthState({ isAuthenticated: true, user, storage: rememberMe ? "local" : "session" });
   };
 
   const updateUser = (patch: Partial<AuthUser>) => {
@@ -144,19 +149,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("accessToken");
-    sessionStorage.removeItem("refreshToken");
-    sessionStorage.removeItem("user");
+    void apiClient.post("/auth/logout", {}).catch(() => undefined);
+    clearAuthStorage();
     clearAuthPresenceCookie();
-    setAuthState({ isAuthenticated: false, accessToken: null, user: null, storage: null });
+    setAuthState({ isAuthenticated: false, user: null, storage: null });
   };
 
   const value = {
     isAuthenticated: authState.isAuthenticated,
-    accessToken: authState.accessToken,
+    accessToken: null,
     login,
     logout,
     updateUser,

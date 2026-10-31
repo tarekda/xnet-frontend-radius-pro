@@ -4,9 +4,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Invoice } from './types';
+import { collectInvoice } from '@/api/invoices';
+import { notify } from '@/lib/notify';
+import { useState } from 'react';
 
 /** Read-only detail dialog for a single invoice. */
 const InvoiceDetailDialog: React.FC<{ invoice: Invoice; onClose: () => void }> = ({ invoice, onClose }) => {
+    const [collecting, setCollecting] = useState(false);
+    const unpaid = String(invoice.status || "").toLowerCase() !== "paid";
+
+    const onCollect = async () => {
+        setCollecting(true);
+        try {
+            await collectInvoice(invoice.id, "cash");
+            notify.success("Collected", "Invoice marked as collected (cash).");
+            onClose();
+        } catch (e: any) {
+            notify.error("Collect failed", e?.response?.data?.message || e?.message || "Failed to collect");
+        } finally {
+            setCollecting(false);
+        }
+    };
     return (
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent>
@@ -40,6 +58,11 @@ const InvoiceDetailDialog: React.FC<{ invoice: Invoice; onClose: () => void }> =
                     </div>
                 </div>
                 <DialogFooter>
+                    {unpaid ? (
+                        <Button variant="outline" disabled={collecting} onClick={() => void onCollect()}>
+                            {collecting ? "Collecting…" : "Collect cash"}
+                        </Button>
+                    ) : null}
                     <Button onClick={onClose}>Close</Button>
                 </DialogFooter>
             </DialogContent>

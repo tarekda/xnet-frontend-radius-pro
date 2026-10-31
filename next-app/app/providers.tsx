@@ -1,6 +1,5 @@
 "use client";
 
-import CommandPalette from "@/components/CommandPalette";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import KeyboardShortcutsDialog from "@/components/KeyboardShortcutsDialog";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,7 +8,6 @@ import { AppPreferencesProvider } from "@/context/AppPreferencesContext";
 import { AuthProvider } from "@/context/AuthContext";
 import i18n from "@/i18n/config";
 import { initTelemetry } from "@/lib/telemetry";
-import { websocketService } from "@/services/websocket";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { I18nextProvider } from "react-i18next";
@@ -39,11 +37,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     initTelemetry();
   }, []);
 
-  useEffect(() => {
-    websocketService.connect();
-    return () => websocketService.disconnect();
-  }, []);
-
   return (
     <I18nextProvider i18n={i18n}>
       <div className="flex h-full min-h-0 flex-col">
@@ -56,7 +49,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
                     <DownloadQueueProvider>
                       <WhatsAppInboundPaymentProvider>
                         <KeyboardShortcutsDialog />
-                        <CommandPalette />
                         {children}
                         <DownloadQueueDock />
                         <WhatsAppInboundPaymentDock />

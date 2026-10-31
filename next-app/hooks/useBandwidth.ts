@@ -103,6 +103,30 @@ export const useSystemResources = () => {
   });
 };
 
+export type HistoricalTrafficPoint = {
+  timestamp?: string | number;
+  rxRate?: number;
+  txRate?: number;
+  rxByte?: number;
+  txByte?: number;
+};
+
+export const useHistoricalBandwidth = (interfaceName: string | null, durationSec = 3600) => {
+  return useQuery({
+    queryKey: ["bandwidth", "historical", interfaceName, durationSec],
+    queryFn: async (): Promise<HistoricalTrafficPoint[]> => {
+      const response = await apiClient.get("/bandwidth/historical", {
+        params: { interface: interfaceName, duration: durationSec },
+      });
+      const raw = response.data?.data;
+      return Array.isArray(raw) ? raw : raw?.points || raw?.samples || [];
+    },
+    enabled: Boolean(interfaceName),
+    staleTime: 30_000,
+    retry: 1,
+  });
+};
+
 export const useBandwidthConnection = () => {
   return useQuery({
     queryKey: ['bandwidth', 'connection'],

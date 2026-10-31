@@ -5,6 +5,7 @@ import PageSkeleton from "@/components/PageSkeleton";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 export default function MainLayoutGate({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth();
@@ -21,14 +22,14 @@ export default function MainLayoutGate({ children }: { children: React.ReactNode
   useEffect(() => {
     if (!isAuthenticated || !user?.mustChangePassword) return;
     if (pathname === "/change-password") return;
-    localStorage.setItem("redirectTo", pathname);
+    localStorage.setItem("redirectTo", safeRedirectPath(pathname));
     router.replace("/change-password");
   }, [isAuthenticated, user, pathname, router]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.mfaRequired) return;
     if (pathname === "/settings/security" || pathname === "/change-password") return;
-    localStorage.setItem("redirectTo", pathname);
+    localStorage.setItem("redirectTo", safeRedirectPath(pathname));
     router.replace("/settings/security");
   }, [isAuthenticated, user, pathname, router]);
 

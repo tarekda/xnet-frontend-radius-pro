@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 // ─── Animated NOC Stats (left panel) ─────────────────────────────────────────
 const NOC_STATS = [
@@ -145,19 +146,15 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
     const from = searchParams.get("from");
-    const target = from && from.startsWith("/") && from !== "/login" ? from : "/";
-    router.replace(target);
+    router.replace(safeRedirectPath(from));
   }, [isAuthenticated, router, searchParams]);
 
-  const finishLogin = (user: any, accessToken: string, refreshToken: string) => {
+  const finishLogin = (user: any) => {
     localStorage.setItem("login.rememberMe", String(Boolean(rememberMe)));
-    authLogin(user, accessToken, rememberMe, refreshToken);
-    let redirectPath = "/";
+    authLogin(user, undefined, rememberMe);
     const fromQs = searchParams.get("from");
-    const fromDecoded = fromQs ? decodeURIComponent(fromQs) : null;
     const storedPath = localStorage.getItem("redirectTo");
-    if (fromDecoded && fromDecoded !== "/login") redirectPath = fromDecoded;
-    else if (storedPath && storedPath !== "/login") redirectPath = storedPath;
+    const redirectPath = safeRedirectPath(fromQs) !== "/" ? safeRedirectPath(fromQs) : safeRedirectPath(storedPath);
     if (storedPath) localStorage.removeItem("redirectTo");
     router.replace(redirectPath);
   };
@@ -165,20 +162,20 @@ const Login: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (mfaToken) {
-      const resp = await verifyMfa(mfaToken, mfaCode);
-      if (resp?.success && "accessToken" in resp.data) {
-        finishLogin(resp.data.user, resp.data.accessToken, resp.data.refreshToken);
+      const resp = await verifyMfa(mfaToken, mfaCode, rememberMe);
+      if (resp?.success && "user" in resp.data && resp.data.user) {
+        finishLogin(resp.data.user);
       }
       return;
     }
-    const resp = await login(username, password);
+    const resp = await login(username, password, rememberMe);
     if (!resp?.success) return;
     if ("mfaRequired" in resp.data && resp.data.mfaRequired) {
       setMfaToken(resp.data.mfaToken);
       return;
     }
-    if ("accessToken" in resp.data) {
-      finishLogin(resp.data.user, resp.data.accessToken, resp.data.refreshToken);
+    if ("user" in resp.data && resp.data.user) {
+      finishLogin(resp.data.user);
     }
   };
 

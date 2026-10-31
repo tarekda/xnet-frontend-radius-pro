@@ -76,7 +76,6 @@ async function signInWithMocks(page: Page) {
 
   await page.addInitScript(
     ({ user }) => {
-      localStorage.setItem("accessToken", "e2e-token");
       localStorage.setItem("user", JSON.stringify(user));
     },
     { user: FAKE_USER }

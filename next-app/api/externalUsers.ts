@@ -11,6 +11,7 @@ export interface ExternalUser {
   plan: string | null;
   expiryDate: string | null;
   macAddress: string | null;
+  accountStatus?: "active" | "inactive" | "expired";
   provider: ExternalUserProvider;
   providerLabel: string;
   online: boolean;
@@ -33,10 +34,21 @@ export interface ExternalUsersResponse {
   fetchedAt: string;
 }
 
+export type ExternalUserCommandName = "renew" | "activate" | "deactivate";
+
+export interface ExternalUserCommand {
+  command: ExternalUserCommandName;
+  upstream: string;
+  description: string;
+  localSession: "disconnect" | "none";
+  wired: boolean;
+}
+
 export interface ProviderMeta {
   key: ExternalUserProvider;
   label: string;
   configured: boolean;
+  commands?: ExternalUserCommand[];
 }
 
 export async function fetchExternalUsers(params?: {
@@ -61,4 +73,16 @@ export async function fetchExternalUsers(params?: {
 export async function fetchExternalUserProviders(): Promise<ProviderMeta[]> {
   const resp = await apiClient.get("/external-users/providers");
   return (resp.data?.data ?? []) as ProviderMeta[];
+}
+
+export async function runExternalUserCommand(
+  provider: ExternalUserProvider,
+  username: string,
+  command: ExternalUserCommandName,
+  months = 1
+): Promise<void> {
+  await apiClient.post(
+    `/external-users/${encodeURIComponent(provider)}/${encodeURIComponent(username)}/commands`,
+    { command, months }
+  );
 }

@@ -15,13 +15,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useBandwidthMetrics, formatBytes, formatUptime } from '@/hooks/useBandwidth';
+import { useBandwidthMetrics, useHistoricalBandwidth, formatBytes, formatUptime } from '@/hooks/useBandwidth';
 
 export const bytesPerSecToMbps = (bps: number, decimals = 2) =>
   ((bps * 8) / 1_000_000).toFixed(decimals);   // returns string
 
 const BandwidthWidget: React.FC = () => {
   const { data: metrics, isLoading, error } = useBandwidthMetrics();
+  const ifaceName = Array.isArray(metrics?.interfaces) ? metrics?.interfaces[0]?.interface : null;
+  const historical = useHistoricalBandwidth(ifaceName || null, 3600);
 
   if (isLoading) {
     return (
@@ -178,6 +180,12 @@ const BandwidthWidget: React.FC = () => {
               <span>Total Traffic</span>
               <span>{formatBytes(bandwidth.total.bytes)}</span>
             </div>
+            {historical.data && historical.data.length > 0 ? (
+              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Last hour samples</span>
+                <span>{historical.data.length}</span>
+              </div>
+            ) : null}
           </div>
 
           {/* System Info */}

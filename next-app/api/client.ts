@@ -1,5 +1,6 @@
 import axios from "axios";
 import { resolveBrowserApiUrl, resolvePublicApiUrl } from "@/lib/publicEnv";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 declare global {
   interface Window {
@@ -16,13 +17,14 @@ const baseURL = typeof window === "undefined" ? resolvePublicApiUrl() : resolveB
 
 export const apiClient = axios.create({
   baseURL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     "X-Requested-With": "XMLHttpRequest",
   },
 });
 
-function clearAuthStorage() {
+export function clearAuthStorage() {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
@@ -36,11 +38,19 @@ function clearAuthStorage() {
   }
 }
 
+function isSubscriberPath() {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/subscriber");
+}
+
 function redirectToLogin() {
+  if (isSubscriberPath()) {
+    window.location.href = "/subscriber";
+    return;
+  }
   try {
     const currentPath = window.location.pathname + window.location.search + window.location.hash;
     if (currentPath && currentPath !== "/login") {
-      localStorage.setItem("redirectTo", currentPath);
+      localStorage.setItem("redirectTo", safeRedirectPath(currentPath));
     }
   } catch {
     /* ignore */
@@ -49,28 +59,60 @@ function redirectToLogin() {
   window.location.href = "/login";
 }
 
-async function tryRefreshAccessToken(): Promise<string | null> {
-  const refreshToken =
-    localStorage.getItem("refreshToken") ?? sessionStorage.getItem("refreshToken");
-  if (!refreshToken) return null;
+let refreshInFlight: Promise<boolean> | null = null;
 
-  try {
-    const resp = await axios.post(
-      `${apiClient.defaults.baseURL}/auth/refresh-token`,
-      { token: refreshToken },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    const accessToken = resp?.data?.data?.accessToken as string | undefined;
-    const nextRefresh = (resp?.data?.data?.refreshToken as string | undefined) ?? refreshToken;
-    if (!resp?.data?.success || !accessToken) return null;
+async function tryRefreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
 
-    const store = localStorage.getItem("refreshToken") ? localStorage : sessionStorage;
-    store.setItem("accessToken", accessToken);
-    store.setItem("refreshToken", nextRefresh);
-    return accessToken;
-  } catch {
-    return null;
-  }
+  refreshInFlight = (async () => {
+    try {
+      const resp = await axios.post(
+        `${apiClient.defaults.baseURL}/auth/refresh-token`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        }
+      );
+      return Boolean(resp?.data?.success);
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+let subscriberRefreshInFlight: Promise<boolean> | null = null;
+
+async function tryRefreshSubscriberToken(): Promise<boolean> {
+  if (subscriberRefreshInFlight) return subscriberRefreshInFlight;
+  subscriberRefreshInFlight = (async () => {
+    try {
+      const resp = await axios.post(
+        `${apiClient.defaults.baseURL}/auth/subscriber/refresh`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        }
+      );
+      return Boolean(resp?.data?.success);
+    } catch {
+      return false;
+    } finally {
+      subscriberRefreshInFlight = null;
+    }
+  })();
+  return subscriberRefreshInFlight;
 }
 
 apiClient.interceptors.request.use(
@@ -80,10 +122,6 @@ apiClient.interceptors.request.use(
       if (apiClient.defaults.baseURL !== next) {
         apiClient.defaults.baseURL = next;
       }
-    }
-    const token = localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -96,23 +134,25 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const original = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
 
-    // Attempt one refresh on 401 (expired access token). Do not retry refresh itself.
     if (
       typeof window !== "undefined" &&
       status === 401 &&
       original &&
       !original._retry &&
       !String(original.url || "").includes("/auth/refresh-token") &&
-      !String(original.url || "").includes("/auth/login")
+      !String(original.url || "").includes("/auth/subscriber/refresh") &&
+      !String(original.url || "").includes("/auth/login") &&
+      !String(original.url || "").includes("/auth/subscriber/login") &&
+      !String(original.url || "").includes("/auth/logout")
     ) {
       original._retry = true;
-      const newToken = await tryRefreshAccessToken();
-      if (newToken) {
-        original.headers = original.headers ?? {};
-        original.headers.Authorization = `Bearer ${newToken}`;
+      const ok = isSubscriberPath()
+        ? await tryRefreshSubscriberToken()
+        : await tryRefreshAccessToken();
+      if (ok) {
         return apiClient(original);
       }
-      redirectToLogin();
+      if (!isSubscriberPath()) redirectToLogin();
       return Promise.reject(error);
     }
 
@@ -127,10 +167,14 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (typeof window !== "undefined" && status === 401) {
+    if (typeof window !== "undefined" && status === 401 && !isSubscriberPath()) {
       const url = String(original?.url || error.config?.url || "");
-      // Failed login credentials are 401 — don't wipe session / bounce the login page.
-      if (!url.includes("/auth/login") && !url.includes("/auth/mobile/login")) {
+      if (
+        !url.includes("/auth/login") &&
+        !url.includes("/auth/subscriber/login") &&
+        !url.includes("/auth/mobile/login") &&
+        !url.includes("/auth/logout")
+      ) {
         redirectToLogin();
       }
     }

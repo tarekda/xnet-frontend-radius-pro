@@ -175,15 +175,7 @@ export const WhatsAppInboundPaymentProvider: React.FC<{ children: React.ReactNod
           resolveBrowserApiUrl().replace(/\/api\/?$/, "") ||
           DEFAULT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
         const wsUrl = apiUrl.replace(/^http/, "ws");
-        const token =
-          localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
-
-        if (!token) {
-          reconnectTimerRef.current = setTimeout(connectNativeWs, 2000);
-          return;
-        }
-
-        ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
+        ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
           // Connected cleanly

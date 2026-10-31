@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { safeRedirectPath } from "./lib/safeRedirect";
 
 /**
  * Server-side route guard.
@@ -34,8 +35,9 @@ export function middleware(req: NextRequest) {
   if (isAuthed && pathname === "/login") {
     const url = req.nextUrl.clone();
     const from = url.searchParams.get("from");
-    url.pathname = from && from.startsWith("/") && !from.startsWith("//") ? from.split("?")[0] : "/";
-    url.search = from && from.includes("?") ? `?${from.split("?").slice(1).join("?")}` : "";
+    const safe = safeRedirectPath(from);
+    url.pathname = safe.split("?")[0] || "/";
+    url.search = safe.includes("?") ? `?${safe.split("?").slice(1).join("?")}` : "";
     return NextResponse.redirect(url);
   }
 

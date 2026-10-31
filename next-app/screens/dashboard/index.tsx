@@ -331,6 +331,7 @@ const Dashboard: React.FC = () => {
     companyWalletBalance: companyWalletQuery.data ?? null,
     companyWalletLoading: companyWalletQuery.isLoading,
     resellerBalance: resellerSummary.balance,
+    resellerCommissionPending: resellerSummary.commissionPending,
     resellerUserCount: resellerSummary.userCount,
     totalOnlineUsers,
     totalActiveUsers,

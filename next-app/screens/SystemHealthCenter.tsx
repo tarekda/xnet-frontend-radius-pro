@@ -313,6 +313,17 @@ export default function SystemHealthCenterPage() {
     staleTime: 30_000,
   });
 
+  const breakersQuery = useQuery({
+    queryKey: ["systemHealth", "circuitBreakers"],
+    queryFn: async (): Promise<Record<string, { name: string; state: string; failures: number; totalFailures: number; lastFailureAt: string | null }>> => {
+      const { data } = await apiClient.get("/circuit-breakers");
+      return (data?.circuitBreakers || {}) as Record<string, { name: string; state: string; failures: number; totalFailures: number; lastFailureAt: string | null }>;
+    },
+    enabled: canSeeInfra,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
   const paymentQuery = useQuery({
     queryKey: ["systemHealth", "paymentProvider"],
     queryFn: async (): Promise<PaymentProviderStatus> => {
@@ -423,7 +434,10 @@ export default function SystemHealthCenterPage() {
 
   const refreshAll = () => {
     const tasks: Array<Promise<unknown>> = [];
-    if (canSeeInfra) tasks.push(readyQuery.refetch());
+    if (canSeeInfra) {
+      tasks.push(readyQuery.refetch());
+      tasks.push(breakersQuery.refetch());
+    }
     if (canSeeNoc) tasks.push(nocQuery.refetch());
     if (canSeeNas) tasks.push(nasQuery.refetch());
     if (canSeeMikrotik) tasks.push(mikrotikQuery.refetch());
@@ -568,6 +582,30 @@ export default function SystemHealthCenterPage() {
                   <DependencyRow name="Database" check={readyQuery.data?.checks?.db} />
                   <DependencyRow name="Redis" check={readyQuery.data?.checks?.redis} />
                   <DependencyRow name="RabbitMQ" check={readyQuery.data?.checks?.rabbitmq} />
+                  {breakersQuery.data && Object.keys(breakersQuery.data).length > 0 ? (
+                    <div className="space-y-2 pt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Circuit breakers
+                      </p>
+                      {Object.entries(breakersQuery.data).map(([name, metrics]) => {
+                        const state = String(metrics.state || "closed").toLowerCase();
+                        const tone: HealthTone =
+                          state === "open" ? "critical" : state === "half_open" ? "warning" : "healthy";
+                        return (
+                          <div key={name} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                            <div>
+                              <div className="font-medium">{metrics.name || name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {metrics.failures} consecutive · {metrics.totalFailures} total failures
+                                {metrics.lastFailureAt ? ` · last ${formatWhen(metrics.lastFailureAt)}` : ""}
+                              </div>
+                            </div>
+                            <StatusBadge tone={tone} label={state.replace("_", " ")} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </>
               )}
             </CardContent>

@@ -33,7 +33,9 @@ import { notify } from "@/lib/notify";
 import {
   fetchExternalUsers,
   fetchExternalUserProviders,
+  runExternalUserCommand,
   type ExternalUser,
+  type ExternalUserCommand,
   type ExternalUserProvider,
   type ProviderResult,
 } from "@/api/externalUsers";
@@ -58,6 +60,28 @@ function ProviderBadge({ provider, label }: { provider: string; label: string })
   );
 }
 
+function AccountStatusBadge({ status }: { status?: ExternalUser["accountStatus"] }) {
+  if (status === "inactive") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400">
+        Inactive
+      </span>
+    );
+  }
+  if (status === "expired") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-red-400/30 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-400">
+        Expired
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-400">
+      Active
+    </span>
+  );
+}
+
 function OnlineBadge({ online }: { online: boolean }) {
   if (online) {
     return (
@@ -76,7 +100,16 @@ function OnlineBadge({ online }: { online: boolean }) {
 }
 
 // ─── Detail sheet ─────────────────────────────────────────────────────────────
-function UserDetailSheet({ user, onClose }: { user: ExternalUser | null; onClose: () => void }) {
+function UserDetailSheet({
+  user,
+  commands,
+  onClose,
+}: {
+  user: ExternalUser | null;
+  commands: ExternalUserCommand[];
+  onClose: () => void;
+}) {
+  const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => notify.success(`Copied ${label}`)).catch(() => {});
   };
@@ -99,6 +132,7 @@ function UserDetailSheet({ user, onClose }: { user: ExternalUser | null; onClose
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
+                <AccountStatusBadge status={user.accountStatus} />
                 <OnlineBadge online={user.online} />
                 <ProviderBadge provider={user.provider} label={user.providerLabel} />
               </div>
@@ -139,6 +173,49 @@ function UserDetailSheet({ user, onClose }: { user: ExternalUser | null; onClose
                   {user.macAddress && <DetailRow label="MAC Address" value={user.macAddress} mono onCopy={() => copyToClipboard(user.macAddress!, "MAC")} />}
                 </div>
               </div>
+
+              {commands.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Provider commands</h3>
+                  <div className="rounded-xl border border-border/60 bg-card divide-y divide-border/40">
+                    {commands.map((command) => (
+                      <div key={command.command} className="px-4 py-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium capitalize">{command.command}</span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!command.wired || pendingCommand !== null}
+                            onClick={() => {
+                              if (!user || !command.wired) return;
+                              setPendingCommand(command.command);
+                              runExternalUserCommand(user.provider, user.username, command.command)
+                                .then(() => notify.success(`${command.command} sent`, command.upstream))
+                                .catch((err: unknown) => {
+                                  const message =
+                                    (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                                    (err instanceof Error ? err.message : "Command failed");
+                                  notify.error(`${command.command} failed`, message);
+                                })
+                                .finally(() => setPendingCommand(null));
+                            }}
+                          >
+                            {command.wired ? "Run" : "Not connected"}
+                          </Button>
+                        </div>
+                        <p className="font-mono text-[11px] text-muted-foreground break-all">{command.upstream}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {command.description}
+                          {command.localSession === "disconnect"
+                            ? " Our RADIUS then disconnects any open session."
+                            : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="space-y-2">
@@ -255,9 +332,31 @@ export default function ExternalUsersPage() {
               totalOnline: prev.totalOnline + res.totalOnline,
               fetchedAt: res.fetchedAt,
             }));
+            const failed = res.providers.find((p) => p.error);
+            if (failed?.error) {
+              notify.error(`${provider.label} failed`, failed.error);
+            }
           }
         } catch (err) {
-          console.error(`Failed to fetch ${provider.key}`, err);
+          const message =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+            (err instanceof Error ? err.message : "Request failed");
+          if (!isCancelled) {
+            setAccumulatedData((prev) => ({
+              ...prev,
+              providers: [
+                ...prev.providers,
+                {
+                  provider: provider.key as ExternalUserProvider,
+                  label: provider.label,
+                  users: [],
+                  error: message,
+                  fetchedAt: new Date().toISOString(),
+                },
+              ],
+            }));
+            notify.error(`${provider.label} failed`, message);
+          }
         }
       }
       
@@ -334,7 +433,7 @@ export default function ExternalUsersPage() {
   };
 
   const exportCsv = () => {
-    const headers = ["Username", "Full Name", "Provider", "Plan", "Expiry", "Phone", "MAC", "Status", "Session IP"];
+    const headers = ["Username", "Full Name", "Provider", "Plan", "Expiry", "Phone", "MAC", "Account", "Session", "Session IP"];
     const rows = filteredUsers.map((u) => [
       u.username,
       u.fullName,
@@ -343,6 +442,7 @@ export default function ExternalUsersPage() {
       u.expiryDate ?? "",
       u.phoneNumber,
       u.macAddress ?? "",
+      u.accountStatus ?? "active",
       u.online ? "Online" : "Offline",
       u.sessionIp ?? "",
     ]);
@@ -437,16 +537,20 @@ export default function ExternalUsersPage() {
               const loadedData = accumulatedData.providers.find((p) => p.provider === prov.key);
               const isConfigured = Boolean(prov.configured);
               const isCurrentlyLoading = loadingProviderKey === prov.key;
+              const providerError = loadedData?.error || null;
               const totalCount = loadedData?.users?.length ?? 0;
               const onlineCount = loadedData?.users?.filter((u) => u.online).length ?? 0;
 
               return (
                 <div
                   key={prov.key}
+                  title={providerError || undefined}
                   className={`rounded-xl border p-2.5 transition-all ${
-                    isConfigured
-                      ? "border-border/60 bg-card hover:border-primary/40 shadow-xs"
-                      : "border-border/40 bg-muted/40 opacity-60"
+                    providerError
+                      ? "border-red-500/40 bg-red-500/5"
+                      : isConfigured
+                        ? "border-border/60 bg-card hover:border-primary/40 shadow-xs"
+                        : "border-border/40 bg-muted/40 opacity-60"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1">
@@ -454,6 +558,8 @@ export default function ExternalUsersPage() {
                     <span className="flex h-2 w-2 relative shrink-0">
                       {isCurrentlyLoading ? (
                         <span className="animate-spin h-2 w-2 rounded-full border-2 border-violet-500 border-t-transparent" />
+                      ) : providerError ? (
+                        <span className="inline-flex rounded-full h-2 w-2 bg-red-500" />
                       ) : isConfigured ? (
                         <>
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -465,10 +571,10 @@ export default function ExternalUsersPage() {
                     </span>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground font-medium">
-                      {isConfigured ? `${totalCount} sub(s)` : "Disabled"}
+                    <span className={`font-medium ${providerError ? "text-red-400" : "text-muted-foreground"}`}>
+                      {!isConfigured ? "Disabled" : providerError ? "Failed" : `${totalCount} sub(s)`}
                     </span>
-                    {isConfigured && (
+                    {isConfigured && !providerError && (
                       <span className="font-mono text-emerald-400 font-semibold">
                         {onlineCount} online
                       </span>
@@ -478,6 +584,20 @@ export default function ExternalUsersPage() {
               );
             })}
           </div>
+          {accumulatedData.providers.some((p) => p.error) && (
+            <div className="mt-2.5 space-y-1">
+              {accumulatedData.providers
+                .filter((p) => p.error)
+                .map((p) => (
+                  <p key={p.provider} className="flex items-start gap-1.5 text-[11px] text-red-400">
+                    <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>
+                      <span className="font-semibold">{p.label}:</span> {p.error}
+                    </span>
+                  </p>
+                ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -684,7 +804,10 @@ export default function ExternalUsersPage() {
 
                       {/* Status */}
                       <td className="px-4 py-3">
-                        <OnlineBadge online={user.online} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <AccountStatusBadge status={user.accountStatus} />
+                          <OnlineBadge online={user.online} />
+                        </div>
                       </td>
 
                       {/* Chevron */}
@@ -705,7 +828,13 @@ export default function ExternalUsersPage() {
         </Card>
       )}
 
-      <UserDetailSheet user={selectedUser} onClose={() => setSelectedUser(null)} />
+      <UserDetailSheet
+        user={selectedUser}
+        commands={
+          allProvidersList.find((provider) => provider.key === selectedUser?.provider)?.commands ?? []
+        }
+        onClose={() => setSelectedUser(null)}
+      />
 
       {/* Duplicate Finder Drawer */}
       <Sheet open={showDuplicatesSheet} onOpenChange={setShowDuplicatesSheet}>

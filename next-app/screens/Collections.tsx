@@ -7,7 +7,9 @@ import { useSearchParams } from "@/navigation/urlSearchParams";
 import { Calendar, DollarSign, Users, X } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
-import { reconcileCollectedInvoice, type CollectedInvoicesList, type CollectedMetrics, type CollectorBreakdown } from '@/api/invoices';
+import { reconcileCollectedInvoice, reconcileBulkCash, type CollectedInvoicesList, type CollectedMetrics, type CollectorBreakdown } from '@/api/invoices';
+import { notify } from '@/lib/notify';
+import { Button } from '@/components/ui/button';
 import { parseMysqlBool } from '@/lib/utils';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import TablePager from '@/components/TablePager';
@@ -51,6 +53,23 @@ const Collections: React.FC = () => {
     listQuery.refetch();
     metricsQuery.refetch();
     breakdownQuery.refetch();
+  };
+
+  const onBulkReconcile = async () => {
+    if (!dateFrom || !dateTo) {
+      notify.error("Date range required", "Pick a from/to date before bulk reconcile.");
+      return;
+    }
+    try {
+      const result = await reconcileBulkCash({ dateFrom, dateTo });
+      const count = result?.reconciledIds?.length ?? 0;
+      notify.success("Reconciled", `${count} cash invoice(s) marked reconciled.`);
+      listQuery.refetch();
+      metricsQuery.refetch();
+      breakdownQuery.refetch();
+    } catch (e: any) {
+      notify.error("Bulk reconcile failed", e?.response?.data?.message || e?.message || "Failed");
+    }
   };
 
   const canReconcile = (inv: CollectedInvoicesList['data'][number]) => {
@@ -222,6 +241,9 @@ const Collections: React.FC = () => {
                   }}
                   icon={<Calendar className="h-4 w-4" />}
                 />
+                <Button variant="outline" size="sm" onClick={() => void onBulkReconcile()}>
+                  Reconcile range
+                </Button>
               </div>
             </CardContent>
           </Card>

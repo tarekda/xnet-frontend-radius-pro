@@ -29,5 +29,6 @@
   "save": "Save",
   "delete": "Delete",
   "edit": "Edit",
-  "close": "Close"
+  "close": "Close",
+  "language": "Language"
 }

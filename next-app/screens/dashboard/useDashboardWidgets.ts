@@ -25,6 +25,7 @@ type WidgetInputs = {
   canSeeAlerts: boolean;
   canSeeCompanyWallet: boolean;
   resellerBalance: number | null;
+  resellerCommissionPending: number | null;
   companyWalletBalance: number | null;
   companyWalletLoading: boolean;
   resellerUserCount: number | null;
@@ -62,6 +63,7 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
     canSeeAlerts,
     canSeeCompanyWallet,
     resellerBalance,
+    resellerCommissionPending,
     companyWalletBalance,
     companyWalletLoading,
     resellerUserCount,
@@ -121,6 +123,16 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
         icon: Users,
         accentClass: "text-blue-600 dark:text-blue-400",
         glowClass: "bg-blue-500",
+      });
+      items.push({
+        key: "reseller-commission",
+        title: "Commission",
+        value: resellerCommissionPending === null ? "…" : resellerCommissionPending.toFixed(2),
+        subtitle: "Pending payout",
+        to: "/dashboard",
+        icon: DollarSign,
+        accentClass: "text-amber-600 dark:text-amber-400",
+        glowClass: "bg-amber-500",
       });
     }
 
@@ -246,6 +258,7 @@ export function useDashboardWidgets(inputs: WidgetInputs): DashboardWidgetItem[]
     quotaDailyCount,
     quotaMonthlyCount,
     resellerBalance,
+    resellerCommissionPending,
     resellerUserCount,
     spendCurrency,
     spendGrowth,

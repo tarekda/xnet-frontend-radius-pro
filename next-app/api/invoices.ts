@@ -419,3 +419,23 @@ export async function createExternalInvoiceDebit(
   return data.data as ExternalInvoice;
 }
 
+export async function bulkPayInvoices(invoiceIds: number[]): Promise<void> {
+  await apiClient.post("/invoices/bulk-pay", { invoiceIds });
+}
+
+export async function collectInvoice(
+  invoiceId: number,
+  paymentMethod: "cash" | "pos" | "transfer" | "other" | "gateway" = "cash"
+): Promise<void> {
+  await apiClient.post(`/invoices/collect/${invoiceId}`, { paymentMethod });
+}
+
+export async function reconcileBulkCash(input: {
+  dateFrom: string;
+  dateTo: string;
+  collector?: string;
+}): Promise<{ reconciledIds: number[] }> {
+  const { data } = await apiClient.post("/invoices/reconcile/bulk", input);
+  return data.data as { reconciledIds: number[] };
+}
+

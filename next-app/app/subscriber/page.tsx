@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -55,71 +55,29 @@ import {
   ArrowRight,
   Ticket,
 } from "lucide-react";
-
-const API_BASE =
-  (typeof window !== "undefined" && (window as any).__ENV__?.NEXT_PUBLIC_API_URL) ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "/api";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { formatBytes, formatDate, formatMoney, formatMonth } from "@/lib/format";
+import { useSubscriberPortal } from "@/hooks/useSubscriberPortal";
+import { InvoiceClaims } from "./InvoiceClaims";
+import {
+  buyVoucher,
+  createSubscriberPaymentIntent,
+  fetchVoucherPlans,
+  paySubscriberInvoiceFromWallet,
+  redeemVoucher as redeemVoucherPin,
+  reportSubscriberWhishPayment,
+} from "@/api/subscriber";
 
 /** Whish consumer docs: payment links are opened/approved in the Whish app. */
 const WHISH_ADD_TRANSFER_URL = "https://www.whish.money/add-transfer";
 const WHISH_GET_APP_URL = "https://apps.whish.money/whish-app";
 
-function storageKey(k: string) {
-  return `subscriber.${k}`;
-}
-
-function formatBytes(n: number | null | undefined): string {
-  const v = Number(n || 0);
-  if (!Number.isFinite(v) || v <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let x = v;
-  let i = 0;
-  while (x >= 1024 && i < units.length - 1) {
-    x /= 1024;
-    i += 1;
-  }
-  return `${x < 10 && i > 0 ? x.toFixed(1) : Math.round(x)} ${units[i]}`;
-}
-
-function formatMoney(amount: number | string | null | undefined, currency = "USD"): string {
-  const n = typeof amount === "number" ? amount : Number(amount);
-  if (!Number.isFinite(n)) return "—";
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency === "LBP" ? "LBP" : "USD",
-      maximumFractionDigits: currency === "LBP" ? 0 : 2,
-    }).format(n);
-  } catch {
-    return `${n.toFixed(2)} ${currency}`;
-  }
-}
-
-function formatDate(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatMonth(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  const raw = String(value).slice(0, 10);
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
-}
-
-function usagePct(used: number, quota: number): number {
-  if (!quota || quota <= 0) return 0;
-  return Math.min(100, Math.round((used / quota) * 100));
+function usagePct(used?: number | null, quota?: number | null): number {
+  const u = Number(used || 0);
+  const q = Number(quota || 0);
+  if (!q || q <= 0) return 0;
+  return Math.min(100, Math.round((u / q) * 100));
 }
 
 function statusVariant(
@@ -144,20 +102,26 @@ type PaymentProviderInfo = {
 };
 
 function SubscriberPortalContent() {
+  const { t } = useTranslation("screens");
   const searchParams = useSearchParams();
+  const {
+    authed,
+    loading,
+    me,
+    usage,
+    invoices,
+    sessions,
+    provider,
+    walletLedger,
+    login: portalLogin,
+    logout: portalLogout,
+    refreshAll,
+  } = useSubscriberPortal();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [me, setMe] = useState<any>(null);
-  const [usage, setUsage] = useState<any>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [walletLedger, setWalletLedger] = useState<any[]>([]);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [provider, setProvider] = useState<PaymentProviderInfo | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [walletPayingId, setWalletPayingId] = useState<number | null>(null);
   const [paySheet, setPaySheet] = useState<{
@@ -197,15 +161,12 @@ function SubscriberPortalContent() {
 
   const openBuyVoucherModal = async () => {
     setIsBuyVoucherOpen(true);
-    if (!headers) return;
+    if (!authed) return;
     try {
-      const res = await fetch(`${API_BASE}/subscriber/voucher-plans`, { headers });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setVoucherPlans(json.data || []);
-        if (json.data && json.data.length > 0 && !selectedPlanId) {
-          setSelectedPlanId(json.data[0].id);
-        }
+      const plans = await fetchVoucherPlans();
+      setVoucherPlans(plans);
+      if (plans.length > 0 && !selectedPlanId) {
+        setSelectedPlanId(plans[0].id);
       }
     } catch {
       // Ignore fetch error
@@ -213,21 +174,16 @@ function SubscriberPortalContent() {
   };
 
   const handleBuyVoucher = async () => {
-    if (!selectedPlanId || !headers) return;
+    if (!selectedPlanId || !authed) return;
     setBuyingVoucher(true);
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`${API_BASE}/subscriber/buy-voucher`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ profileId: selectedPlanId }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Failed to purchase voucher");
+      const json = await buyVoucher(selectedPlanId);
+      if (!json.success) throw new Error(json.message || "Failed to purchase voucher");
       setIsBuyVoucherOpen(false);
       setNotice(json.message || "Voucher purchased and line renewed!");
-      if (token) void load(token);
+      void refreshAll();
     } catch (err: any) {
       setError(err?.message || "Failed to purchase voucher");
     } finally {
@@ -238,32 +194,22 @@ function SubscriberPortalContent() {
   const redeemVoucher = async (e: FormEvent) => {
     e.preventDefault();
     const pin = voucherPin.trim();
-    if (!pin || !headers) return;
+    if (!pin || !authed) return;
     setRedeemingVoucher(true);
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`${API_BASE}/subscriber/redeem-voucher`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ pinCode: pin }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Voucher redemption failed");
+      const json = await redeemVoucherPin(pin);
+      if (!json.success) throw new Error(json.message || "Voucher redemption failed");
       setVoucherPin("");
       setNotice(json.message || "Voucher redeemed successfully! Your account has been renewed.");
-      if (token) void load(token);
+      void refreshAll();
     } catch (err: any) {
       setError(err?.message || "Failed to redeem voucher PIN");
     } finally {
       setRedeemingVoucher(false);
     }
   };
-
-  useEffect(() => {
-    const t = sessionStorage.getItem(storageKey("accessToken"));
-    if (t) setToken(t);
-  }, []);
 
   useEffect(() => {
     const paid = searchParams.get("paid");
@@ -276,117 +222,27 @@ function SubscriberPortalContent() {
     }
   }, [searchParams]);
 
-  const headers = useMemo(
-    () =>
-      token
-        ? {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          }
-        : undefined,
-    [token]
-  );
-
-  const load = useCallback(async (accessToken: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const h = {
-        Authorization: `Bearer ${accessToken}`,
-        "X-Requested-With": "XMLHttpRequest",
-      };
-      const [meRes, usageRes, invRes, sessRes, payRes, ledgerRes] = await Promise.all([
-        fetch(`${API_BASE}/subscriber/me`, { headers: h }),
-        fetch(`${API_BASE}/subscriber/usage`, { headers: h }),
-        fetch(`${API_BASE}/subscriber/invoices`, { headers: h }),
-        fetch(`${API_BASE}/subscriber/sessions?limit=5`, { headers: h }),
-        fetch(`${API_BASE}/subscriber/payment-provider`, { headers: h }),
-        fetch(`${API_BASE}/subscriber/wallet/ledger?limit=20`, { headers: h }),
-      ]);
-      if (!meRes.ok) throw new Error("Session expired — please sign in again");
-      setMe((await meRes.json()).data);
-      setUsage((await usageRes.json()).data);
-      setInvoices((await invRes.json()).data || []);
-      const sessJson = await sessRes.json();
-      setSessions(sessJson.data?.sessions || []);
-      if (payRes.ok) {
-        setProvider((await payRes.json()).data || null);
-      }
-      if (ledgerRes.ok) {
-        const ledgerJson = await ledgerRes.json();
-        setWalletLedger(ledgerJson.data || []);
-      } else {
-        setWalletLedger([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
-    load(token).catch(() => {
-      setToken(null);
-      sessionStorage.removeItem(storageKey("accessToken"));
-      sessionStorage.removeItem(storageKey("refreshToken"));
-    });
-  }, [token, load]);
+  const load = refreshAll;
 
   const login = async (e?: FormEvent) => {
     e?.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/subscriber/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Login failed");
-      sessionStorage.setItem(storageKey("accessToken"), json.data.accessToken);
-      sessionStorage.setItem(storageKey("refreshToken"), json.data.refreshToken);
-      setToken(json.data.accessToken);
+      await portalLogin(username, password);
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      setError(err?.message || t("subscriber.login_failed"));
     } finally {
       setBusy(false);
     }
   };
 
   const logout = async () => {
-    const refresh = sessionStorage.getItem(storageKey("refreshToken"));
-    try {
-      if (refresh) {
-        await fetch(`${API_BASE}/auth/subscriber/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          body: JSON.stringify({ refreshToken: refresh }),
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-    setToken(null);
-    setMe(null);
-    setUsage(null);
-    setInvoices([]);
-    setWalletLedger([]);
-    setSessions([]);
-    setProvider(null);
-    sessionStorage.removeItem(storageKey("accessToken"));
-    sessionStorage.removeItem(storageKey("refreshToken"));
+    await portalLogout();
   };
 
   const payWithWhish = async (inv: { id: number; totalAmount?: number; amount?: number }) => {
-    if (!headers) return;
+    if (!authed) return;
     setPayingId(inv.id);
     setError(null);
     setNotice(null);
@@ -420,12 +276,8 @@ function SubscriberPortalContent() {
       let checkoutUrl: string | null = null;
       let intentProvider = provider?.provider || "stub";
       try {
-        const res = await fetch(`${API_BASE}/subscriber/invoices/${inv.id}/payment-intent`, {
-          method: "POST",
-          headers,
-        });
-        const json = await res.json();
-        if (res.ok && json.success && json.data?.checkoutUrl) {
+        const json = await createSubscriberPaymentIntent(inv.id);
+        if (json.success && json.data?.checkoutUrl) {
           checkoutUrl = json.data.checkoutUrl;
           intentProvider = String(json.data?.provider || json.data?.gatewayProvider || intentProvider);
         } else if (!qrOn) {
@@ -477,7 +329,7 @@ function SubscriberPortalContent() {
   const finishPaySheet = () => {
     setPaySheet(null);
     setNotice("You can submit your Whish reference anytime from Top up via Whish.");
-    if (token) void load(token);
+    void load();
   };
 
   const payFromWallet = async (inv: {
@@ -486,7 +338,7 @@ function SubscriberPortalContent() {
     amount?: number;
     remainingDue?: number;
   }) => {
-    if (!headers) return;
+    if (!authed) return;
     const due = Number(inv.remainingDue ?? inv.totalAmount ?? inv.amount ?? 0);
     const bal = Number(me?.walletBalance ?? 0);
     if (bal + 1e-9 < 0.01) {
@@ -508,18 +360,13 @@ function SubscriberPortalContent() {
     amount?: number;
     remainingDue?: number;
   }) => {
-    if (!headers) return;
+    if (!authed) return;
     setWalletPayingId(inv.id);
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`${API_BASE}/subscriber/invoices/${inv.id}/pay-from-wallet`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({}),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Wallet payment failed");
+      const json = await paySubscriberInvoiceFromWallet(inv.id);
+      if (!json.success) throw new Error(json.message || "Wallet payment failed");
       if (json.data?.partial) {
         setNotice(
           `Partial payment applied: ${formatMoney(json.data.amountApplied, currency)}. Remaining: ${formatMoney(json.data.remainingDue, currency)}.`
@@ -531,7 +378,7 @@ function SubscriberPortalContent() {
             : "Invoice paid from your wallet balance."
         );
       }
-      if (token) await load(token);
+      await load();
     } catch (err: any) {
       setError(err?.message || "Wallet payment failed");
     } finally {
@@ -540,30 +387,20 @@ function SubscriberPortalContent() {
   };
 
   const reportWhishPayment = async () => {
-    if (!headers || !paySheet) return;
+    if (!authed || !paySheet) return;
     setReporting(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/subscriber/invoices/${paySheet.invoiceId}/report-whish-payment`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            whishReference: whishReference.trim(),
-            amount: Number(reportAmount || paySheet.amountValue),
-            currency,
-            note: me?.username ? `subscriber:${me.username}` : undefined,
-          }),
-        }
-      );
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Could not report payment");
+      const json = await reportSubscriberWhishPayment(paySheet.invoiceId, {
+        whishReference: whishReference.trim(),
+        amount: Number(reportAmount || paySheet.amountValue),
+        currency,
+        note: me?.username ? `subscriber:${me.username}` : undefined,
+      });
+      if (!json.success) throw new Error(json.message || "Could not report payment");
       setPaySheet(null);
-      setNotice(
-        "Payment reported. After staff approve, the amount is credited to your wallet — then use Pay from wallet."
-      );
-      if (token) void load(token);
+      setNotice(t("subscriber.whish_reported"));
+      void load();
     } catch (err: any) {
       setError(err?.message || "Failed to report payment");
     } finally {
@@ -596,7 +433,7 @@ function SubscriberPortalContent() {
   const dailyPct = usagePct(usage?.dailyUsed, usage?.dailyQuota);
   const monthlyPct = usagePct(usage?.monthlyUsed, usage?.monthlyQuota);
 
-  if (!token) {
+  if (!authed) {
     return (
       <div className="shop-app-shell flex min-h-full items-center justify-center overflow-y-auto p-4">
         <div className="w-full max-w-md space-y-5 animate-in fade-in duration-500">
@@ -605,15 +442,16 @@ function SubscriberPortalContent() {
               <Wifi className="h-7 w-7" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Xnet</h1>
-            <p className="text-sm text-muted-foreground">
-              Subscriber portal — check usage and pay invoices
-            </p>
+            <p className="text-sm text-muted-foreground">{t("subscriber.title")}</p>
+            <div className="flex justify-center pt-1">
+              <LanguageSwitcher className="w-[150px]" />
+            </div>
           </div>
 
           <Card className="border border-border/60 shadow-lg dark:border-border/50">
             <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-xl">Sign in</CardTitle>
-              <CardDescription>Use your internet username and password</CardDescription>
+              <CardTitle className="text-xl">{t("subscriber.sign_in")}</CardTitle>
+              <CardDescription>{t("login.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={login} className="space-y-4">
@@ -623,7 +461,7 @@ function SubscriberPortalContent() {
                   <Input
                     className="pl-9"
                     aria-label="Username"
-                    placeholder="Username"
+                    placeholder={t("subscriber.username")}
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -636,7 +474,7 @@ function SubscriberPortalContent() {
                     className="pl-9"
                     type="password"
                     aria-label="Password"
-                    placeholder="Password"
+                    placeholder={t("subscriber.password")}
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -645,7 +483,7 @@ function SubscriberPortalContent() {
                 </div>
                 <Button className="w-full" type="submit" disabled={busy || !username || !password}>
                   {busy ? <Loader2 className="animate-spin" /> : null}
-                  {busy ? "Signing in…" : "Sign in"}
+                  {busy ? t("subscriber.logging_in") : t("subscriber.login")}
                 </Button>
               </form>
             </CardContent>
@@ -685,19 +523,20 @@ function SubscriberPortalContent() {
               {me?.planName ? ` · ${me.planName}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <LanguageSwitcher className="w-[130px]" />
             <Button
               variant="outline"
               size="sm"
               disabled={loading}
-              onClick={() => token && load(token)}
+              onClick={() => authed && void load()}
             >
               <RefreshCw className={loading ? "animate-spin" : ""} />
-              Refresh
+              {t("subscriber.refresh")}
             </Button>
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut />
-              Log out
+              {t("subscriber.logout")}
             </Button>
           </div>
         </header>
@@ -882,11 +721,11 @@ function SubscriberPortalContent() {
                 <span className="font-medium">Daily</span>
                 <span className="text-muted-foreground">
                   {formatBytes(usage?.dailyUsed)}
-                  {usage?.dailyQuota > 0 ? ` / ${formatBytes(usage.dailyQuota)}` : " · unlimited"}
+                  {Number(usage?.dailyQuota || 0) > 0 ? ` / ${formatBytes(usage?.dailyQuota)}` : " · unlimited"}
                 </span>
               </div>
               <Progress
-                value={usage?.dailyQuota > 0 ? dailyPct : 0}
+                value={Number(usage?.dailyQuota || 0) > 0 ? dailyPct : 0}
                 className="h-2.5 w-full"
                 indicatorClassName={dailyPct >= 90 ? "bg-destructive" : "bg-primary"}
               />
@@ -896,11 +735,11 @@ function SubscriberPortalContent() {
                 <span className="font-medium">Monthly</span>
                 <span className="text-muted-foreground">
                   {formatBytes(usage?.monthlyUsed)}
-                  {usage?.monthlyQuota > 0 ? ` / ${formatBytes(usage.monthlyQuota)}` : " · unlimited"}
+                  {Number(usage?.monthlyQuota || 0) > 0 ? ` / ${formatBytes(usage?.monthlyQuota)}` : " · unlimited"}
                 </span>
               </div>
               <Progress
-                value={usage?.monthlyQuota > 0 ? monthlyPct : 0}
+                value={Number(usage?.monthlyQuota || 0) > 0 ? monthlyPct : 0}
                 className="h-2.5 w-full"
                 indicatorClassName={monthlyPct >= 90 ? "bg-destructive" : "bg-primary"}
               />
@@ -1009,7 +848,7 @@ function SubscriberPortalContent() {
             )}
             {invoices.length === 0 && (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                No invoices yet.
+                {t("subscriber.no_invoices")}
               </div>
             )}
             {invoices.map((inv) => {
@@ -1070,6 +909,7 @@ function SubscriberPortalContent() {
                         </span>
                       ) : null}
                     </div>
+                    {!paid ? <InvoiceClaims invoiceId={inv.id} currency={currency} /> : null}
                   </div>
                   {!paid ? (
                     <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -1087,8 +927,8 @@ function SubscriberPortalContent() {
                           : isPartialAvailable
                             ? `Pay ${formatMoney(Math.min(bal, remaining), currency)} now`
                             : me?.isExpired
-                              ? "Pay & renew"
-                              : "Pay from wallet"}
+                              ? t("subscriber.pay_renew")
+                              : t("subscriber.pay_wallet")}
                       </Button>
                       <Button
                         variant="outline"
@@ -1097,7 +937,7 @@ function SubscriberPortalContent() {
                         onClick={() => payWithWhish(inv)}
                       >
                         {isPaying ? <Loader2 className="animate-spin" /> : <Smartphone />}
-                        {isPaying ? "Creating…" : "Top up via Whish"}
+                        {isPaying ? t("subscriber.creating") : t("subscriber.pay_whish")}
                       </Button>
                     </div>
                   ) : null}

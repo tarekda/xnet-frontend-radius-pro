@@ -13,9 +13,7 @@ export function useExternalInvoiceRealtimeSync(onPaid?: () => void) {
       resolveBrowserApiUrl().replace(/\/api\/?$/, "") ||
       DEFAULT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
     const wsUrl = apiUrl.replace(/^http/, "ws");
-    const token =
-      localStorage.getItem("accessToken") ?? sessionStorage.getItem("accessToken");
-    const ws = new WebSocket(token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl);
+    const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
       try {

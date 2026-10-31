@@ -152,11 +152,11 @@ const deleteInvoicesBulk = async (invoiceIds: number[]): Promise<BulkDeleteResul
     }
 };
 
-const sendReminder = async (invoiceId: number): Promise<ApiResponse<{ ok: boolean }>> => {
+const sendReminder = async (invoiceId: number): Promise<ApiResponse<{ ok: boolean; paymentLinkError?: string | null }>> => {
     if (!isFeatureEnabled("whatsapp-remind")) {
         throw new Error("Reminder feature is disabled");
     }
-    const response = await apiClient.post(`/invoices/external/${invoiceId}/remind`);
+    const response = await apiClient.post(`/invoices/external/${invoiceId}/remind`, {}, { timeout: 40_000 });
     return response.data;
 };
 
@@ -311,11 +311,19 @@ export const useExternalInvoices = ({ initialPage, pageSize, search, from, to, s
 
     const sendReminderMutation = useMutation({
         mutationFn: sendReminder,
-        onSuccess: () => {
-            notify.success("Sent", MESSAGES.invoices.external.reminderSent);
+        onSuccess: (response) => {
+            const paymentLinkError = response?.data?.paymentLinkError;
+            if (paymentLinkError) {
+                notify.error("Reminder sent without payment link", paymentLinkError);
+                return;
+            }
+            notify.success("Sent", response?.message || MESSAGES.invoices.external.reminderSent);
         },
-        onError: (error: Error) => {
-            notify.error("Send failed", error.message);
+        onError: (error: unknown) => {
+            const message =
+                (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+                (error instanceof Error ? error.message : "Failed to send reminder");
+            notify.error("Send failed", message);
         },
     });
 
