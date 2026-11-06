@@ -26,7 +26,7 @@ export const BulkActionsBar = ({
   const isAllSelected = selectedUsers.size === allUsers.length;
   const [profileId, setProfileId] = useState<string>("");
   const { user: authUser } = useAuth();
-  const canManageUsers = useMemo(() => canAny(authUser, ["users.view", "reseller.users.manage"]), [authUser]);
+  const canManageUsers = useMemo(() => canAny(authUser, ["users.manage", "reseller.users.manage"]), [authUser]);
   const manageUsersReason = "You don't have permission to manage users.";
 
   return (

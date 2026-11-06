@@ -5,7 +5,7 @@ import AddUserComponent from "@/screens/AddUser";
 
 export default function AddUserRoutePage() {
   return (
-    <PermissionGate anyOf={["users.view", "reseller.users.manage"]}>
+    <PermissionGate anyOf={["users.manage", "reseller.users.manage"]}>
       <AddUserComponent />
     </PermissionGate>
   );

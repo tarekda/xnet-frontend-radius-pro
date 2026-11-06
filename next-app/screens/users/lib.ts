@@ -31,6 +31,13 @@ export function toServerSortParams(sorting: SortingState): { sortBy?: string; so
   return { sortBy, sortDir: first.desc ? "desc" : "asc" };
 }
 
+/** blocked, disabled, and inactive are the same as suspended. */
+export function canonicalAccountStatus(value: string | null | undefined): string {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "blocked" || raw === "disabled" || raw === "inactive") return "suspended";
+  return raw;
+}
+
 export const STATUS_SEGMENTS: Array<{
   key: string;
   label: string;
@@ -39,7 +46,6 @@ export const STATUS_SEGMENTS: Array<{
 }> = [
   { key: "active", label: "Active", barClass: "bg-emerald-500/85 hover:bg-emerald-500", dotClass: "bg-emerald-500" },
   { key: "suspended", label: "Suspended", barClass: "bg-red-500/85 hover:bg-red-500", dotClass: "bg-red-500" },
-  { key: "inactive", label: "Inactive", barClass: "bg-slate-400/85 hover:bg-slate-400", dotClass: "bg-slate-400" },
   { key: "expired", label: "Expired", barClass: "bg-amber-500/85 hover:bg-amber-500", dotClass: "bg-amber-500" },
   { key: "terminated", label: "Terminated", barClass: "bg-zinc-600/85 hover:bg-zinc-600", dotClass: "bg-zinc-600" },
 ];
@@ -62,7 +68,7 @@ export function filterUsers(
   const account = effectiveAccountStatus(statusFilter, filters);
   if (account) {
     const want = account.toLowerCase();
-    filtered = filtered.filter((user) => String(user.accountStatus ?? "").toLowerCase() === want);
+    filtered = filtered.filter((user) => canonicalAccountStatus(user.accountStatus) === want);
   }
 
   // Connectivity / risk / profile quick filters (not account status)
@@ -115,6 +121,25 @@ export type ExpiryInfo = {
   badgeTone: "danger" | "warning" | "success" | "neutral";
   daysRemaining: number | null;
 };
+
+/** Same window as the API: renew early only while 1 to 5 days remain. */
+export const EARLY_RENEW_MIN_DAYS = 1;
+export const EARLY_RENEW_MAX_DAYS = 5;
+
+export function canRenewRadiusUser(
+  user: { accountStatus?: string | null; expiresAt?: string | null },
+  now = new Date()
+): boolean {
+  const status = String(user.accountStatus ?? "").trim().toLowerCase();
+  if (status === "suspended" || status === "terminated") return false;
+  if (status === "expired") return true;
+  if (!user.expiresAt) return false;
+  const expiresAt = new Date(user.expiresAt);
+  if (Number.isNaN(expiresAt.getTime())) return false;
+  const days = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return true;
+  return days >= EARLY_RENEW_MIN_DAYS && days <= EARLY_RENEW_MAX_DAYS;
+}
 
 export function getExpiryInfo(expiresAt?: string | null): ExpiryInfo {
   if (!expiresAt) {

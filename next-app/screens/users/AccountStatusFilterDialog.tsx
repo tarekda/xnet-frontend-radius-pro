@@ -38,14 +38,12 @@ export const AccountStatusFilterDialog = ({
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="inactive">Inactive (disabled)</SelectItem>
                 <SelectItem value="terminated">Terminated</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Matches the user&apos;s account status from RADIUS. Inactive covers legacy &quot;disabled&quot; rows in
-              your data.
+              Matches the account status FreeRADIUS enforces.
             </p>
           </div>
         </div>

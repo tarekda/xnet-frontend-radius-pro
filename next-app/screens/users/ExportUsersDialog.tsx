@@ -8,8 +8,9 @@ import { notify } from "@/lib/notify";
 import { MESSAGES } from "@/constants/messages";
 import { fetchAllUsers } from "@/api/users";
 import type { User } from "@/types/api";
+import { canonicalAccountStatus } from "@/screens/users/lib";
 
-type ExportStatus = "all" | "active" | "suspended";
+type ExportStatus = "all" | "active" | "suspended" | "terminated" | "expired";
 
 export const ExportUsersDialog = ({
   open,
@@ -31,7 +32,7 @@ export const ExportUsersDialog = ({
       const sourceUsers = exportAllUsers ? await fetchAllUsers() : filteredUsers;
       const exportableUsers = sourceUsers.filter((u) => {
         if (exportStatus === "all") return true;
-        return String(u.accountStatus ?? "").toLowerCase() === exportStatus;
+        return canonicalAccountStatus(u.accountStatus) === exportStatus;
       });
 
       if (!exportableUsers.length) {
@@ -111,6 +112,8 @@ export const ExportUsersDialog = ({
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="active">Active only</SelectItem>
                 <SelectItem value="suspended">Suspended only</SelectItem>
+                <SelectItem value="terminated">Terminated only</SelectItem>
+                <SelectItem value="expired">Expired only</SelectItem>
               </SelectContent>
             </Select>
           </div>

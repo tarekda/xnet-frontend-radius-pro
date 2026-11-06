@@ -758,7 +758,7 @@ const OnlineUsersTable: React.FC<Props> = ({
     onViewTraffic,
 }) => {
     const { user: authUser } = useAuth();
-    const canManageRadiusUsers = useMemo(() => canAny(authUser, ["users.view", "reseller.users.manage"]), [authUser]);
+    const canManageRadiusUsers = useMemo(() => canAny(authUser, ["users.manage", "reseller.users.manage"]), [authUser]);
     const canResetDailyQuota = useMemo(() => canAny(authUser, ["users.resetDailyQuota", "reseller.users.manage"]), [authUser]);
     const canResetMonthlyQuota = useMemo(() => canAny(authUser, ["users.resetMonthlyQuota", "reseller.users.manage"]), [authUser]);
     const canDisconnect = useMemo(() => canAny(authUser, ["users.online.view", "reseller.users.manage"]), [authUser]);

@@ -9,6 +9,15 @@ import { User } from '@/types/api';
 import { Eye, EyeOff, Shield, Network, UserIcon } from 'lucide-react';
 import { Switch } from './ui/switch';
 import useUsers, { AccountStatus } from '@/hooks/useUsers';
+import { apiClient } from '@/api/client';
+import { canonicalAccountStatus } from '@/screens/users/lib';
+
+function passwordText(user: User): string {
+    const raw = user.password as { value?: string } | string | null | undefined;
+    if (typeof raw === "string") return raw;
+    if (raw && typeof raw.value === "string") return raw.value;
+    return "";
+}
 
 interface AddUserModalProps {
     isOpen: boolean;
@@ -70,12 +79,12 @@ function reducer(state: State, action: Action): State {
             return {
                 ...state,
                 username: action.user.username,
-                password: { value: action.user.password.value },
-                selectedProfile: action.user.profile.id.toString(),
-                accountStatus: action.user.accountStatus,
+                password: { value: passwordText(action.user) },
+                selectedProfile: action.user.profile?.id != null ? String(action.user.profile.id) : state.selectedProfile,
+                accountStatus: canonicalAccountStatus(action.user.accountStatus) || "active",
                 freenight: Boolean((action.user as any).freenight),
                 quotaResetDay: action.user.quotaResetDay?.toString() || '1',
-                quotaCycleStartDate: action.user.quotaCycleStartDate?.slice(0, 10) || '',
+                quotaCycleStartDate: typeof action.user.quotaCycleStartDate === "string" ? action.user.quotaCycleStartDate.slice(0, 10) : '',
                 fullName: action.user.userDetails?.fullName || '',
                 address: action.user.userDetails?.address || '',
                 phoneNumber: action.user.userDetails?.phoneNumber || '',
@@ -91,11 +100,24 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
     const { updateUserMutation, createUserMutation } = useUsers();
 
     useEffect(() => {
-        if (editingUser) {
-            dispatch({ type: 'SET_EDITING_USER', user: editingUser });
-        } else {
+        if (!editingUser) {
             dispatch({ type: 'RESET_FORM' });
+            return;
         }
+        dispatch({ type: 'SET_EDITING_USER', user: editingUser });
+        if (passwordText(editingUser)) return;
+        let cancelled = false;
+        apiClient.get("/radius/users/search", { params: { query: editingUser.username } })
+            .then((resp) => {
+                if (cancelled) return;
+                const users: User[] = resp?.data?.data?.users ?? resp?.data?.data ?? [];
+                const exact = users.find((user) => String(user.username).toLowerCase() === editingUser.username.toLowerCase());
+                if (exact) dispatch({ type: 'SET_EDITING_USER', user: exact });
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
     }, [editingUser]);
 
     // Add this new useEffect
@@ -223,7 +245,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
                                                 <SelectContent>
                                                     <SelectItem value="active">Active</SelectItem>
                                                     <SelectItem value="suspended">Suspended</SelectItem>
-                                                    <SelectItem value="blocked">Blocked</SelectItem>
+                                                    <SelectItem value="terminated">Terminated</SelectItem>
+                                                    <SelectItem value="expired">Expired</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>

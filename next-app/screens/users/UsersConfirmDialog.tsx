@@ -57,7 +57,7 @@ function confirmDescription(confirmAction: ConfirmActionState): string | undefin
     case "reset-monthly-quota":
       return `This will reset the monthly traffic counters for ${confirmAction.username}.`;
     case "renew-subscription":
-      return `Add 1 calendar month from today (or from the current end date), set ${confirmAction.username} to active, and request a disconnect so the new session can authenticate.`;
+      return `Add 1 month to the current expiry when 1 to 5 days remain, or from today if it is already expired. Sets ${confirmAction.username} to active and disconnects the open session.`;
     case "bulk": {
       const profileLine =
         confirmAction.action === "assign-profile"

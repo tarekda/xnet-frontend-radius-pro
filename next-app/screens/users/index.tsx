@@ -37,7 +37,7 @@ import { UsersAnalyticsView } from "./UsersAnalyticsView";
 import { UsersConfirmDialog } from "./UsersConfirmDialog";
 import { UsersFiltersPanel } from "./UsersFiltersPanel";
 import { UsersPageSkeleton } from "./UsersPageSkeleton";
-import { computeLocalMetrics, effectiveAccountStatus, filterUsers, toServerSortParams } from "./lib";
+import { canRenewRadiusUser, computeLocalMetrics, effectiveAccountStatus, filterUsers, toServerSortParams } from "./lib";
 import { usersPageInitialState, usersPageReducer, type ViewMode } from "./usersPageReducer";
 
 const UsersPage: React.FC = () => {
@@ -74,7 +74,7 @@ const UsersPage: React.FC = () => {
         () => canAny(authUser, ["users.online.view", "reseller.users.view"]),
         [authUser]
     );
-    const canManageUsers = useMemo(() => canAny(authUser, ["users.view", "reseller.users.manage"]), [authUser]);
+    const canManageUsers = useMemo(() => canAny(authUser, ["users.manage", "reseller.users.manage"]), [authUser]);
     const manageUsersReason = "You don't have permission to manage users.";
     const canResetDailyQuota = useMemo(() => canAny(authUser, ["users.resetDailyQuota", "reseller.users.manage"]), [authUser]);
     const canResetMonthlyQuota = useMemo(() => canAny(authUser, ["users.resetMonthlyQuota", "reseller.users.manage"]), [authUser]);
@@ -461,9 +461,23 @@ const UsersPage: React.FC = () => {
             case 'suspend':
             case 'activate':
             case 'delete':
-            case 'renew':
                 dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'bulk', action, usernames } });
                 break;
+            case 'renew': {
+                const eligible = selectedUserList
+                    .filter((user) => canRenewRadiusUser(user))
+                    .map((user) => user.username)
+                    .filter(Boolean);
+                if (eligible.length === 0) {
+                    notify.error(
+                        "Cannot renew",
+                        "Renew is available when a subscription is expired, or when 1 to 5 days remain."
+                    );
+                    return;
+                }
+                dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'bulk', action, usernames: eligible } });
+                break;
+            }
             case 'reset-mac':
                 dispatch({ type: "SET_CONFIRM_ACTION", payload: { kind: 'bulk', action: 'reset-mac', usernames } });
                 break;

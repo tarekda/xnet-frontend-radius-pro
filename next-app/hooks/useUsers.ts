@@ -8,8 +8,8 @@ import { MESSAGES } from '@/constants/messages';
 
 export enum AccountStatus {
   ACTIVE = 'active',
-  INACTIVE = 'inactive',
   SUSPENDED = 'suspended',
+  TERMINATED = 'terminated',
   EXPIRED = 'expired',
 }
 

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PageHeader from "@/components/PageHeader";
 import { Settings as SettingsIcon, Shield, Tag } from "lucide-react";
@@ -8,15 +8,59 @@ import { useAppPreferences } from '@/context/AppPreferencesContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { useTranslation } from 'react-i18next';
 import { VERSION_LABEL } from '@/constants/version';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { apiClient } from '@/api/client';
+import { notify } from '@/lib/notify';
 
 
 const Setting: React.FC = () => {
   const { t } = useTranslation('common');
   const { t: tScreens } = useTranslation('screens');
   const { density, setDensity, showHealthStrip, setShowHealthStrip } = useAppPreferences();
+  const [expiryTime, setExpiryTime] = useState("23:59");
+  const [expiryTimeLoaded, setExpiryTimeLoaded] = useState(false);
+  const [expiryTimeLoadFailed, setExpiryTimeLoadFailed] = useState(false);
+  const [expiryTimeSaving, setExpiryTimeSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.get("/radius/app-settings").then((res) => {
+      if (cancelled) return;
+      const value = String(res.data?.data?.expiryTime ?? "");
+      if (!/^\d{2}:\d{2}$/.test(value)) {
+        setExpiryTimeLoaded(false);
+        setExpiryTimeLoadFailed(true);
+        return;
+      }
+      setExpiryTime(value);
+      setExpiryTimeLoaded(true);
+      setExpiryTimeLoadFailed(false);
+    }).catch(() => {
+      if (!cancelled) {
+        setExpiryTimeLoaded(false);
+        setExpiryTimeLoadFailed(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveExpiryTime = async () => {
+    if (!expiryTimeLoaded) return;
+    setExpiryTimeSaving(true);
+    try {
+      await apiClient.put("/radius/app-settings", { expiryTime });
+      notify.success("Expiry time saved", "New and renewed subscriptions use this time of day.");
+    } catch (error: any) {
+      notify.error("Could not save expiry time", error?.response?.data?.message || "Try again.");
+    } finally {
+      setExpiryTimeSaving(false);
+    }
+  };
 
   return (
     <div className="w-full space-y-5">
@@ -69,6 +113,29 @@ const Setting: React.FC = () => {
                 onCheckedChange={(v) => setShowHealthStrip(Boolean(v))}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border/80 bg-card p-5 text-card-foreground shadow-none">
+          <h2 className="mb-4 text-base font-semibold">Subscription expiry</h2>
+          <div className="max-w-xs space-y-2">
+            <Label htmlFor="expiry-time">Time of day</Label>
+            <Input
+              id="expiry-time"
+              type="time"
+              value={expiryTime}
+              disabled={!expiryTimeLoaded || expiryTimeSaving}
+              onChange={(e) => setExpiryTime(e.target.value.slice(0, 5))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Creating, editing, or renewing a RADIUS user keeps the date and sets the clock to this time (Lebanon).
+            </p>
+            {expiryTimeLoadFailed ? (
+              <p className="text-xs text-destructive">The saved expiry time did not load. Reload this page before saving.</p>
+            ) : null}
+            <Button type="button" size="sm" onClick={saveExpiryTime} disabled={expiryTimeSaving || !expiryTimeLoaded || !/^\d{2}:\d{2}$/.test(expiryTime)}>
+              {expiryTimeSaving ? "Saving…" : "Save expiry time"}
+            </Button>
           </div>
         </div>
 

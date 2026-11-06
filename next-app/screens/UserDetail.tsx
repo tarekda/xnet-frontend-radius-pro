@@ -32,6 +32,7 @@ import { canAny } from "@/lib/permissions";
 import type { User } from "@/types/api";
 import type { DateRange } from "react-day-picker";
 import { monthlyCycleSummary } from "@/lib/quotaCycle";
+import { canRenewRadiusUser, canonicalAccountStatus } from "@/screens/users/lib";
 import { ArrowLeft, History, Settings, Trash2, KeyRound, Activity, Download, RefreshCw, FileText, Wallet, Loader2, Save, Undo2, UserX, User as UserIcon, Wifi, Shield, Calendar, Gauge, Check, Copy, Phone, Mail, MapPin, Clock, Eye, EyeOff, Lock, ScrollText } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -268,6 +269,7 @@ export default function UserDetailPage() {
     "billing.externalInvoices.unpay",
   ]);
   const canSeeWallet = canAny(authUser, ["billing.externalInvoices.view", "billing.externalInvoices.pay"]);
+  const canManageUsers = canAny(authUser, ["users.manage", "reseller.users.manage"]);
 
   const userQuery = useQuery({
     queryKey: ["userDetail", username],
@@ -452,14 +454,10 @@ export default function UserDetailPage() {
           ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
           : "border-border/70";
 
-  const canRenewSubscription = useMemo(() => {
-    if (!user) return false;
-    const st = String(user.accountStatus ?? "").trim();
-    if (st === "suspended" || st === "terminated") return false;
-    if (st === "expired") return true;
-    if (user.expiresAt && new Date(user.expiresAt).getTime() < Date.now()) return true;
-    return false;
-  }, [user]);
+  const canRenewSubscription = useMemo(
+    () => (user ? canRenewRadiusUser(user) : false),
+    [user]
+  );
 
   const [auditActorInput, setAuditActorInput] = useState<string>("");
   const [auditActionInput, setAuditActionInput] = useState<string>("");
@@ -532,7 +530,7 @@ export default function UserDetailPage() {
   useEffect(() => {
     if (!user) return;
     setSelectedProfileId(String(user.profileId ?? ""));
-    setSelectedStatus(String(user.accountStatus ?? ""));
+    setSelectedStatus(canonicalAccountStatus(user.accountStatus));
   }, [user?.username, user?.profileId, user?.accountStatus]);
 
   useEffect(() => {
@@ -548,7 +546,7 @@ export default function UserDetailPage() {
     if (!user) return [] as string[];
     const dirty: string[] = [];
     if (selectedProfileId && String(user.profileId ?? "") !== selectedProfileId) dirty.push("profileId");
-    if (selectedStatus && String(user.accountStatus ?? "") !== selectedStatus) dirty.push("accountStatus");
+    if (selectedStatus && canonicalAccountStatus(user.accountStatus) !== selectedStatus) dirty.push("accountStatus");
     if (expiresAtLocal !== toLocalDateTimeInput(user.expiresAt)) dirty.push("expiresAt");
     if (expiryFramedIpLocal !== (user.expiryFramedIp ?? "")) dirty.push("expiryFramedIp");
     if (quotaResetDayLocal !== String(user.quotaResetDay ?? 1)) dirty.push("quotaResetDay");
@@ -562,7 +560,7 @@ export default function UserDetailPage() {
   const discardChanges = useCallback(() => {
     if (!user) return;
     setSelectedProfileId(String(user.profileId ?? ""));
-    setSelectedStatus(String(user.accountStatus ?? ""));
+    setSelectedStatus(canonicalAccountStatus(user.accountStatus));
     setExpiresAtLocal(toLocalDateTimeInput(user.expiresAt));
     setExpiryFramedIpLocal(user.expiryFramedIp ?? "");
     setQuotaResetDayLocal(String(user.quotaResetDay ?? 1));
@@ -876,11 +874,13 @@ export default function UserDetailPage() {
                     <SelectContent>
                       <SelectItem value="active">active</SelectItem>
                       <SelectItem value="suspended">suspended</SelectItem>
-                      <SelectItem value="blocked">blocked</SelectItem>
                       <SelectItem value="terminated">terminated</SelectItem>
                       <SelectItem value="expired">expired</SelectItem>
                     </SelectContent>
                   </Select>
+                  {selectedStatus === "expired" && String(user?.accountStatus ?? "") !== "expired" ? (
+                    <p className="text-xs text-muted-foreground">Saving sets the expiry date to yesterday. The open session stays up and is moved to the payment list.</p>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -1004,7 +1004,9 @@ export default function UserDetailPage() {
                     onChange={(e) => setExpiresAtLocal(e.target.value)}
                     className={dirtyInputClass("expiresAt")}
                   />
-                  <p className="text-xs text-muted-foreground">Clear the field and save to remove expiry.</p>
+                  <p className="text-xs text-muted-foreground">
+                    The date is kept. The time is set to the expiry time in Settings. Clear the field and save to remove expiry.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="expiryFramedIp">Optional framed IP (legacy)</Label>
@@ -1023,12 +1025,12 @@ export default function UserDetailPage() {
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={!canRenewSubscription || renewSubscriptionMutation.isPending}
+                    disabled={!canManageUsers || !canRenewSubscription || renewSubscriptionMutation.isPending}
                     onClick={() => renewSubscriptionMutation.mutate()}
                     title={
                       canRenewSubscription
-                        ? "Add 1 calendar month from now or from current end date, set active, and request disconnect"
-                        : "Only for expired or past-due subscriptions"
+                        ? "Add 1 month to the current expiry when 1 to 5 days remain, or from today if it is already expired"
+                        : "Renew when the subscription is expired, or when 1 to 5 days remain"
                     }
                   >
                     Renew +1 month
@@ -1179,20 +1181,20 @@ export default function UserDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2 p-4">
-              <Button variant="outline" onClick={() => setConfirm({ kind: "reset-quota" })} disabled={!username}>
+              <Button variant="outline" onClick={() => setConfirm({ kind: "reset-quota" })} disabled={!username || !canManageUsers}>
                 <KeyRound className="h-4 w-4 mr-2" />
                 Reset daily quota
               </Button>
-              <Button variant="outline" onClick={() => setConfirm({ kind: "reset-mac" })} disabled={!username}>
+              <Button variant="outline" onClick={() => setConfirm({ kind: "reset-mac" })} disabled={!username || !canManageUsers}>
                 Reset MAC
               </Button>
-              <Button variant="outline" onClick={() => setConfirm({ kind: "apply-rate-limit" })} disabled={!username}>
+              <Button variant="outline" onClick={() => setConfirm({ kind: "apply-rate-limit" })} disabled={!username || !canManageUsers}>
                 Apply rate-limit now
               </Button>
-              <Button variant="destructive" onClick={() => setConfirm({ kind: "disconnect" })} disabled={!username}>
+              <Button variant="destructive" onClick={() => setConfirm({ kind: "disconnect" })} disabled={!username || !canManageUsers}>
                 Disconnect (CoA)
               </Button>
-              <Button variant="destructive" onClick={() => setConfirm({ kind: "delete-user" })} disabled={!username}>
+              <Button variant="destructive" onClick={() => setConfirm({ kind: "delete-user" })} disabled={!username || !canManageUsers}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete user
               </Button>
@@ -1202,7 +1204,7 @@ export default function UserDetailPage() {
       </Tabs>
 
       {/* Unsaved-changes bar: one place to review and commit edits made across the tabs. */}
-      {isDirty ? (
+      {isDirty && canManageUsers ? (
         <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/60 bg-card/95 px-4 py-3 shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-3 duration-300">
           <div className="flex items-center gap-2 text-sm">
             <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />

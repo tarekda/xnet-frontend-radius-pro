@@ -19,12 +19,11 @@ import {
     Rows4,
 } from 'lucide-react';
 import { User } from '../types/api';
-import { getExpiryInfo, isServerSortColumn } from '@/screens/users/lib';
+import { canRenewRadiusUser, canonicalAccountStatus, getExpiryInfo, isServerSortColumn } from '@/screens/users/lib';
 
-/** Any non-terminated subscriber can be renewed/extended +1 month. */
+/** Expired, or 1 to 5 days left. More than 5 days remaining cannot be renewed yet. */
 export function canRenewUserSubscription(user: User): boolean {
-    const st = String(user.accountStatus ?? "").trim().toLowerCase();
-    return st !== "terminated";
+    return canRenewRadiusUser(user);
 }
 import { UseMutationResult } from '@tanstack/react-query';
 import UserCard from './UserCard';
@@ -380,8 +379,8 @@ const UserRow: React.FC<{
                 !isColumnVisible("accountStatus") && "hidden"
             )}>
                 <StatusPill
-                    label={user.accountStatus}
-                    tone={user.accountStatus.toLowerCase() === "active" ? "success" : user.accountStatus.toLowerCase() === "suspended" ? "danger" : "warning"}
+                    label={canonicalAccountStatus(user.accountStatus) || user.accountStatus}
+                    tone={canonicalAccountStatus(user.accountStatus) === "active" ? "success" : canonicalAccountStatus(user.accountStatus) === "suspended" || canonicalAccountStatus(user.accountStatus) === "terminated" ? "danger" : "warning"}
                     dot
                     className="h-5 rounded-full px-2 text-[10px]"
                 />
@@ -423,7 +422,8 @@ const UserRow: React.FC<{
                             label: "Copy Credentials",
                             icon: KeyRound,
                             onClick: () => {
-                                const pwd = (user as any).cleartextPassword || (user as any).password || "";
+                                const rawPassword = (user as any).cleartextPassword ?? (user as any).password;
+                                const pwd = typeof rawPassword === "string" ? rawPassword : typeof rawPassword?.value === "string" ? rawPassword.value : "";
                                 const text = pwd ? `Username: ${user.username}\nPassword: ${pwd}` : `Username: ${user.username}`;
                                 navigator.clipboard.writeText(text).then(
                                     () => notify.success("Copied", pwd ? "Username & password copied to clipboard" : "Username copied to clipboard"),
